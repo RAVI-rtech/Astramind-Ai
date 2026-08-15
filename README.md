@@ -1,0 +1,1 @@
+AstraMind AI is an AI-powered personal learning companion designed for B.Tech students. It helps students learn coding step by step, develop technical skills, create personalized learning roadmaps, build resumes, practice through quizzes and coding challenges, and take short breaks with offline games. The platform is designed to make engineering
