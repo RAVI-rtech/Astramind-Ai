@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AstraMind</string>
+    <string name="title_activity_main">AstraMind</string>
+    <string name="package_name">ai.astramind.app</string>
+    <string name="custom_url_scheme">ai.astramind.app</string>
+</resources>

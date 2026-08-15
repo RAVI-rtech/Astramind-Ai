@@ -1,0 +1,6 @@
+{
+  "name": "AstraMind AI",
+  "description": "A premium, futuristic, and minimal AI assistant with deep glassmorphism themes and intelligent context-aware chat capabilities.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

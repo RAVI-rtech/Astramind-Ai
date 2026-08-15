@@ -1,0 +1,63 @@
+{
+  "name": "AstraMind",
+  "short_name": "AstraMind",
+  "description": "AI-powered learning companion for students.",
+  "scope": "/",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0B1023",
+  "background_color": "#0B1023",
+  "categories": [
+    "education",
+    "productivity",
+    "utilities"
+  ],
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "AI Learning Chat",
+      "short_name": "AI Chat",
+      "description": "Start an AI learning session",
+      "url": "/",
+      "icons": [
+        {
+          "src": "/logo.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Resume Builder",
+      "short_name": "Resume",
+      "description": "Build an ATS-optimized resume",
+      "url": "/resume-builder",
+      "icons": [
+        {
+          "src": "/logo.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Coding Playground",
+      "short_name": "Coding",
+      "description": "Practice coding and debugging",
+      "url": "/coding",
+      "icons": [
+        {
+          "src": "/logo.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}
