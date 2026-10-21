@@ -25,9 +25,17 @@ import {
   Quote,
   Database,
   Lock,
-  Flag
+  Flag,
+  FolderKanban,
+  BookOpen
 } from "lucide-react";
 import { isSupabaseConfigured } from "../lib/supabase";
+import {
+  getWorkspaces,
+  getAllSavedLessons,
+  getAllSavedFlashcards,
+  getAllSavedQuizResults
+} from "../lib/studyWorkspaceStorage";
 
 interface FounderModalProps {
   isOpen: boolean;
@@ -38,6 +46,12 @@ interface FounderModalProps {
 export default function FounderModal({ isOpen, onClose, accentColorClass }: FounderModalProps) {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [activeTab, setActiveTab] = useState<"keynote" | "dashboard">("keynote");
+
+  // Real user activity stats
+  const totalWorkspaces = getWorkspaces().length;
+  const totalFlashcards = getAllSavedFlashcards().length;
+  const totalQuizResults = getAllSavedQuizResults().length;
+  const totalLessons = getAllSavedLessons().length;
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -95,12 +109,6 @@ export default function FounderModal({ isOpen, onClose, accentColorClass }: Foun
       description: "Computer Science & Engineering with specialization in Artificial Intelligence & Machine Learning (CSE – AI & ML).",
       badge: "Upcoming B.Tech"
     }
-  ];
-
-  const feedbackList = [
-    { id: 1, user: "Elena Rostova", role: "AI Researcher", rating: 5, comment: "Streaming latency and reasoning output clarity are top tier! Replaced 3 other tools with AstraMind.", date: "Today" },
-    { id: 2, user: "Marcus Vance", role: "Lead Systems Engineer", rating: 5, comment: "The fixed glassmorphic top navigation bar and code formatting are buttery smooth.", date: "Yesterday" },
-    { id: 3, user: "Siddharth Verma", role: "Product Designer", rating: 5, comment: "Visual aesthetics and Project Titan prompt templates save me hours every single week.", date: "3 days ago" },
   ];
 
   return (
@@ -185,9 +193,9 @@ export default function FounderModal({ isOpen, onClose, accentColorClass }: Foun
             <>
               {/* HERO FOUNDER BANNER */}
               <section id="founder-hero-section" className="relative text-center pt-2 pb-2">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500/10 via-blue-500/10 to-purple-500/10 border border-amber-500/30 text-amber-300 text-xs font-mono font-medium mb-6 shadow-lg shadow-amber-500/5 animate-pulse">
-                  <Award className="w-3.5 h-3.5 text-amber-400" />
-                  <span>ARCHITECT OF ASTRAMIND AI</span>
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500/10 via-blue-500/10 to-purple-500/10 border border-amber-500/30 text-amber-300 text-xs font-mono font-medium mb-6 shadow-lg shadow-amber-500/5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>FOUNDER &amp; ARCHITECT</span>
                 </div>
 
                 <div className="relative mx-auto w-24 h-24 mb-5 group">
@@ -197,7 +205,7 @@ export default function FounderModal({ isOpen, onClose, accentColorClass }: Foun
                       RC
                     </div>
                   </div>
-                  <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center border-2 border-[#070b1a] shadow-lg" title="Founder Certified">
+                  <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center border-2 border-[#070b1a] shadow-lg" title="Project Founder">
                     <Crown className="w-3.5 h-3.5" />
                   </div>
                 </div>
@@ -231,10 +239,10 @@ export default function FounderModal({ isOpen, onClose, accentColorClass }: Foun
                 </div>
                 <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 text-slate-300 text-xs sm:text-sm leading-relaxed space-y-3 backdrop-blur-md">
                   <p>
-                    AstraMind AI was born from a fundamental realization: artificial intelligence should feel like a natural extension of human thought rather than a cold, complex tool.
+                    AstraMind AI was born from a clear vision: artificial intelligence should feel like an intuitive study companion that simplifies complex engineering concepts.
                   </p>
                   <p>
-                    Kolloju Ravi Charan is currently a 16-year-old aspiring Artificial Intelligence developer from Nalgonda, Telangana, India. As Founder, Lead Developer, and Product Architect, he created AstraMind AI with an obsession for visual harmony, zero-latency workflows, and privacy-first intelligence. By unifying cutting-edge generative models into one fluid interface, AstraMind sets a new standard for human-AI interaction.
+                    Kolloju Ravi Charan is an aspiring Artificial Intelligence developer and student from Nalgonda, Telangana, India. As Founder and Lead Developer, he created AstraMind AI to provide engineering students with accessible curriculum tools, smart study workspaces, and interactive learning resources.
                   </p>
                 </div>
               </section>
@@ -315,8 +323,8 @@ export default function FounderModal({ isOpen, onClose, accentColorClass }: Foun
                       <span>Current Version</span>
                       <Code2 className="w-4 h-4 text-blue-400" />
                     </div>
-                    <p className="text-xl font-extrabold text-white font-mono">v3.2.0 Titan</p>
-                    <div className="text-[11px] text-slate-400">Stable Build with Multi-Model AI &amp; Cloud Sync</div>
+                    <p className="text-xl font-extrabold text-white font-mono">v1.0.0 Stable</p>
+                    <div className="text-[11px] text-slate-400">Engineering Study Workspace &amp; AI Mentor</div>
                   </div>
 
                   {/* Development Stage */}
@@ -325,8 +333,8 @@ export default function FounderModal({ isOpen, onClose, accentColorClass }: Foun
                       <span>Development Stage</span>
                       <Layers className="w-4 h-4 text-purple-400" />
                     </div>
-                    <p className="text-xl font-extrabold text-white">Public Beta</p>
-                    <div className="text-[11px] text-slate-400">Active feature expansion &amp; UX refinement</div>
+                    <p className="text-xl font-extrabold text-white">Full Stack Ready</p>
+                    <div className="text-[11px] text-slate-400">Continuous updates &amp; curriculum alignment</div>
                   </div>
 
                   {/* Authentication Status */}
@@ -342,7 +350,7 @@ export default function FounderModal({ isOpen, onClose, accentColorClass }: Foun
                       <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                     </div>
                     <div className="text-[11px] text-slate-400">
-                      {isSupabaseConfigured() ? "JWT & Cloud Session Security" : "Client Browser Session"}
+                      {isSupabaseConfigured() ? "Cloud OAuth & Session Security" : "Client Browser Session"}
                     </div>
                   </div>
 
@@ -369,7 +377,7 @@ export default function FounderModal({ isOpen, onClose, accentColorClass }: Foun
                       <ShieldCheck className="w-4 h-4 text-emerald-400" />
                     </div>
                     <p className="text-xl font-extrabold text-white">SSL / TLS Protected</p>
-                    <div className="text-[11px] text-slate-400">Client-Side Key Isolation &amp; Encrypted State</div>
+                    <div className="text-[11px] text-slate-400">Server-Side Key Isolation &amp; Encrypted State</div>
                   </div>
 
                   {/* Current Development Focus */}
@@ -379,9 +387,9 @@ export default function FounderModal({ isOpen, onClose, accentColorClass }: Foun
                       <Target className="w-4 h-4 text-cyan-400" />
                     </div>
                     <p className="text-sm font-bold text-slate-100 leading-snug">
-                      Multi-Model AI Orchestration &amp; Real-Time Multimodal Workflows
+                      B.Tech Curriculum Quizzes &amp; AI Study Workspaces
                     </p>
-                    <div className="text-[11px] text-slate-400">Optimizing streaming latency &amp; workspace tools</div>
+                    <div className="text-[11px] text-slate-400">Notes intelligence, flashcards &amp; academic tests</div>
                   </div>
                 </div>
 
@@ -395,7 +403,7 @@ export default function FounderModal({ isOpen, onClose, accentColorClass }: Foun
                       <span className="text-[10px] font-mono text-blue-400 uppercase tracking-widest font-semibold">
                         Next Major Milestone
                       </span>
-                      <h4 className="text-sm font-bold text-white">v3.5 - Autonomous AI Agents &amp; Custom Workspace Extensions</h4>
+                      <h4 className="text-sm font-bold text-white">Interactive Live Quiz Rooms &amp; Multi-Student Collaboration</h4>
                     </div>
                   </div>
                   <span className="px-3 py-1 rounded-xl bg-blue-500/20 text-blue-300 border border-blue-500/30 text-xs font-mono font-medium self-start sm:self-auto shrink-0">
@@ -404,73 +412,73 @@ export default function FounderModal({ isOpen, onClose, accentColorClass }: Foun
                 </div>
               </div>
 
-              {/* Platform Analytics & Telemetry (Coming Soon) Section */}
+              {/* Workspace Activity & Telemetry Section */}
               <div className="space-y-4 pt-2">
                 <div className="flex items-center justify-between border-b border-white/10 pb-3">
                   <div className="flex items-center gap-2">
                     <BarChart3 className="w-5 h-5 text-amber-400" />
-                    <h3 className="text-base font-bold text-white tracking-wide">Platform Analytics &amp; Telemetry</h3>
+                    <h3 className="text-base font-bold text-white tracking-wide">Workspace Activity &amp; Session Metrics</h3>
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-mono font-semibold uppercase tracking-wider">
-                    Coming Soon
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-semibold uppercase tracking-wider">
+                    Live Session
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-xl space-y-2 opacity-80 hover:opacity-100 transition-opacity">
+                  <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-xl space-y-2">
                     <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
-                      <span>Active Users</span>
-                      <Users className="w-4 h-4 text-slate-500" />
+                      <span>Study Workspaces</span>
+                      <FolderKanban className="w-4 h-4 text-blue-400" />
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-bold text-slate-400">Telemetry Pending</span>
-                      <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 text-[10px] font-mono font-semibold">
-                        Coming Soon
+                      <span className="text-xl font-bold text-white font-mono">{totalWorkspaces}</span>
+                      <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 text-[10px] font-mono font-semibold">
+                        Active
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-500">Global active session tracking will be introduced in v3.5.</p>
+                    <p className="text-[11px] text-slate-400">Total study workspaces created in session.</p>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-xl space-y-2 opacity-80 hover:opacity-100 transition-opacity">
+                  <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-xl space-y-2">
                     <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
-                      <span>Stream Throughput</span>
-                      <Zap className="w-4 h-4 text-slate-500" />
+                      <span>Revision Flashcards</span>
+                      <Zap className="w-4 h-4 text-amber-400" />
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-bold text-slate-400">Telemetry Pending</span>
+                      <span className="text-xl font-bold text-white font-mono">{totalFlashcards}</span>
                       <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 text-[10px] font-mono font-semibold">
-                        Coming Soon
+                        Saved
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-500">Live tokens/sec benchmark metric pipeline under construction.</p>
+                    <p className="text-[11px] text-slate-400">Generated high-yield revision flashcards.</p>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-xl space-y-2 opacity-80 hover:opacity-100 transition-opacity">
+                  <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-xl space-y-2">
                     <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
-                      <span>Satisfaction Score</span>
-                      <TrendingUp className="w-4 h-4 text-slate-500" />
+                      <span>Quiz Assessments</span>
+                      <TrendingUp className="w-4 h-4 text-purple-400" />
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-bold text-slate-400">Telemetry Pending</span>
-                      <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 text-[10px] font-mono font-semibold">
-                        Coming Soon
+                      <span className="text-xl font-bold text-white font-mono">{totalQuizResults}</span>
+                      <span className="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 text-[10px] font-mono font-semibold">
+                        Completed
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-500">In-app feedback rating aggregation system in development.</p>
+                    <p className="text-[11px] text-slate-400">Completed quizzes and practice tests.</p>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-xl space-y-2 opacity-80 hover:opacity-100 transition-opacity">
+                  <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-xl space-y-2">
                     <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
-                      <span>AI Engine Health</span>
-                      <Activity className="w-4 h-4 text-slate-500" />
+                      <span>Guided Lessons</span>
+                      <BookOpen className="w-4 h-4 text-emerald-400" />
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-bold text-slate-400">Telemetry Pending</span>
-                      <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 text-[10px] font-mono font-semibold">
-                        Coming Soon
+                      <span className="text-xl font-bold text-white font-mono">{totalLessons}</span>
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-mono font-semibold">
+                        Studied
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-500">Centralized latency and uptime monitor coming soon.</p>
+                    <p className="text-[11px] text-slate-400">Step-by-step engineering lessons saved.</p>
                   </div>
                 </div>
               </div>

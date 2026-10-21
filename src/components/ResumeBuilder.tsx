@@ -82,14 +82,14 @@ const INITIAL_RESUME: ResumeData = {
     {
       id: "exp_1",
       jobTitle: "Senior Full Stack AI Engineer",
-      company: "AstraMind Systems",
+      company: "Vanguard Tech Labs",
       location: "San Francisco, CA",
       startDate: "2023",
       endDate: "Present",
       isCurrent: true,
       bulletPoints: [
-        "Architected multi-provider AI routing infrastructure utilizing Node.js and Gemini 3.6 Flash, serving 250,000+ daily active users with 99.98% uptime.",
-        "Spearheaded redesign of real-time workspace engine, improving client-side state latency by 45% and reducing infrastructure compute costs by $18,000/month.",
+        "Architected multi-provider AI routing infrastructure utilizing Node.js and modern LLMs with automated provider failover and streaming response handling.",
+        "Spearheaded redesign of real-time workspace engine, improving client-side state latency and optimizing cloud compute resource utilization.",
         "Mentored a team of 5 frontend developers, establishing automated CI/CD unit and integration testing suites achieving 92% code coverage.",
       ],
     },
@@ -240,6 +240,7 @@ export default function ResumeBuilder({
   const resumePrintRef = useRef<HTMLDivElement>(null);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [saveSuccessNotice, setSaveSuccessNotice] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Save changes to LocalStorage whenever savedResumes updates
   useEffect(() => {
@@ -313,16 +314,19 @@ export default function ResumeBuilder({
   // Delete resume
   const handleDeleteResume = (id: string) => {
     if (savedResumes.length <= 1) {
-      alert("You must keep at least one resume in your workspace.");
       return;
     }
-    if (confirm("Are you sure you want to delete this resume?")) {
-      const remaining = savedResumes.filter((r) => r.id !== id);
-      setSavedResumes(remaining);
-      if (activeResumeId === id) {
-        setActiveResumeId(remaining[0].id);
-      }
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (savedResumes.length <= 1) return;
+    const remaining = savedResumes.filter((r) => r.id !== activeResumeId);
+    setSavedResumes(remaining);
+    if (remaining.length > 0) {
+      setActiveResumeId(remaining[0].id);
     }
+    setShowDeleteConfirm(false);
   };
 
   // AI Service Call Handler
@@ -614,14 +618,32 @@ export default function ResumeBuilder({
                 <Copy className="w-4 h-4" />
               </button>
 
-              {savedResumes.length > 1 && (
+              {savedResumes.length > 1 && !showDeleteConfirm && (
                 <button
                   onClick={() => handleDeleteResume(activeResume.id)}
-                  className="p-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-colors"
+                  className="p-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-colors cursor-pointer"
                   title="Delete Resume"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
+              )}
+
+              {showDeleteConfirm && (
+                <div className="flex items-center gap-1 bg-rose-950/80 border border-rose-500/40 px-2 py-0.5 rounded-lg text-[10px]">
+                  <span className="text-rose-300 font-bold">Delete?</span>
+                  <button
+                    onClick={handleConfirmDelete}
+                    className="px-1.5 py-0.5 rounded bg-rose-600 hover:bg-rose-500 text-white font-bold cursor-pointer"
+                  >
+                    Yes
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 text-slate-300 cursor-pointer"
+                  >
+                    No
+                  </button>
+                </div>
               )}
             </div>
 

@@ -177,7 +177,7 @@ export default function AIImageGenerator({
       clearTimeout(stepTimer1);
       clearTimeout(stepTimer2);
       console.error("Image generation failed:", err);
-      setErrorMsg("Image generation is currently unavailable. Please try again later.");
+      setErrorMsg(err?.message || "Image generation is currently unavailable. Please try again later.");
     } finally {
       setIsGenerating(false);
     }
@@ -392,12 +392,42 @@ export default function AIImageGenerator({
 
           {/* ERROR ALERT */}
           {errorMsg && (
-            <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Info className="w-4 h-4 shrink-0 text-red-400" />
-                <span>{errorMsg}</span>
+            <div className="p-4 rounded-2xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs shadow-xl space-y-3 animate-in fade-in">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-2.5">
+                  <Info className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="font-semibold text-red-200">Image Generation Status</p>
+                    <p className="text-red-300/90 leading-relaxed font-sans">{errorMsg}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setErrorMsg(null)}
+                  className="text-red-400 hover:text-white font-bold cursor-pointer p-1 rounded-lg hover:bg-white/10 transition-colors"
+                  title="Clear error"
+                >
+                  ✕
+                </button>
               </div>
-              <button onClick={() => setErrorMsg(null)} className="text-red-400 hover:text-white font-bold cursor-pointer">✕</button>
+              <div className="flex items-center gap-2 pt-1 border-t border-red-500/20">
+                <button
+                  type="button"
+                  onClick={handleGenerate}
+                  disabled={isGenerating || !prompt.trim()}
+                  className="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-medium text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isGenerating ? "animate-spin" : ""}`} />
+                  <span>Retry Generation</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setErrorMsg(null)}
+                  className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium text-xs transition-colors cursor-pointer"
+                >
+                  Clear Message
+                </button>
+              </div>
             </div>
           )}
 
@@ -526,6 +556,16 @@ export default function AIImageGenerator({
                     </div>
                     <p className="text-slate-200 line-clamp-2 italic">"{latestGenerated.prompt}"</p>
                     <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={handleGenerate}
+                        disabled={isGenerating}
+                        className="flex-1 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-300 text-[11px] font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                        title="Regenerate this image"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isGenerating ? "animate-spin" : ""}`} />
+                        <span>Regenerate</span>
+                      </button>
                       <button
                         onClick={() => handleCopyPrompt(latestGenerated.prompt, latestGenerated.id)}
                         className="flex-1 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-[11px] font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"

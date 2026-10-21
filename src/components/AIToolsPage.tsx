@@ -1,5 +1,5 @@
 import React from "react";
-import { Wrench, Code2, Sparkles, Image, GraduationCap, Brain, Zap, ArrowRight, FileText, Cpu, MessageSquare } from "lucide-react";
+import { Wrench, Code2, Sparkles, Image, GraduationCap, Brain, Zap, ArrowRight, FileText, Cpu, MessageSquare, Linkedin, BookOpen } from "lucide-react";
 
 interface AIToolsPageProps {
   onNavigateTab?: (tab: any) => void;
@@ -9,6 +9,28 @@ interface AIToolsPageProps {
 export default function AIToolsPage({ onNavigateTab, onStartChat }: AIToolsPageProps) {
   const tools = [
     {
+      id: "workspace",
+      title: "Engineering Study Workspace",
+      description: "Autonomous syllabus-aligned workspace with smart document extraction, guided lessons, flashcards, and mock exam simulation.",
+      icon: BookOpen,
+      category: "Academic Suite",
+      badge: "CORE",
+      gradient: "from-blue-600/30 to-indigo-600/20 border-blue-500/30",
+      action: () => onNavigateTab?.("workspace"),
+      prompt: "Open engineering study workspace for semester syllabus review.",
+    },
+    {
+      id: "profile-enhancer",
+      title: "LinkedIn Profile Enhancer",
+      description: "AI-powered LinkedIn presence optimizer designed for B.Tech students & freshers to elevate headline, about, projects, and skills.",
+      icon: Linkedin,
+      category: "Career & HR",
+      badge: "NEW",
+      gradient: "from-blue-600/30 to-indigo-600/20 border-blue-500/30",
+      action: () => onNavigateTab?.("profile-enhancer"),
+      prompt: "Help me optimize my LinkedIn headline and about section for a Software Developer role.",
+    },
+    {
       id: "code-tutor",
       title: "AI Coding Tutor & Compiler",
       description: "Interactive 1st Year CS coding mentor with live debugging, refactoring, and algorithm explanations.",
@@ -16,7 +38,7 @@ export default function AIToolsPage({ onNavigateTab, onStartChat }: AIToolsPageP
       category: "Developer Tools",
       badge: "FEATURED",
       gradient: "from-indigo-600/30 to-purple-600/20 border-indigo-500/30",
-      action: () => onStartChat?.("Help me write and optimize code in TypeScript:"),
+      action: () => onNavigateTab?.("coding"),
       prompt: "Help me optimize this TypeScript recursive function for O(n) space complexity:",
     },
     {
@@ -77,82 +99,86 @@ export default function AIToolsPage({ onNavigateTab, onStartChat }: AIToolsPageP
   ];
 
   return (
-    <div id="ai-tools-page-container" className="flex-1 overflow-y-auto z-10 px-4 md:px-8 py-8 max-w-7xl mx-auto w-full space-y-8 scrollbar-thin">
-      
-      {/* Hero Section */}
-      <div className="glass-panel p-8 md:p-10 relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border border-purple-500/20 shadow-2xl shadow-purple-950/30">
-        <div className="absolute -bottom-20 -left-20 w-80 h-80 rounded-full bg-gradient-to-tr from-blue-600/30 via-purple-600/20 to-transparent blur-3xl pointer-events-none" />
-        <div className="space-y-3 max-w-2xl relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300 text-xs font-semibold">
-            <Wrench className="w-3.5 h-3.5" />
-            <span>AstraMind Tool Suite</span>
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
-            Specialized AI Utilities &amp; Workstations
-          </h1>
-          <p className="text-sm text-slate-300 leading-relaxed">
-            Unleash powerful specialized AI tools built on Gemini models for coding, career development, learning, and system engineering.
-          </p>
-        </div>
+    <div id="ai-tools-page-container" className="relative min-h-full w-full bg-[#0d0d0e] text-[#fcfcfc] py-8 px-4 sm:px-6 lg:px-8 overflow-hidden font-sans">
+      {/* Variation 3 Ambient Studio Orb Background */}
+      <div className="studio-orb pointer-events-none" />
 
-        <div className="flex items-center gap-3 relative z-10">
-          <button
-            onClick={() => onNavigateTab?.("chat")}
-            className="glass-button-primary px-5 py-3 flex items-center gap-2 cursor-pointer text-sm shadow-xl shadow-purple-600/30"
-          >
-            <MessageSquare className="w-4 h-4" />
-            <span>Open Astra Chat</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Grid of Floating Translucent Tool Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {tools.map((tool) => {
-          const Icon = tool.icon;
-          return (
-            <div
-              key={tool.id}
-              onClick={tool.action}
-              className={`glass-card p-6 flex flex-col justify-between gap-5 cursor-pointer border hover:border-purple-500/50 transition-all duration-300 group hover:-translate-y-1 shadow-xl bg-gradient-to-br ${tool.gradient}`}
-            >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
-                    <Icon className="w-6 h-6 text-purple-300" />
-                  </div>
-                  <span className="px-2.5 py-1 rounded-full bg-white/10 border border-white/15 text-[10px] font-mono font-bold text-white tracking-wider">
-                    {tool.badge}
-                  </span>
-                </div>
-
-                <div>
-                  <span className="text-[11px] font-mono font-medium text-slate-400 uppercase tracking-wider">
-                    {tool.category}
-                  </span>
-                  <h3 className="text-lg font-bold text-white group-hover:text-purple-300 transition-colors mt-0.5">
-                    {tool.title}
-                  </h3>
-                </div>
-
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  {tool.description}
-                </p>
-              </div>
-
-              <div className="pt-4 border-t border-white/10 flex items-center justify-between">
-                <span className="text-xs font-semibold text-purple-300 group-hover:text-white flex items-center gap-1">
-                  Launch Tool
-                </span>
-                <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center text-white group-hover:bg-purple-600 group-hover:text-white transition-all">
-                  <ArrowRight className="w-4 h-4" />
-                </div>
-              </div>
+      <div className="relative z-10 max-w-6xl mx-auto space-y-8">
+        
+        {/* Studio Page Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono-studio tracking-wider bg-[#a78bfa]/10 border border-[#a78bfa]/25 text-[#a78bfa] mb-3">
+              <Wrench className="w-3.5 h-3.5" />
+              <span>AstraMind Tool Suite</span>
             </div>
-          );
-        })}
-      </div>
+            <h1 className="font-serif-studio text-4xl sm:text-5xl font-medium text-white tracking-tight leading-tight">
+              AI Tools & Workstations
+            </h1>
+            <p className="text-sm text-white/50 mt-1 font-normal tracking-wide">
+              Specialized workstations engineered for coding, career prep, syllabus extraction, and study.
+            </p>
+          </div>
 
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => onNavigateTab?.("chat")}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-white text-[#0d0d0e] hover:bg-slate-200 text-xs sm:text-sm font-semibold transition-all shadow-md hover:scale-[1.02] cursor-pointer"
+            >
+              <MessageSquare className="w-4 h-4 text-[#a78bfa]" />
+              <span>Open Astra Chat</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Grid of Studio Tool Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {tools.map((tool) => {
+            const Icon = tool.icon;
+            return (
+              <div
+                key={tool.id}
+                onClick={tool.action}
+                className="p-6 sm:p-7 rounded-[28px] bg-[#151517] border border-white/[0.06] flex flex-col justify-between gap-5 cursor-pointer hover:border-[#a78bfa]/40 transition-all duration-300 group hover:-translate-y-1 shadow-xl"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform">
+                      <Icon className="w-5 h-5 text-[#a78bfa]" />
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#a78bfa]/10 border border-[#a78bfa]/20 text-[10px] font-mono-studio font-medium text-[#a78bfa] tracking-wider">
+                      {tool.badge}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-mono-studio uppercase tracking-wider text-white/40 font-medium">
+                      {tool.category}
+                    </span>
+                    <h3 className="font-medium text-lg text-white group-hover:text-[#a78bfa] transition-colors mt-0.5">
+                      {tool.title}
+                    </h3>
+                  </div>
+
+                  <p className="text-xs text-white/50 leading-relaxed font-normal">
+                    {tool.description}
+                  </p>
+                </div>
+
+                <div className="pt-4 border-t border-white/[0.06] flex items-center justify-between">
+                  <span className="text-xs font-medium text-white/70 group-hover:text-[#a78bfa] flex items-center gap-1 transition-colors">
+                    Launch Workstation
+                  </span>
+                  <div className="w-7 h-7 rounded-full bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-white/60 group-hover:bg-[#a78bfa] group-hover:text-[#0d0d0e] transition-all">
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+      </div>
     </div>
   );
 }

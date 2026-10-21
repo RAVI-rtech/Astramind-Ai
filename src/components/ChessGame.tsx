@@ -26,36 +26,144 @@ interface SavedGameState {
 
 const STORAGE_KEY = "astramind_offline_chess_v1";
 
-const PIECE_SYMBOLS: Record<string, string> = {
-  pw: "♟", rw: "♜", nw: "♞", bw: "♝", qw: "♛", kw: "♚",
-  pb: "♟", rb: "♜", nb: "♞", bb: "♝", qb: "♛", kb: "♚",
-};
-
 const PIECE_VALUES: Record<PieceSymbol, number> = {
-  p: 10, n: 30, b: 30, r: 50, q: 90, k: 900,
+  p: 10,
+  n: 30,
+  b: 30,
+  r: 50,
+  q: 90,
+  k: 900,
 };
 
 const PAWN_TABLE = [
-  [0,  0,  0,  0,  0,  0,  0,  0],
+  [0, 0, 0, 0, 0, 0, 0, 0],
   [50, 50, 50, 50, 50, 50, 50, 50],
   [10, 10, 20, 30, 30, 20, 10, 10],
-  [5,  5, 10, 25, 25, 10,  5,  5],
-  [0,  0,  0, 20, 20,  0,  0,  0],
-  [5, -5,-10,  0,  0,-10, -5,  5],
-  [5, 10, 10,-20,-20, 10, 10,  5],
-  [0,  0,  0,  0,  0,  0,  0,  0]
+  [5, 5, 10, 25, 25, 10, 5, 5],
+  [0, 0, 0, 20, 20, 0, 0, 0],
+  [5, -5, -10, 0, 0, -10, -5, 5],
+  [5, 10, 10, -20, -20, 10, 10, 5],
+  [0, 0, 0, 0, 0, 0, 0, 0]
 ];
 
 const KNIGHT_TABLE = [
-  [-50,-40,-30,-30,-30,-30,-40,-50],
-  [-40,-20,  0,  0,  0,  0,-20,-40],
-  [-30,  0, 10, 15, 15, 10,  0,-30],
-  [-30,  5, 15, 20, 20, 15,  5,-30],
-  [-30,  0, 15, 20, 20, 15,  0,-30],
-  [-30,  5, 10, 15, 15, 10,  5,-30],
-  [-40,-20,  0,  5,  5,  0,-20,-40],
-  [-50,-40,-30,-30,-30,-30,-40,-50]
+  [-50, -40, -30, -30, -30, -30, -40, -50],
+  [-40, -20, 0, 0, 0, 0, -20, -40],
+  [-30, 0, 10, 15, 15, 10, 0, -30],
+  [-30, 5, 15, 20, 20, 15, 5, -30],
+  [-30, 0, 15, 20, 20, 15, 0, -30],
+  [-30, 5, 10, 15, 15, 10, 5, -30],
+  [-40, -20, 0, 5, 5, 0, -20, -40],
+  [-50, -40, -30, -30, -30, -30, -40, -50]
 ];
+
+/* High-Definition Vector Chess Pieces (Universal Staunton Standard) */
+function ChessPieceSVG({ type, color }: { type: PieceSymbol; color: "w" | "b" }) {
+  const isWhite = color === "w";
+  const fill = isWhite ? "#f8fafc" : "#1e293b";
+  const stroke = isWhite ? "#334155" : "#f1f5f9";
+  const accent = isWhite ? "#cbd5e1" : "#475569";
+
+  switch (type) {
+    case "p":
+      return (
+        <svg viewBox="0 0 45 45" className="w-[78%] h-[78%] drop-shadow-md select-none pointer-events-none">
+          <path
+            d="m 22.5,9 a 4,4 0 1 1 -0.1,0 z m -2.5,9 a 3,3 0 0 0 5,0 c 1,3 3,6 3,9 0,2 -2,3 -5.5,3 -3.5,0 -5.5,-1 -5.5,-3 0,-3 2,-6 3,-9 z"
+            fill={fill}
+            stroke={stroke}
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+          <path
+            d="m 12,36 c 0,-2 2,-4 5,-4.5 1.5,1 3.5,1.5 5.5,1.5 2,0 4,-0.5 5.5,-1.5 3,0.5 5,2.5 5,4.5 z"
+            fill={fill}
+            stroke={stroke}
+            strokeWidth="1.5"
+          />
+          <path
+            d="m 10,40 c 0,-1.5 1.5,-2.5 4,-2.5 2.5,0.5 5.5,0.5 8.5,0.5 3,0 6,0 8.5,-0.5 2.5,0 4,1 4,2.5 z"
+            fill={fill}
+            stroke={stroke}
+            strokeWidth="1.5"
+          />
+          {!isWhite && (
+            <path d="M 22.5,10 A 2.5,2.5 0 0 1 25,12.5" stroke="#94a3b8" strokeWidth="1" fill="none" />
+          )}
+        </svg>
+      );
+    case "r":
+      return (
+        <svg viewBox="0 0 45 45" className="w-[78%] h-[78%] drop-shadow-md select-none pointer-events-none">
+          <g fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M 9,39 L 36,39 L 36,36 L 9,36 z" />
+            <path d="M 12,36 L 12,32 L 33,32 L 33,36 z" />
+            <path d="M 11,14 L 11,9 L 15,9 L 15,11 L 20,11 L 20,9 L 25,9 L 25,11 L 30,11 L 30,9 L 34,9 L 34,14 z" />
+            <path d="M 34,14 L 31,17 L 14,17 L 11,14 z" />
+            <path d="M 14,17 L 14,29.5 L 31,29.5 L 31,17 z" />
+            <path d="M 14,29.5 L 12,32 L 33,32 L 31,29.5 z" />
+            <path d="M 14,40 L 31,40 L 31,42 L 14,42 z" />
+          </g>
+          {isWhite && <path d="M 14,20 L 31,20 M 14,25 L 31,25" stroke={accent} strokeWidth="1" fill="none" />}
+        </svg>
+      );
+    case "n":
+      return (
+        <svg viewBox="0 0 45 45" className="w-[80%] h-[80%] drop-shadow-md select-none pointer-events-none">
+          <g fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M 22,10 C 32.5,11 38.5,18 38,39 L 15,39 C 15,30 25,32.5 23,18" />
+            <path d="M 24,18 C 24.38,20.91 18.45,25.37 16,27 C 13,29 13.18,31.34 11,31 C 9.958,30.06 12.41,27.96 11,28 C 10,28 11.19,29.23 10,30 C 9,30 5.997,31 6,26 C 6,24 12,14 12,14 C 12,14 13.89,12.1 14,10.5 C 13.27,7.4 17.5,7 17.5,7 C 17.5,7 19.5,8 20,8.5 C 20.5,9 21,9 22,10 z" />
+            <circle cx="15" cy="14" r="1.5" fill={isWhite ? "#334155" : "#f8fafc"} stroke="none" />
+            <path d="M 9.5 25.5 A 0.5 0.5 0 1 1 8.5 25.5 A 0.5 0.5 0 1 1 9.5 25.5 z" fill={isWhite ? "#334155" : "#f8fafc"} />
+          </g>
+        </svg>
+      );
+    case "b":
+      return (
+        <svg viewBox="0 0 45 45" className="w-[80%] h-[80%] drop-shadow-md select-none pointer-events-none">
+          <g fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M 9,36 C 12.39,35.03 19.11,36.43 22.5,34 C 25.89,36.43 32.61,35.03 36,36 C 36,36 37.65,36.54 39,38 C 38.32,38.97 37.35,38.99 36,38.5 C 32.61,37.53 25.89,38.96 22.5,37.5 C 19.11,38.96 12.39,37.53 9,38.5 C 7.646,38.99 6.677,38.97 6,38 C 7.354,36.54 9,36 9,36 z" />
+            <path d="M 15,32 C 17.5,34.5 27.5,34.5 30,32 C 30.5,30.5 30,30 30,30 C 30,27.5 27.5,26 22.5,26 C 17.5,26 15,27.5 15,30 C 15,30 14.5,30.5 15,32 z" />
+            <path d="M 22.5,10 C 27,10 31,14 31,21 C 31,26 27,29 22.5,29 C 18,29 14,26 14,21 C 14,14 18,10 22.5,10 z" />
+            <circle cx="22.5" cy="8" r="2" />
+            <path d="M 17.5,18 L 27.5,18 M 22.5,13 L 22.5,23" stroke={stroke} strokeWidth="1.2" />
+            <path d="M 20,20 L 25,25" stroke={accent} strokeWidth="1.2" />
+          </g>
+        </svg>
+      );
+    case "q":
+      return (
+        <svg viewBox="0 0 45 45" className="w-[84%] h-[84%] drop-shadow-md select-none pointer-events-none">
+          <g fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M 9 26 C 17.5 24.5 30 24.5 36 26 L 38 14 L 31 25 L 22.5 12 L 14 25 L 7 14 Z" />
+            <path d="M 9,26 C 9,28 10.5,28 11.5,30 C 12.5,31.5 12.5,31 12,33.5 C 10.5,34.5 10.5,36 10,38 C 11,38.5 12,38.5 13,38.5 C 14,38.5 15.5,38 16.5,37.5 C 18.5,36.5 21,36.5 22.5,36.5 C 24,36.5 26.5,36.5 28.5,37.5 C 29.5,38 31,38.5 32,38.5 C 33,38.5 34,38.5 35,38 C 34.5,36 34.5,34.5 33,33.5 C 32.5,31 32.5,31.5 33.5,30 C 34.5,28 36,28 36,26 z" />
+            <path d="M 11,38.5 L 34,38.5 L 34,40.5 L 11,40.5 z" />
+            <circle cx="6" cy="12" r="2" />
+            <circle cx="14" cy="9" r="2" />
+            <circle cx="22.5" cy="8" r="2" />
+            <circle cx="31" cy="9" r="2" />
+            <circle cx="39" cy="12" r="2" />
+          </g>
+        </svg>
+      );
+    case "k":
+      return (
+        <svg viewBox="0 0 45 45" className="w-[84%] h-[84%] drop-shadow-md select-none pointer-events-none">
+          <g fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M 22.5,11.63 L 22.5,6" />
+            <path d="M 20,8 L 25,8" />
+            <path d="M 22.5,25 C 22.5,25 27,17.5 25.5,14.5 C 24,11.5 21,11.5 19.5,14.5 C 18,17.5 22.5,25 22.5,25" />
+            <path d="M 11.5,37 C 17,40.5 28,40.5 33.5,37 C 36.5,35 34.5,32 34.5,32 C 34.5,32 38.5,28 37,23 C 35.5,18 29.5,18 29.5,18 C 29.5,18 27.5,16 22.5,16 C 17.5,16 15.5,18 15.5,18 C 15.5,18 9.5,18 8,23 C 6.5,28 10.5,32 10.5,32 C 10.5,32 8.5,35 11.5,37 z" />
+            <path d="M 11.5,30 C 17,27 28,27 33.5,30" />
+            <path d="M 11.5,33.5 C 17,30.5 28,30.5 33.5,33.5" />
+            <path d="M 11.5,37 C 17,34 28,34 33.5,37" />
+          </g>
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
 
 export default function ChessGame() {
   const [chess] = useState(() => new Chess());
@@ -68,9 +176,10 @@ export default function ChessGame() {
   const [possibleMoves, setPossibleMoves] = useState<Square[]>([]);
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null);
   const [moveHistory, setMoveHistory] = useState<string[]>([]);
-  const [gameStatus, setGameStatus] = useState<string>("Game in progress");
+  const [gameStatus, setGameStatus] = useState<string>("White's turn");
   const [isThinking, setIsThinking] = useState(false);
   const [capturedPieces, setCapturedPieces] = useState<{ w: string[]; b: string[] }>({ w: [], b: [] });
+  const [pendingPromotion, setPendingPromotion] = useState<{ from: Square; to: Square } | null>(null);
 
   const moveSoundRef = useRef<AudioContext | null>(null);
 
@@ -96,7 +205,14 @@ export default function ChessGame() {
     }
   }, []);
 
-  const saveGame = (currentChess: Chess, mode: GameMode, diff: AIDifficulty, pColor: PlayerColor, orient: PlayerColor, history: string[]) => {
+  const saveGame = (
+    currentChess: Chess,
+    mode: GameMode,
+    diff: AIDifficulty,
+    pColor: PlayerColor,
+    orient: PlayerColor,
+    history: string[]
+  ) => {
     try {
       const state: SavedGameState = {
         fen: currentChess.fen(),
@@ -119,9 +235,9 @@ export default function ChessGame() {
       pb: 0, rb: 0, nb: 0, bb: 0, qb: 0,
     };
 
-    board.forEach(row => {
-      row.forEach(square => {
-        if (square && square.type !== 'k') {
+    board.forEach((row) => {
+      row.forEach((square) => {
+        if (square && square.type !== "k") {
           const key = `${square.type}${square.color}`;
           currentCounts[key] = (currentCounts[key] || 0) + 1;
         }
@@ -136,7 +252,7 @@ export default function ChessGame() {
     const capturedW: string[] = [];
     const capturedB: string[] = [];
 
-    (['p', 'r', 'n', 'b', 'q'] as PieceSymbol[]).forEach(type => {
+    (["p", "r", "n", "b", "q"] as PieceSymbol[]).forEach((type) => {
       const lostWhite = initialCounts[`${type}w`] - (currentCounts[`${type}w`] || 0);
       for (let i = 0; i < lostWhite; i++) capturedB.push(type.toUpperCase());
 
@@ -163,25 +279,42 @@ export default function ChessGame() {
     }
   };
 
-  const playMoveSound = () => {
+  const playMoveSound = (isCapture = false) => {
     try {
       if (!moveSoundRef.current) {
-        moveSoundRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        moveSoundRef.current = new AudioCtx();
       }
       const ctx = moveSoundRef.current;
-      if (ctx.state === 'suspended') ctx.resume();
+      if (ctx.state === "suspended") ctx.resume();
+
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(400, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(150, ctx.currentTime + 0.08);
-      gain.gain.setValueAtTime(0.15, ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.08);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.08);
-    } catch (e) {}
+
+      if (isCapture) {
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(520, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.1);
+      } else {
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(380, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(140, ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.16, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.08);
+      }
+    } catch {
+      // Audio context silently ignored on browser autoplay restrictions
+    }
   };
 
   const evaluateBoard = (c: Chess) => {
@@ -193,12 +326,12 @@ export default function ChessGame() {
         const square = board[r][col];
         if (square) {
           let val = PIECE_VALUES[square.type];
-          if (square.type === 'p') {
-            val += square.color === 'w' ? PAWN_TABLE[r][col] : PAWN_TABLE[7 - r][col];
-          } else if (square.type === 'n') {
+          if (square.type === "p") {
+            val += square.color === "w" ? PAWN_TABLE[r][col] : PAWN_TABLE[7 - r][col];
+          } else if (square.type === "n") {
             val += KNIGHT_TABLE[r][col];
           }
-          totalEvaluation += square.color === 'w' ? val : -val;
+          totalEvaluation += square.color === "w" ? val : -val;
         }
       }
     }
@@ -232,7 +365,7 @@ export default function ChessGame() {
         for (const move of moves) {
           chess.move(move);
           let value = evaluateBoard(chess);
-          
+
           if (difficulty === "hard") {
             const replyMoves = chess.moves({ verbose: true });
             let replyBest = isMax ? 99999 : -99999;
@@ -265,11 +398,12 @@ export default function ChessGame() {
       let executedMove = null;
       try {
         executedMove = chess.move(bestMove);
-      } catch (err) {
+      } catch {
         executedMove = null;
       }
+
       if (executedMove) {
-        playMoveSound();
+        playMoveSound(!!executedMove.captured);
         setFen(chess.fen());
         setLastMove({ from: executedMove.from, to: executedMove.to });
         const newHistory = [...moveHistory, executedMove.san];
@@ -291,9 +425,37 @@ export default function ChessGame() {
     }
   }, [fen, gameMode, playerColor, isThinking]);
 
+  const executeMove = (from: Square, to: Square, promotionPiece: string = "q") => {
+    let move = null;
+    try {
+      move = chess.move({
+        from,
+        to,
+        promotion: promotionPiece,
+      });
+    } catch {
+      move = null;
+    }
+
+    if (move) {
+      playMoveSound(!!move.captured);
+      setFen(chess.fen());
+      setLastMove({ from: move.from, to: move.to });
+      const newHistory = [...moveHistory, move.san];
+      setMoveHistory(newHistory);
+      setSelectedSquare(null);
+      setPossibleMoves([]);
+      setPendingPromotion(null);
+      updateCapturedPieces(chess);
+      updateGameStatus(chess);
+      saveGame(chess, gameMode, difficulty, playerColor, orientation, newHistory);
+    }
+  };
+
   const handleSquareClick = (square: Square) => {
     if (chess.isGameOver()) return;
     if (gameMode === "ai" && chess.turn() !== playerColor) return;
+    if (pendingPromotion) return;
 
     if (selectedSquare === null) {
       const piece = chess.get(square);
@@ -309,31 +471,21 @@ export default function ChessGame() {
         return;
       }
 
-      let move = null;
-      try {
-        move = chess.move({
-          from: selectedSquare,
-          to: square,
-          promotion: "q",
-        });
-      } catch (err) {
-        move = null;
-      }
+      const piece = chess.get(selectedSquare);
+      const isPawnPromotion =
+        piece &&
+        piece.type === "p" &&
+        ((piece.color === "w" && square[1] === "8") || (piece.color === "b" && square[1] === "1"));
 
-      if (move) {
-        playMoveSound();
-        setFen(chess.fen());
-        setLastMove({ from: move.from, to: move.to });
-        const newHistory = [...moveHistory, move.san];
-        setMoveHistory(newHistory);
-        setSelectedSquare(null);
-        setPossibleMoves([]);
-        updateCapturedPieces(chess);
-        updateGameStatus(chess);
-        saveGame(chess, gameMode, difficulty, playerColor, orientation, newHistory);
+      if (possibleMoves.includes(square)) {
+        if (isPawnPromotion) {
+          setPendingPromotion({ from: selectedSquare, to: square });
+          return;
+        }
+        executeMove(selectedSquare, square);
       } else {
-        const piece = chess.get(square);
-        if (piece && piece.color === chess.turn()) {
+        const newPiece = chess.get(square);
+        if (newPiece && newPiece.color === chess.turn()) {
           setSelectedSquare(square);
           const moves = chess.moves({ square, verbose: true }).map((m) => m.to);
           setPossibleMoves(moves);
@@ -353,6 +505,7 @@ export default function ChessGame() {
     setLastMove(null);
     setMoveHistory([]);
     setCapturedPieces({ w: [], b: [] });
+    setPendingPromotion(null);
     updateGameStatus(chess);
     saveGame(chess, gameMode, difficulty, playerColor, orientation, []);
   };
@@ -375,6 +528,7 @@ export default function ChessGame() {
     setSelectedSquare(null);
     setPossibleMoves([]);
     setLastMove(null);
+    setPendingPromotion(null);
     updateCapturedPieces(chess);
     updateGameStatus(chess);
     saveGame(chess, gameMode, difficulty, playerColor, orientation, moveHistory);
@@ -399,6 +553,26 @@ export default function ChessGame() {
     handleRestart();
   };
 
+  // Find King square if in check to highlight with warning indicator
+  const getKingInCheckSquare = (): Square | null => {
+    if (!chess.inCheck()) return null;
+    const currentTurn = chess.turn();
+    const board = chess.board();
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const piece = board[r][c];
+        if (piece && piece.type === "k" && piece.color === currentTurn) {
+          const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
+          const ranks = ["8", "7", "6", "5", "4", "3", "2", "1"];
+          return `${files[c]}${ranks[r]}` as Square;
+        }
+      }
+    }
+    return null;
+  };
+
+  const kingInCheckSquare = getKingInCheckSquare();
+
   const renderBoard = () => {
     const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
     const ranks = ["8", "7", "6", "5", "4", "3", "2", "1"];
@@ -407,62 +581,106 @@ export default function ChessGame() {
     const displayFiles = orientation === "w" ? files : [...files].reverse();
 
     return (
-      <div className="w-full max-w-[440px] aspect-square rounded-2xl overflow-hidden border border-white/20 shadow-2xl bg-slate-900 grid grid-cols-8 select-none">
-        {displayRanks.map((rank, rIdx) =>
-          displayFiles.map((file, fIdx) => {
-            const squareKey = `${file}${rank}` as Square;
-            const piece = chess.get(squareKey);
-            const isDarkSquare = (rIdx + fIdx) % 2 === 1;
-            const isSelected = selectedSquare === squareKey;
-            const isPossibleMove = possibleMoves.includes(squareKey);
-            const isLastMoveSquare = lastMove?.from === squareKey || lastMove?.to === squareKey;
+      <div className="relative w-full max-w-[480px] aspect-square rounded-2xl overflow-hidden border-2 border-slate-700/80 shadow-[0_20px_50px_rgba(0,0,0,0.6)] bg-[#1e293b] select-none">
+        {/* The 8x8 Chess Grid */}
+        <div className="w-full h-full grid grid-cols-8 grid-rows-8">
+          {displayRanks.map((rank, rIdx) =>
+            displayFiles.map((file, fIdx) => {
+              const squareKey = `${file}${rank}` as Square;
+              const piece = chess.get(squareKey);
+              const isDarkSquare = (rIdx + fIdx) % 2 === 1;
+              const isSelected = selectedSquare === squareKey;
+              const isPossibleMove = possibleMoves.includes(squareKey);
+              const isLastMoveSquare = lastMove?.from === squareKey || lastMove?.to === squareKey;
+              const isCheck = kingInCheckSquare === squareKey;
 
-            let squareBg = isDarkSquare ? "bg-[#2d3748]" : "bg-[#e2e8f0]";
-            if (isSelected) squareBg = "bg-amber-400/90";
-            else if (isLastMoveSquare) squareBg = isDarkSquare ? "bg-indigo-700/80" : "bg-indigo-300/80";
+              // Modern Professional Board Palette
+              let squareBg = isDarkSquare ? "bg-[#475569]" : "bg-[#cbd5e1]";
 
-            return (
-              <button
-                key={squareKey}
-                onClick={() => handleSquareClick(squareKey)}
-                className={`relative flex items-center justify-center transition-colors ${squareBg} cursor-pointer group`}
-                style={{ touchAction: "manipulation" }}
-              >
-                {fIdx === 0 && (
-                  <span className={`absolute top-0.5 left-1 text-[9px] font-mono font-bold ${isDarkSquare ? "text-slate-400" : "text-slate-600"}`}>
-                    {rank}
-                  </span>
-                )}
-                {rIdx === 7 && (
-                  <span className={`absolute bottom-0.5 right-1 text-[9px] font-mono font-bold ${isDarkSquare ? "text-slate-400" : "text-slate-600"}`}>
-                    {file}
-                  </span>
-                )}
+              if (isCheck) {
+                squareBg = "bg-rose-500/85";
+              } else if (isSelected) {
+                squareBg = "bg-amber-400/90";
+              } else if (isLastMoveSquare) {
+                squareBg = isDarkSquare ? "bg-[#4338ca]/80" : "bg-[#818cf8]/80";
+              }
 
-                {isPossibleMove && (
-                  <div
-                    className={`absolute z-10 ${
-                      piece
-                        ? "w-full h-full border-4 border-emerald-400/80 bg-emerald-500/20 rounded-lg animate-pulse"
-                        : "w-3.5 h-3.5 rounded-full bg-emerald-500/80 shadow-md shadow-emerald-500/50"
-                    }`}
-                  />
-                )}
+              return (
+                <button
+                  key={squareKey}
+                  onClick={() => handleSquareClick(squareKey)}
+                  className={`relative aspect-square w-full h-full flex items-center justify-center transition-colors duration-150 ${squareBg} cursor-pointer group p-0 m-0 outline-none`}
+                  style={{ touchAction: "manipulation" }}
+                  aria-label={`${squareKey} ${piece ? `${piece.color === "w" ? "white" : "black"} ${piece.type}` : "empty"}`}
+                >
+                  {/* Left-edge Rank Coordinates */}
+                  {fIdx === 0 && (
+                    <span
+                      className={`absolute top-0.5 left-1 text-[9px] sm:text-[10px] font-mono font-bold pointer-events-none ${
+                        isDarkSquare ? "text-slate-300" : "text-slate-600"
+                      }`}
+                    >
+                      {rank}
+                    </span>
+                  )}
 
-                {piece && (
-                  <span
-                    className={`z-20 text-2xl sm:text-3xl transition-transform group-active:scale-95 ${
-                      piece.color === "w"
-                        ? "text-slate-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
-                        : "text-slate-900 drop-shadow-[0_1px_2px_rgba(255,255,255,0.4)]"
-                    }`}
+                  {/* Bottom-edge File Coordinates */}
+                  {rIdx === 7 && (
+                    <span
+                      className={`absolute bottom-0.5 right-1 text-[9px] sm:text-[10px] font-mono font-bold pointer-events-none ${
+                        isDarkSquare ? "text-slate-300" : "text-slate-600"
+                      }`}
+                    >
+                      {file}
+                    </span>
+                  )}
+
+                  {/* Legal Move Indicators */}
+                  {isPossibleMove && (
+                    <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                      {piece ? (
+                        /* Capture Target Ring */
+                        <div className="w-full h-full border-4 border-rose-400/80 bg-rose-500/20 rounded-md animate-pulse" />
+                      ) : (
+                        /* Move Target Dot */
+                        <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-emerald-500/90 shadow-md shadow-emerald-500/50" />
+                      )}
+                    </div>
+                  )}
+
+                  {/* High-Definition Vector Chess Piece */}
+                  {piece && (
+                    <div className="z-20 w-full h-full flex items-center justify-center transition-transform duration-100 group-active:scale-95">
+                      <ChessPieceSVG type={piece.type} color={piece.color} />
+                    </div>
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
+
+        {/* Pawn Promotion Modal Overlay */}
+        {pendingPromotion && (
+          <div className="absolute inset-0 z-40 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center p-4">
+            <div className="bg-slate-900 border border-white/20 rounded-2xl p-4 shadow-2xl space-y-3 text-center max-w-xs w-full">
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-400 block">
+                Promote Pawn
+              </span>
+              <p className="text-[11px] text-slate-300">Choose your promotion piece:</p>
+              <div className="grid grid-cols-4 gap-2 pt-1">
+                {(["q", "r", "b", "n"] as PieceSymbol[]).map((pieceType) => (
+                  <button
+                    key={pieceType}
+                    onClick={() => executeMove(pendingPromotion.from, pendingPromotion.to, pieceType)}
+                    className="aspect-square flex items-center justify-center rounded-xl bg-white/10 hover:bg-indigo-600 border border-white/15 hover:border-indigo-400 transition-all cursor-pointer p-2 active:scale-90 shadow-lg"
                   >
-                    {PIECE_SYMBOLS[`${piece.type}${piece.color}`]}
-                  </span>
-                )}
-              </button>
-            );
-          })
+                    <ChessPieceSVG type={pieceType} color={chess.turn()} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
       </div>
     );
@@ -564,14 +782,16 @@ export default function ChessGame() {
       {/* Board & Info Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         <div className="lg:col-span-7 flex flex-col items-center justify-center space-y-4">
-          <div className="w-full max-w-[440px] flex items-center justify-between text-xs px-1">
+          <div className="w-full max-w-[480px] flex items-center justify-between text-xs px-1">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-slate-300">
                 {gameMode === "ai" ? (playerColor === "w" ? "🤖 AI Bot" : "👤 You") : "Player 2"}
               </span>
               <div className="flex items-center gap-0.5 text-slate-400">
                 {capturedPieces.w.map((p, i) => (
-                  <span key={i} className="text-xs font-mono font-bold">{p}</span>
+                  <span key={i} className="text-xs font-mono font-bold">
+                    {p}
+                  </span>
                 ))}
               </div>
             </div>
@@ -586,14 +806,16 @@ export default function ChessGame() {
 
           {renderBoard()}
 
-          <div className="w-full max-w-[440px] flex items-center justify-between text-xs px-1">
+          <div className="w-full max-w-[480px] flex items-center justify-between text-xs px-1">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-slate-300">
                 {gameMode === "ai" ? (playerColor === "w" ? "👤 You" : "🤖 AI Bot") : "Player 1"}
               </span>
               <div className="flex items-center gap-0.5 text-slate-400">
                 {capturedPieces.b.map((p, i) => (
-                  <span key={i} className="text-xs font-mono font-bold">{p}</span>
+                  <span key={i} className="text-xs font-mono font-bold">
+                    {p}
+                  </span>
                 ))}
               </div>
             </div>
@@ -603,7 +825,7 @@ export default function ChessGame() {
             </span>
           </div>
 
-          <div className="w-full max-w-[440px] flex items-center justify-between gap-2 pt-2">
+          <div className="w-full max-w-[480px] flex items-center justify-between gap-2 pt-2">
             <button
               onClick={handleRestart}
               className="flex-1 min-h-[44px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold transition-all border border-white/10 active:scale-95 cursor-pointer"
@@ -653,7 +875,10 @@ export default function ChessGame() {
                   const whiteMove = moveHistory[i * 2];
                   const blackMove = moveHistory[i * 2 + 1];
                   return (
-                    <div key={i} className="flex items-center text-slate-300 bg-white/[0.02] px-2.5 py-1 rounded-lg border border-white/5">
+                    <div
+                      key={i}
+                      className="flex items-center text-slate-300 bg-white/[0.02] px-2.5 py-1 rounded-lg border border-white/5"
+                    >
                       <span className="w-8 text-slate-500 font-bold">{i + 1}.</span>
                       <span className="flex-1 text-slate-100 font-semibold">{whiteMove}</span>
                       <span className="flex-1 text-slate-400">{blackMove || "-"}</span>

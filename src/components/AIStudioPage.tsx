@@ -92,61 +92,68 @@ export default function AIStudioPage({
   });
 
   return (
-    <div id="ai-studio-page-wrapper" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8 pb-16">
-      {/* TOP NAVIGATION HEADER */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-blue-400" />
-            <h1 className="text-2xl font-black text-white tracking-tight">AstraMind AI Studio</h1>
+    <div id="ai-studio-page-wrapper" className="relative min-h-full w-full bg-[#0d0d0e] text-[#fcfcfc] py-8 px-4 sm:px-6 lg:px-8 overflow-hidden font-sans">
+      {/* Variation 3 Ambient Studio Orb Background */}
+      <div className="studio-orb pointer-events-none" />
+
+      <div className="relative z-10 max-w-6xl mx-auto space-y-8">
+        {/* TOP NAVIGATION HEADER */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/[0.06] pb-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono-studio tracking-wider bg-[#a78bfa]/10 border border-[#a78bfa]/25 text-[#a78bfa] mb-3">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>AstraMind Visual Engine</span>
+            </div>
+            <h1 className="font-serif-studio text-4xl sm:text-5xl font-medium text-white tracking-tight leading-tight">
+              AI Creative Studio
+            </h1>
+            <p className="text-sm text-white/50 mt-1 font-normal tracking-wide">
+              Generative visual creation, multimodal image editing, and historical portfolio showcase.
+            </p>
           </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Generative AI Visual Creation &amp; Image Transformation Engine
-          </p>
+
+          {/* SubTab Toggle Bar */}
+          <div className="flex items-center gap-1.5 p-1 rounded-full bg-[#151517] border border-white/[0.06] shadow-md">
+            <button
+              id="subtab-generator-btn"
+              onClick={() => setActiveSubTab("generator")}
+              className={`px-4 py-2 rounded-full text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
+                activeSubTab === "generator"
+                  ? "bg-white text-[#0d0d0e] shadow-md"
+                  : "text-white/60 hover:text-white hover:bg-white/[0.04]"
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#a78bfa]" />
+              <span>Generator</span>
+            </button>
+
+            <button
+              id="subtab-editor-btn"
+              onClick={() => setActiveSubTab("editor")}
+              className={`px-4 py-2 rounded-full text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
+                activeSubTab === "editor"
+                  ? "bg-white text-[#0d0d0e] shadow-md"
+                  : "text-white/60 hover:text-white hover:bg-white/[0.04]"
+              }`}
+            >
+              <Wand2 className="w-3.5 h-3.5 text-[#a78bfa]" />
+              <span>Editor</span>
+            </button>
+
+            <button
+              id="subtab-gallery-btn"
+              onClick={() => setActiveSubTab("gallery")}
+              className={`px-4 py-2 rounded-full text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
+                activeSubTab === "gallery"
+                  ? "bg-white text-[#0d0d0e] shadow-md"
+                  : "text-white/60 hover:text-white hover:bg-white/[0.04]"
+              }`}
+            >
+              <ImageIcon className="w-3.5 h-3.5 text-[#a78bfa]" />
+              <span>History ({history.length})</span>
+            </button>
+          </div>
         </div>
-
-        {/* SubTab Toggle Bar */}
-        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-xl">
-          <button
-            id="subtab-generator-btn"
-            onClick={() => setActiveSubTab("generator")}
-            className={`px-4 py-2 rounded-xl text-xs font-mono font-bold flex items-center gap-2 transition-all cursor-pointer ${
-              activeSubTab === "generator"
-                ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20"
-                : "text-slate-400 hover:text-white hover:bg-white/5"
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>AI Image Generator</span>
-          </button>
-
-          <button
-            id="subtab-editor-btn"
-            onClick={() => setActiveSubTab("editor")}
-            className={`px-4 py-2 rounded-xl text-xs font-mono font-bold flex items-center gap-2 transition-all cursor-pointer ${
-              activeSubTab === "editor"
-                ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/20"
-                : "text-slate-400 hover:text-white hover:bg-white/5"
-            }`}
-          >
-            <Wand2 className="w-3.5 h-3.5" />
-            <span>AI Image Editor</span>
-          </button>
-
-          <button
-            id="subtab-gallery-btn"
-            onClick={() => setActiveSubTab("gallery")}
-            className={`px-4 py-2 rounded-xl text-xs font-mono font-bold flex items-center gap-2 transition-all cursor-pointer ${
-              activeSubTab === "gallery"
-                ? "bg-white/15 text-white shadow-md"
-                : "text-slate-400 hover:text-white hover:bg-white/5"
-            }`}
-          >
-            <ImageIcon className="w-3.5 h-3.5" />
-            <span>My History ({history.length})</span>
-          </button>
-        </div>
-      </div>
 
       {/* Toast Notification Banner */}
       {notification && (
@@ -332,6 +339,7 @@ export default function AIStudioPage({
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

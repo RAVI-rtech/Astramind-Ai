@@ -29,12 +29,20 @@ import {
   Cpu,
   Lock,
   MessageSquare,
-  Crown
+  Crown,
+  Hash,
+  GraduationCap,
+  Layers,
+  AlertCircle,
+  CalendarCheck,
+  ArrowRight
 } from "lucide-react";
 import { Settings, Theme, AccentColor, UserProfile } from "../types";
 import Logo from "./Logo";
 import LocalDataCenter from "./LocalDataCenter";
 import { useLanguage } from "../i18n";
+import LearningStreakWidget from "./LearningStreakWidget";
+import { supabase, updateSupabaseProfile } from "../lib/supabase";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -46,7 +54,7 @@ interface SettingsModalProps {
   initialTab?: "profile" | "model" | "preferences" | "coding" | "notifications" | "localData" | "about" | "memory" | "settings" | "privacy" | "terms";
   isAuthenticated?: boolean;
   isLoading?: boolean;
-  onSignOut?: () => void;
+  onSignOut?: () => Promise<{ success: boolean; error?: string }> | void;
   onSignIn?: (profileData?: Partial<UserProfile>) => void;
   sessionsCount?: number;
   messagesCount?: number;
@@ -54,7 +62,31 @@ interface SettingsModalProps {
   favouriteModel?: string;
   accentColorClass?: string;
   onOpenFounder?: () => void;
+  onNavigateTab?: (tab: any) => void;
 }
+
+const BRANCH_OPTIONS = [
+  "CSE",
+  "CSE (AI&ML)",
+  "CSE (Data Science)",
+  "IT",
+  "AI&ML",
+  "AI&DS",
+  "ECE",
+  "EIE",
+  "EEE",
+  "Mechanical",
+  "Civil",
+  "Other"
+];
+
+const SECTION_OPTIONS = [
+  "A",
+  "B",
+  "C",
+  "D",
+  "Other"
+];
 
 export default function SettingsModal({
   isOpen,
@@ -74,6 +106,7 @@ export default function SettingsModal({
   favouriteModel = "Gemini 3.6 Flash",
   accentColorClass = "from-blue-600 to-indigo-600",
   onOpenFounder,
+  onNavigateTab,
 }: SettingsModalProps) {
   const { t, setLanguage: setI18nLanguage } = useLanguage();
 
@@ -99,7 +132,44 @@ export default function SettingsModal({
   // Profile Edit State
   const [isEditingProfile, setIsEditingProfile] = useState<boolean>(false);
   const [profileName, setProfileName] = useState<string>(userProfile?.name || "");
+  const [profileRollNumber, setProfileRollNumber] = useState<string>(userProfile?.rollNumber || userProfile?.roll_number || "");
+  const [profileBranch, setProfileBranch] = useState<string>(userProfile?.branch || "");
+  const [profileSection, setProfileSection] = useState<string>(userProfile?.section || "");
   const [profileAvatar, setProfileAvatar] = useState<string>(userProfile?.avatarUrl || "");
+  const [profileSuccessMsg, setProfileSuccessMsg] = useState<string | null>(null);
+  const [isSavingProfile, setIsSavingProfile] = useState<boolean>(false);
+
+  // Logout confirmation state
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState<boolean>(false);
+  const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+
+  const handleConfirmLogout = async () => {
+    setIsLoggingOut(true);
+    setLogoutError(null);
+    try {
+      if (onSignOut) {
+        const res = await onSignOut();
+        if (res && (res as any).success === false) {
+          setLogoutError((res as any).error || "Failed to log out. Please try again.");
+          setIsLoggingOut(false);
+          return;
+        }
+      } else {
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+          setLogoutError(error.message || "Failed to log out.");
+          setIsLoggingOut(false);
+          return;
+        }
+      }
+      setIsLogoutConfirmOpen(false);
+      onClose();
+    } catch (err: any) {
+      setLogoutError(err?.message || "An unexpected error occurred during logout.");
+      setIsLoggingOut(false);
+    }
+  };
 
   useEffect(() => {
     if (initialTab === ("settings" as any)) {
@@ -116,6 +186,9 @@ export default function SettingsModal({
   useEffect(() => {
     if (userProfile) {
       setProfileName(userProfile.name || "");
+      setProfileRollNumber(userProfile.rollNumber || userProfile.roll_number || "");
+      setProfileBranch(userProfile.branch || "");
+      setProfileSection(userProfile.section || "");
       setProfileAvatar(userProfile.avatarUrl || "");
       if (userProfile.defaultMode) setSelectedAiModel(userProfile.defaultMode);
       if (userProfile.language) setSelectedLanguage(userProfile.language);
@@ -124,13 +197,39 @@ export default function SettingsModal({
 
   if (!isOpen) return null;
 
-  const handleSaveProfileSubmit = (e: React.FormEvent) => {
+  const handleSaveProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onUpdateProfile({
-      name: profileName,
-      avatarUrl: profileAvatar,
-    });
-    setIsEditingProfile(false);
+    setIsSavingProfile(true);
+    setProfileSuccessMsg(null);
+
+    const trimmedRoll = profileRollNumber.trim().toUpperCase();
+    const updated: Partial<UserProfile> = {
+      name: profileName.trim(),
+      avatarUrl: profileAvatar.trim(),
+      rollNumber: trimmedRoll,
+      roll_number: trimmedRoll,
+      branch: profileBranch,
+      section: profileSection,
+    };
+
+    onUpdateProfile(updated);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session?.user?.id) {
+        await updateSupabaseProfile(sessionData.session.user.id, updated);
+      }
+      setProfileSuccessMsg("Profile updated successfully.");
+      setIsEditingProfile(false);
+      setTimeout(() => setProfileSuccessMsg(null), 4000);
+    } catch (err) {
+      console.warn("Notice: could not update profile in Supabase:", err);
+      setProfileSuccessMsg("Profile updated successfully.");
+      setIsEditingProfile(false);
+      setTimeout(() => setProfileSuccessMsg(null), 4000);
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   const handleModelSelect = (modelName: string) => {
@@ -177,30 +276,30 @@ export default function SettingsModal({
   return (
     <div
       id="settings-modal-backdrop"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-[#09090B]/85 backdrop-blur-2xl animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-2xl animate-in fade-in duration-200"
     >
       {/* Modal Container */}
       <div
         id="settings-modal-card"
-        className="relative w-[92vw] max-w-4xl h-[90vh] max-h-[780px] flex flex-col md:flex-row bg-[#111214]/95 border border-white/[0.08] rounded-[24px] sm:rounded-[26px] shadow-2xl shadow-black/80 overflow-hidden backdrop-blur-3xl font-sans text-[#F8FAFC]"
+        className="relative w-[92vw] max-w-4xl h-[90vh] max-h-[780px] flex flex-col md:flex-row bg-[#151517] border border-white/[0.08] rounded-[28px] shadow-2xl overflow-hidden font-sans text-[#fcfcfc]"
       >
-        {/* Subtle Ambient Background Gradient (Apple Style) */}
-        <div className="absolute top-0 right-0 w-[400px] h-[300px] bg-blue-600/5 blur-[120px] pointer-events-none rounded-full" />
-        <div className="absolute bottom-0 left-0 w-[350px] h-[250px] bg-sky-500/5 blur-[100px] pointer-events-none rounded-full" />
+        {/* Subtle Ambient Studio Orb */}
+        <div className="absolute top-0 right-0 w-[400px] h-[300px] bg-[#a78bfa]/10 blur-[100px] pointer-events-none rounded-full" />
+        <div className="absolute bottom-0 left-0 w-[350px] h-[250px] bg-[#a78bfa]/5 blur-[90px] pointer-events-none rounded-full" />
 
-        {/* SIDEBAR NAVIGATION (Desktop & Mobile Horizontal Scrollable Segmented) */}
+        {/* SIDEBAR NAVIGATION */}
         <div
           id="modal-sidebar-nav"
-          className="w-full md:w-64 bg-[#09090B]/90 border-b md:border-b-0 md:border-r border-white/[0.08] p-2 sm:p-3 md:p-5 flex flex-row md:flex-col gap-1 sm:gap-1.5 overflow-x-auto shrink-0 z-10 scrollbar-none no-scrollbar"
+          className="w-full md:w-64 bg-[#101012] border-b md:border-b-0 md:border-r border-white/[0.06] p-2 sm:p-3 md:p-5 flex flex-row md:flex-col gap-1 sm:gap-1.5 overflow-x-auto shrink-0 z-10 scrollbar-none no-scrollbar"
         >
           {/* Header Brand Badge inside Sidebar */}
-          <div className="hidden md:flex items-center gap-2.5 px-3 py-3 mb-3 border-b border-white/[0.08]">
-            <div className="w-7 h-7 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
+          <div className="hidden md:flex items-center gap-2.5 px-3 py-3 mb-3 border-b border-white/[0.06]">
+            <div className="w-7 h-7 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-[#a78bfa]">
               <Zap className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-white tracking-tight">Settings</h2>
-              <p className="text-[11px] text-[#94A3B8]">AstraMind Intelligence</p>
+              <h2 className="font-serif-studio text-base font-medium text-white tracking-tight">Settings</h2>
+              <p className="text-[10px] font-mono-studio text-white/40 uppercase">Preferences</p>
             </div>
           </div>
 
@@ -294,19 +393,37 @@ export default function SettingsModal({
             <Info className="w-4 h-4 text-[#60A5FA]" />
             <span>About &amp; Legal</span>
           </button>
+
+          {isAuthenticated && (
+            <div className="mt-auto pt-3 border-t border-white/[0.06] hidden md:block">
+              <button
+                id="sidebar-nav-logout-btn"
+                type="button"
+                onClick={() => {
+                  setLogoutError(null);
+                  setIsLogoutConfirmOpen(true);
+                }}
+                className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-semibold text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all cursor-pointer"
+                title="Log out of your account"
+              >
+                <LogOut className="w-4 h-4 text-rose-400" />
+                <span>Log Out</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* MAIN CONTENT AREA */}
         <div id="modal-content-area" className="flex-1 flex flex-col p-5 md:p-8 min-w-0 overflow-y-auto z-10 scrollbar-none no-scrollbar">
           
           {/* TOP HEADER */}
-          <div id="modal-content-header" className="flex items-center justify-between pb-5 mb-6 border-b border-white/[0.08]">
+          <div id="modal-content-header" className="flex items-center justify-between pb-5 mb-6 border-b border-white/[0.06]">
             <div>
               <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-[#2563EB]" />
-                <h2 className="text-lg font-bold text-white tracking-tight">⚡ AstraMind Settings</h2>
+                <Zap className="w-4 h-4 text-[#a78bfa]" />
+                <h2 className="font-serif-studio text-xl font-medium text-white tracking-tight">AstraMind Settings</h2>
               </div>
-              <p className="text-xs text-[#94A3B8] mt-0.5 font-normal">
+              <p className="text-xs text-white/50 mt-0.5 font-normal">
                 Manage your account and AI preferences.
               </p>
             </div>
@@ -314,8 +431,8 @@ export default function SettingsModal({
             {/* Top Right Controls */}
             <div className="flex items-center gap-2.5">
               {/* Profile Avatar Chip */}
-              <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/[0.08]">
-                <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-[10px] font-bold text-white overflow-hidden">
+              <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/[0.08]">
+                <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-[#1f1b2e] to-[#2d224d] border border-[#a78bfa]/30 flex items-center justify-center text-[10px] font-semibold text-[#a78bfa] overflow-hidden font-serif-studio">
                   {userProfile?.avatarUrl ? (
                     <img src={userProfile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
@@ -331,7 +448,7 @@ export default function SettingsModal({
               <button
                 type="button"
                 onClick={() => setActiveTab("notifications")}
-                className="p-2 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-[#94A3B8] hover:text-white transition-all duration-200 cursor-pointer"
+                className="p-2 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/60 hover:text-white transition-all cursor-pointer"
                 title="Notifications"
               >
                 <Bell className="w-4 h-4" />
@@ -344,17 +461,17 @@ export default function SettingsModal({
                   const nextTheme: Theme = settings.theme === "dark" ? "light" : "dark";
                   onUpdateSettings({ theme: nextTheme });
                 }}
-                className="p-2 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-[#94A3B8] hover:text-white transition-all duration-200 cursor-pointer"
+                className="p-2 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/60 hover:text-white transition-all cursor-pointer"
                 title="Toggle Theme"
               >
-                {settings.theme === "light" ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-blue-400" />}
+                {settings.theme === "light" ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-[#a78bfa]" />}
               </button>
 
               {/* Back to Chat Button */}
               <button
                 id="settings-modal-back-btn"
                 onClick={onClose}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-300 hover:text-white text-xs font-semibold transition-all duration-200 cursor-pointer"
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white text-[#0d0d0e] hover:bg-slate-200 text-xs font-semibold transition-all shadow-md cursor-pointer"
                 title="Back to Chat"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
@@ -365,7 +482,7 @@ export default function SettingsModal({
               <button
                 id="settings-modal-close-btn"
                 onClick={onClose}
-                className="p-2 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-[#94A3B8] hover:text-white transition-all duration-200 cursor-pointer"
+                className="p-2 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/60 hover:text-white transition-all cursor-pointer"
                 title="Close"
               >
                 <X className="w-4 h-4" />
@@ -384,7 +501,7 @@ export default function SettingsModal({
                     <Logo variant="card" iconOnly={true} className="shrink-0" />
                     
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex flex-wrap items-center gap-2">
                         <h3 className="text-lg font-bold text-white tracking-tight">
                           {userProfile?.name || "AstraMind User"}
                         </h3>
@@ -392,12 +509,36 @@ export default function SettingsModal({
                         <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#22C55E]/15 border border-[#22C55E]/30 text-[#22C55E]">
                           {userProfile?.currentPlan || userProfile?.plan || "AstraMind Pro"}
                         </span>
+                        {/* Current Streak Badge */}
+                        <LearningStreakWidget variant="badge" />
                       </div>
                       
                       <p className="text-xs text-[#94A3B8] flex items-center gap-1.5 font-normal">
                         <Mail className="w-3.5 h-3.5 text-[#94A3B8]" />
                         <span>{userProfile?.email || "user@astramind.ai"}</span>
                       </p>
+
+                      {/* Student Chips */}
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        {(userProfile?.rollNumber || userProfile?.roll_number) && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/25 text-blue-300 font-semibold">
+                            <Hash className="w-2.5 h-2.5" />
+                            {userProfile.rollNumber || userProfile.roll_number}
+                          </span>
+                        )}
+                        {userProfile?.branch && (
+                          <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/25 text-purple-300 font-semibold">
+                            <GraduationCap className="w-2.5 h-2.5" />
+                            {userProfile.branch}
+                          </span>
+                        )}
+                        {userProfile?.section && (
+                          <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 font-semibold">
+                            <Layers className="w-2.5 h-2.5" />
+                            Section {userProfile.section}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -431,14 +572,27 @@ export default function SettingsModal({
                   </div>
                 </div>
 
+                {/* Success Feedback */}
+                {profileSuccessMsg && (
+                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-medium flex items-center gap-2 animate-in fade-in duration-200">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>{profileSuccessMsg}</span>
+                  </div>
+                )}
+
                 {/* Edit Form */}
                 {isEditingProfile && (
                   <form onSubmit={handleSaveProfileSubmit} className="pt-4 border-t border-white/[0.08] space-y-4 animate-in fade-in duration-200">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-[#94A3B8]">Display Name</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      {/* Full Name */}
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-[#94A3B8] flex items-center justify-between">
+                          <span>Full Name</span>
+                          <span className="text-rose-400">*</span>
+                        </label>
                         <input
                           type="text"
+                          required
                           value={profileName}
                           onChange={(e) => setProfileName(e.target.value)}
                           placeholder="Your Name"
@@ -446,8 +600,71 @@ export default function SettingsModal({
                         />
                       </div>
 
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-[#94A3B8]">Avatar URL</label>
+                      {/* Roll Number */}
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-[#94A3B8] flex items-center justify-between">
+                          <span className="flex items-center gap-1">
+                            <Hash className="w-3 h-3 text-purple-400" /> Roll Number
+                          </span>
+                          <span className="text-rose-400">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={profileRollNumber}
+                          onChange={(e) => setProfileRollNumber(e.target.value)}
+                          placeholder="e.g. 231FA04001"
+                          className="w-full bg-[#09090B] border border-white/[0.1] rounded-xl px-3.5 py-2 text-xs text-white font-mono uppercase tracking-wider focus:outline-none focus:border-purple-500 transition-all"
+                        />
+                      </div>
+
+                      {/* Branch */}
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-[#94A3B8] flex items-center justify-between">
+                          <span className="flex items-center gap-1">
+                            <GraduationCap className="w-3 h-3 text-blue-400" /> Branch
+                          </span>
+                          <span className="text-rose-400">*</span>
+                        </label>
+                        <select
+                          required
+                          value={profileBranch}
+                          onChange={(e) => setProfileBranch(e.target.value)}
+                          className="w-full bg-[#09090B] border border-white/[0.1] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 transition-all cursor-pointer"
+                        >
+                          <option value="" disabled className="bg-[#09090B] text-slate-500">Select Branch</option>
+                          {BRANCH_OPTIONS.map((b) => (
+                            <option key={b} value={b} className="bg-[#09090B] text-white">{b}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Section */}
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-[#94A3B8] flex items-center justify-between">
+                          <span className="flex items-center gap-1">
+                            <Layers className="w-3 h-3 text-emerald-400" /> Section
+                          </span>
+                          <span className="text-rose-400">*</span>
+                        </label>
+                        <select
+                          required
+                          value={profileSection}
+                          onChange={(e) => setProfileSection(e.target.value)}
+                          className="w-full bg-[#09090B] border border-white/[0.1] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 transition-all cursor-pointer"
+                        >
+                          <option value="" disabled className="bg-[#09090B] text-slate-500">Select Section</option>
+                          {SECTION_OPTIONS.map((s) => (
+                            <option key={s} value={s} className="bg-[#09090B] text-white">
+                              {s === "Other" ? "Other" : `Section ${s}`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Avatar URL */}
+                      <div className="space-y-1 sm:col-span-2">
+                        <label className="text-xs font-medium text-[#94A3B8]">Avatar / Profile Photo URL</label>
                         <input
                           type="url"
                           value={profileAvatar}
@@ -458,12 +675,30 @@ export default function SettingsModal({
                       </div>
                     </div>
 
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingProfile(false)}
+                        className="px-4 py-2 rounded-full bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 text-xs font-medium transition-all cursor-pointer"
+                      >
+                        Cancel
+                      </button>
                       <button
                         type="submit"
-                        className="px-5 py-2 rounded-full bg-[#2563EB] hover:bg-blue-500 text-white font-medium text-xs shadow-md transition-all cursor-pointer hover:scale-[1.02]"
+                        disabled={isSavingProfile}
+                        className="px-5 py-2 rounded-full bg-[#2563EB] hover:bg-blue-500 text-white font-semibold text-xs shadow-md transition-all cursor-pointer hover:scale-[1.02] disabled:opacity-50 flex items-center gap-1.5"
                       >
-                        Save Profile
+                        {isSavingProfile ? (
+                          <>
+                            <span className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                            <span>Saving Profile...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Save Profile</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   </form>
@@ -491,16 +726,33 @@ export default function SettingsModal({
                 </div>
               </div>
 
-              {/* Sign Out Action */}
-              {onSignOut && (
-                <div className="flex justify-end pt-2">
-                  <button
-                    onClick={onSignOut}
-                    className="px-5 py-2.5 rounded-full bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-300 text-xs font-semibold transition-all duration-200 flex items-center gap-2 cursor-pointer"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span>Sign Out</span>
-                  </button>
+              {/* Account Actions Section */}
+              {isAuthenticated && (
+                <div className="p-5 rounded-[22px] bg-white/[0.03] border border-white/[0.06] space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                        <Shield className="w-4 h-4 text-rose-400" /> Account Actions
+                      </h4>
+                      <p className="text-[11px] text-[#94A3B8] mt-0.5">
+                        End your active session securely on this device.
+                      </p>
+                    </div>
+
+                    <button
+                      id="settings-logout-btn"
+                      type="button"
+                      onClick={() => {
+                        setLogoutError(null);
+                        setIsLogoutConfirmOpen(true);
+                      }}
+                      className="px-4 py-2 rounded-full bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/25 text-rose-300 hover:text-rose-200 text-xs font-semibold transition-all duration-200 flex items-center gap-2 cursor-pointer self-start sm:self-auto"
+                      title="Log out of your account"
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-rose-400" />
+                      <span>Log Out</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -789,6 +1041,72 @@ export default function SettingsModal({
 
         </div>
       </div>
+
+      {/* Logout Confirmation Dialog */}
+      {isLogoutConfirmOpen && (
+        <div
+          id="logout-confirm-dialog-backdrop"
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => {
+            if (!isLoggingOut) setIsLogoutConfirmOpen(false);
+          }}
+        >
+          <div
+            id="logout-confirm-dialog-card"
+            className="w-full max-w-sm bg-[#151517] border border-white/[0.08] rounded-[24px] p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 text-[#fcfcfc]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-10 h-10 rounded-2xl bg-rose-500/10 border border-rose-500/25 flex items-center justify-center text-rose-400">
+              <LogOut className="w-5 h-5" />
+            </div>
+
+            <div>
+              <h3 className="font-serif-studio text-xl font-medium text-white">Log Out</h3>
+              <p className="text-xs text-white/60 mt-1 leading-relaxed">
+                Are you sure you want to log out?
+              </p>
+            </div>
+
+            {logoutError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                <span>{logoutError}</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                id="logout-cancel-btn"
+                type="button"
+                disabled={isLoggingOut}
+                onClick={() => setIsLogoutConfirmOpen(false)}
+                className="px-4 py-2 rounded-full bg-white/[0.05] hover:bg-white/[0.1] text-xs font-semibold text-white/80 hover:text-white transition-all cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                id="logout-confirm-btn"
+                type="button"
+                disabled={isLoggingOut}
+                onClick={handleConfirmLogout}
+                className="px-5 py-2 rounded-full bg-rose-600 hover:bg-rose-500 text-xs font-semibold text-white shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {isLoggingOut ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    <span>Logging Out...</span>
+                  </>
+                ) : (
+                  <>
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Log Out</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -64,9 +64,50 @@ export default function CourseViewerModal({
   const [isTutorLoading, setIsTutorLoading] = useState(false);
 
   // Quiz State
+  const [quizList, setQuizList] = useState(course.quizzes);
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
+  const [quizGenError, setQuizGenError] = useState<string | null>(null);
   const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [quizScore, setQuizScore] = useState<number | null>(null);
+
+  const handleGenerateCourseQuiz = async () => {
+    setIsGeneratingQuiz(true);
+    setQuizGenError(null);
+    try {
+      const resp = await fetch("/api/workspace/generate-mcq", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: course.title,
+          unitName: course.category,
+          count: 5,
+          difficulty: course.level === "Advanced" ? "Hard" : "Medium",
+        }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || data.error) {
+        throw new Error(data.error || "Failed to generate quiz questions.");
+      }
+      if (Array.isArray(data.questions) && data.questions.length > 0) {
+        const formatted = data.questions.map((q: any, idx: number) => ({
+          id: `cq-${Date.now()}-${idx}`,
+          question: q.question,
+          options: q.options || ["Option A", "Option B", "Option C", "Option D"],
+          correctIndex: typeof q.correctIndex === "number" ? q.correctIndex : 0,
+          explanation: q.explanation || "Correct based on core engineering concepts.",
+        }));
+        setQuizList(formatted);
+        setQuizAnswers({});
+        setQuizSubmitted(false);
+        setQuizScore(null);
+      }
+    } catch (e: any) {
+      setQuizGenError(e?.message || "Failed to generate quiz. Please retry.");
+    } finally {
+      setIsGeneratingQuiz(false);
+    }
+  };
 
   // Calculate course completion
   const totalLessons = course.lessons.length;
@@ -108,14 +149,14 @@ Your goal:
   };
 
   const handleGradeQuiz = () => {
-    if (course.quizzes.length === 0) return;
+    if (quizList.length === 0) return;
     let correct = 0;
-    course.quizzes.forEach((q) => {
+    quizList.forEach((q) => {
       if (quizAnswers[q.id] === q.correctIndex) {
         correct++;
       }
     });
-    const score = Math.round((correct / course.quizzes.length) * 100);
+    const score = Math.round((correct / quizList.length) * 100);
     setQuizScore(score);
     setQuizSubmitted(true);
     if (score >= 70) {
@@ -417,14 +458,47 @@ Your goal:
           {/* TAB 5: QUIZ */}
           {activeTab === "quiz" && (
             <div className="space-y-6 max-w-3xl mx-auto">
-              {course.quizzes.length === 0 ? (
-                <div className="p-6 bg-[#080d22] border border-white/10 rounded-2xl text-center space-y-2">
-                  <Award className="w-8 h-8 text-indigo-400 mx-auto" />
-                  <h3 className="text-base font-bold text-white">Quiz Coming Soon</h3>
-                  <p className="text-xs text-slate-400">Our AI is generating custom questions for this module!</p>
+              {quizGenError && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center justify-between">
+                  <span>{quizGenError}</span>
+                  <button onClick={() => setQuizGenError(null)} className="text-slate-400 hover:text-white text-xs">Dismiss</button>
+                </div>
+              )}
+
+              {quizList.length === 0 ? (
+                <div className="p-8 bg-[#080d22] border border-white/10 rounded-2xl text-center space-y-4">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mx-auto text-indigo-400">
+                    <Sparkles className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-base font-bold text-white">Generate Module Quiz with AI</h3>
+                    <p className="text-xs text-slate-400 max-w-md mx-auto">
+                      Create interactive, syllabus-aligned multiple choice questions for {course.title} with instant explanations and XP rewards.
+                    </p>
+                  </div>
+                  <button
+                    disabled={isGeneratingQuiz}
+                    onClick={handleGenerateCourseQuiz}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs shadow-lg shadow-indigo-500/20 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>{isGeneratingQuiz ? "Generating Questions..." : "Generate Practice Quiz"}</span>
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-6">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-xs font-mono text-slate-400">Module Quiz ({quizList.length} Questions)</span>
+                    <button
+                      disabled={isGeneratingQuiz}
+                      onClick={handleGenerateCourseQuiz}
+                      className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Regenerate Questions</span>
+                    </button>
+                  </div>
+
                   {quizSubmitted && quizScore !== null && (
                     <div className={`p-5 rounded-2xl border ${quizScore >= 70 ? "bg-emerald-950/60 border-emerald-500/40 text-emerald-200" : "bg-rose-950/60 border-rose-500/40 text-rose-200"}`}>
                       <div className="flex items-center justify-between">
@@ -445,7 +519,7 @@ Your goal:
                     </div>
                   )}
 
-                  {course.quizzes.map((q, idx) => (
+                  {quizList.map((q, idx) => (
                     <div key={q.id} className="bg-[#080d22] border border-white/10 rounded-2xl p-5 space-y-3">
                       <div className="text-sm font-bold text-white">
                         {idx + 1}. {q.question}

@@ -306,15 +306,15 @@ export default function ChatInput({
       <div className="relative group w-full">
         <div
           id="main-input-glass-card"
-          className="relative flex flex-col w-full bg-[#090d1a]/90 border border-white/10 rounded-2xl shadow-xl z-20 focus-within:border-blue-500/40 transition-colors"
+          className="relative flex flex-col w-full bg-[#151517] border border-white/[0.08] rounded-[24px] shadow-2xl z-20 focus-within:border-[#a78bfa]/50 transition-colors"
         >
           {/* Attachment preview area */}
           {attachment && (
             <div
               id="attachment-preview-bar"
-              className="flex items-center gap-3 p-3 bg-white/5 border-b border-white/10 rounded-t-[24px] overflow-hidden"
+              className="flex items-center gap-3 p-3 bg-white/[0.03] border-b border-white/[0.06] rounded-t-[24px] overflow-hidden"
             >
-              <div className="relative group/att w-12 h-12 rounded-xl overflow-hidden border border-white/10 bg-black flex items-center justify-center shrink-0">
+              <div className="relative group/att w-12 h-12 rounded-xl overflow-hidden border border-white/[0.08] bg-[#0d0d0e] flex items-center justify-center shrink-0">
                 {attachment.type.startsWith("image/") ? (
                   <img
                     src={attachment.url}
@@ -327,21 +327,21 @@ export default function ChatInput({
                 <button
                   id="remove-attachment-btn"
                   onClick={handleRemoveAttachment}
-                  className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover/att:opacity-100 transition-opacity"
+                  className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover/att:opacity-100 transition-opacity cursor-pointer"
                 >
                   <X className="w-4 h-4 text-rose-400" />
                 </button>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-slate-200 truncate">{attachment.name}</p>
-                <p className="text-[10px] text-slate-400 font-mono">
+                <p className="text-xs font-medium text-white truncate">{attachment.name}</p>
+                <p className="text-[10px] text-white/40 font-mono-studio">
                   {attachment.size ? `${(attachment.size / 1024).toFixed(1)} KB` : attachment.type.toUpperCase()}
                 </p>
               </div>
               <button
                 id="remove-attachment-text-btn"
                 onClick={handleRemoveAttachment}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                className="p-1 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -350,7 +350,7 @@ export default function ChatInput({
 
           {/* Speech Input Status Alert */}
           {speechError && (
-            <div className="px-4 py-2 bg-rose-500/10 border-b border-rose-500/20 text-[11px] text-rose-300 font-mono flex items-center justify-between">
+            <div className="px-4 py-2 bg-rose-500/10 border-b border-rose-500/20 text-[11px] text-rose-300 font-mono-studio flex items-center justify-between">
               <span>{speechError}</span>
               <button onClick={() => setSpeechError(null)}>
                 <X className="w-3.5 h-3.5 hover:text-white" />
@@ -359,14 +359,14 @@ export default function ChatInput({
           )}
 
           {/* Textarea + buttons row */}
-          <div id="input-controls-row" className="flex items-center gap-3 px-4 py-2.5 rounded-full bg-[#111827]/90 backdrop-blur-2xl border border-white/10 shadow-2xl focus-within:border-blue-500/40 transition-all">
+          <div id="input-controls-row" className="flex items-center gap-3 px-4 py-3 rounded-[24px] bg-[#151517] transition-all">
             {/* Attachment trigger (+ Plus button) */}
             <button
               id="trigger-attachment-btn"
               type="button"
               onClick={handleAttachmentClick}
               disabled={isLoading}
-              className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition-all shrink-0 flex items-center justify-center cursor-pointer border border-white/5"
+              className="w-9 h-9 rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-white/70 hover:text-white transition-all shrink-0 flex items-center justify-center cursor-pointer border border-white/[0.06]"
               title="Attach PDF, DOCX, PPTX, XLSX, TXT, Image"
             >
               <Paperclip className="w-4 h-4" />
@@ -378,23 +378,23 @@ export default function ChatInput({
                 id="model-selector-btn"
                 type="button"
                 onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition-all text-xs font-medium cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-white/80 hover:text-white transition-all text-xs font-semibold cursor-pointer"
                 title="Select Model"
               >
-                <Zap className="w-3.5 h-3.5 text-blue-400" />
+                <Zap className="w-3.5 h-3.5 text-[#a78bfa]" />
                 <span className="hidden sm:inline-block max-w-[100px] truncate">{selectedModel.name}</span>
-                <ChevronUp className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isModelMenuOpen ? "rotate-180" : ""}`} />
+                <ChevronUp className={`w-3.5 h-3.5 text-white/40 transition-transform ${isModelMenuOpen ? "rotate-180" : ""}`} />
               </button>
 
               {/* Model Dropdown Popover */}
               {isModelMenuOpen && (
                 <div
                   id="model-selector-dropdown"
-                  className="absolute bottom-full mb-3 left-0 w-60 rounded-2xl bg-[#111827]/95 border border-white/10 p-2 shadow-2xl backdrop-blur-2xl z-[100] animate-in fade-in zoom-in-95 duration-150"
+                  className="absolute bottom-full mb-3 left-0 w-60 rounded-2xl bg-[#151517] border border-white/[0.08] p-2 shadow-2xl z-[100] animate-in fade-in zoom-in-95 duration-150"
                 >
-                  <div className="px-3 py-1.5 text-[10px] font-mono text-slate-400 uppercase tracking-wider font-semibold border-b border-white/10 mb-1.5 flex items-center justify-between">
+                  <div className="px-3 py-1.5 text-[10px] font-mono-studio text-white/40 uppercase tracking-wider font-semibold border-b border-white/[0.06] mb-1.5 flex items-center justify-between">
                     <span>Engine</span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#a78bfa] animate-pulse" />
                   </div>
                   {MODEL_OPTIONS.map((model) => (
                     <button
@@ -406,18 +406,18 @@ export default function ChatInput({
                       }}
                       className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
                         selectedModel.id === model.id
-                          ? "bg-blue-500/20 text-blue-200 border border-blue-500/30 shadow-sm"
-                          : "text-slate-300 hover:bg-white/10 hover:text-white"
+                          ? "bg-[#a78bfa]/15 text-white border border-[#a78bfa]/30 shadow-sm"
+                          : "text-white/70 hover:bg-white/[0.04] hover:text-white"
                       }`}
                     >
                       <span className="flex items-center gap-2">
-                        <Zap className={`w-3.5 h-3.5 ${selectedModel.id === model.id ? "text-blue-400" : "text-slate-400"}`} />
+                        <Zap className={`w-3.5 h-3.5 ${selectedModel.id === model.id ? "text-[#a78bfa]" : "text-white/40"}`} />
                         {model.name}
                       </span>
                       {selectedModel.id === model.id ? (
-                        <Check className="w-3.5 h-3.5 text-blue-400" />
+                        <Check className="w-3.5 h-3.5 text-[#a78bfa]" />
                       ) : (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-slate-400 font-mono">{model.badge}</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/[0.04] text-white/50 font-mono-studio">{model.badge}</span>
                       )}
                     </button>
                   ))}
@@ -443,7 +443,7 @@ export default function ChatInput({
                   : "Type your question..."
               }
               disabled={isLoading || aiMode === 'live'}
-              className="flex-1 max-h-[160px] bg-transparent border-none focus:ring-0 py-1.5 px-2 text-white placeholder-[#A1A1AA] resize-none font-normal leading-normal text-base outline-none"
+              className="flex-1 max-h-[160px] bg-transparent border-none focus:ring-0 py-1.5 px-2 text-white placeholder-white/30 resize-none font-normal leading-normal text-sm sm:text-base outline-none"
             />
 
             <div className="flex items-center gap-2 shrink-0">
@@ -456,7 +456,7 @@ export default function ChatInput({
                 className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
                   isListening
                     ? "text-rose-400 bg-rose-500/10 animate-pulse"
-                    : "text-slate-400 hover:text-white hover:bg-white/10"
+                    : "text-white/50 hover:text-white hover:bg-white/[0.06]"
                 }`}
                 title="Voice Dictation"
               >
@@ -469,12 +469,12 @@ export default function ChatInput({
                 type="button"
                 onClick={handleSubmit}
                 disabled={!isLoading && !inputText.trim() && !attachment && aiMode !== 'live'}
-                className={`w-10 h-10 rounded-full flex items-center justify-center text-white transition-all duration-200 cursor-pointer ${
+                className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
                   isLoading
-                    ? "bg-rose-600 hover:bg-rose-500 shadow-lg shadow-rose-500/30 hover:scale-105"
+                    ? "bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-500/30 hover:scale-105"
                     : (inputText.trim() || attachment || aiMode === 'live')
-                    ? "bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/30 hover:scale-105 active:scale-95"
-                    : "bg-white/5 text-slate-500 cursor-not-allowed"
+                    ? "bg-white text-[#0d0d0e] hover:bg-slate-200 shadow-md hover:scale-105 active:scale-95"
+                    : "bg-white/[0.04] text-white/20 cursor-not-allowed"
                 }`}
                 title={isLoading ? "Stop generating" : "Send message"}
               >
@@ -489,12 +489,12 @@ export default function ChatInput({
             </div>
           </div>
         </div>
-
-        {/* AstraMind AI Disclaimer */}
-        <p className="mt-2.5 text-center text-[12px] sm:text-[13px] text-slate-400/70 font-normal leading-relaxed select-none px-2 max-w-2xl mx-auto">
-          AstraMind may occasionally generate inaccurate information. Please verify important details before relying on them.
-        </p>
       </div>
+
+      {/* AstraMind AI Disclaimer */}
+      <p className="mt-2.5 text-center text-[12px] sm:text-[13px] text-white/40 font-normal leading-relaxed select-none px-2 max-w-2xl mx-auto">
+        AstraMind may occasionally generate inaccurate information. Please verify important details before relying on them.
+      </p>
     </div>
   );
 }

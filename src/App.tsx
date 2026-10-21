@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Sparkles, ArrowRight, User, Trash2, Plus, MessageSquare, WifiOff, Gamepad2, X } from "lucide-react";
-import { ChatSession, Message, Settings, Attachment, UserProfile, Theme } from "./types";
+import { Sparkles, ArrowRight, User, Trash2, Plus, MessageSquare, WifiOff, Gamepad2, X, ShieldAlert } from "lucide-react";
+import { ChatSession, Message, Settings, Attachment, UserProfile, Theme, StudyWorkspace, WorkspaceTab } from "./types";
 import { generateSessionToken } from "./utils/security";
 import {
   supabase,
@@ -38,22 +38,34 @@ import HeroLanding from "./components/HeroLanding";
 import ExplorePage from "./components/ExplorePage";
 import WorkspacePage from "./components/WorkspacePage";
 import DashboardPage from "./components/DashboardPage";
+import StudyWorkspaceView from "./components/StudyWorkspaceView";
+import PDFStudyView from "./components/PDFStudyView";
+import CreateWorkspaceModal from "./components/CreateWorkspaceModal";
+import LiveQuizPage from "./components/LiveQuizPage";
+import { getActiveWorkspace, setActiveWorkspaceId } from "./lib/studyWorkspaceStorage";
 import AIStudioPage from "./components/AIStudioPage";
 import ResumeBuilderPage from "./components/ResumeBuilderPage";
+import ProfileEnhancerPage from "./components/ProfileEnhancerPage";
+import AttendancePage from "./components/AttendancePage";
+import ProfilePage from "./components/ProfilePage";
 import LearnPage from "./components/LearnPage";
 import AIToolsPage from "./components/AIToolsPage";
 import InterviewPrepPage from "./components/InterviewPrepPage";
 import FounderPage from "./components/FounderPage";
+import NotesPage from "./components/NotesPage";
+import CodingPage from "./components/CodingPage";
 import WelcomeAuthModal from "./components/WelcomeAuthModal";
 import WelcomeNoticeModal from "./components/WelcomeNoticeModal";
 import GuestLimitModal from "./components/GuestLimitModal";
 import OfflineScreen from "./components/OfflineScreen";
 import OfflineGames from "./components/OfflineGames";
 import StressReliefZonePage from "./components/StressReliefZonePage";
+import StudentManagementPage from "./components/StudentManagementPage";
 import SearchModal from "./components/SearchModal";
 import { db } from "./lib/db";
 import { SearchResultItem } from "./lib/localSearch";
 import { initCapacitorNativeApp, checkNetworkStatus } from "./lib/capacitor";
+import { isAuthorizedAdminEmail, verifyAdminSessionWithServer, AUTHORIZED_ADMIN_EMAIL } from "./lib/adminAuth";
 
 // Initial config presets
 const DEFAULT_SETTINGS: Settings = {
@@ -127,7 +139,10 @@ export default function App() {
   const [redirectDestination, setRedirectDestination] = useState<string | null>(null);
   const [redirectReason, setRedirectReason] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<NavTab>("chat");
+  const [activeTab, setActiveTab] = useState<NavTab>("dashboard");
+  const [activeWorkspace, setActiveWorkspace] = useState<StudyWorkspace | null>(() => getActiveWorkspace());
+  const [workspaceSubTab, setWorkspaceSubTab] = useState<WorkspaceTab>("overview");
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLiveOpen, setIsLiveOpen] = useState(false);
@@ -225,7 +240,7 @@ export default function App() {
     const handlePopState = () => {
       const path = normalizePath(window.location.pathname);
       setCurrentPath(path);
-      if (isModalOpen || path === "/settings" || path === "/profile") {
+      if (isModalOpen || path === "/settings") {
         setIsModalOpen(false);
         handleNewChat();
         setActiveTab("chat");
@@ -233,14 +248,23 @@ export default function App() {
       }
     };
 
+    const handleNavigateTabEvent = (e: any) => {
+      if (e?.detail) {
+        handleTabChange(e.detail);
+        setIsModalOpen(false);
+      }
+    };
+
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
     window.addEventListener("popstate", handlePopState);
+    window.addEventListener("astramind-navigate-tab", handleNavigateTabEvent);
 
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
       window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("astramind-navigate-tab", handleNavigateTabEvent);
     };
   }, [isWelcomeModalOpen, isGuestLimitModalOpen, isModalOpen, isSidebarOpen, isLiveOpen, isFounderOpen]);
 
@@ -260,16 +284,17 @@ export default function App() {
   const isProtectedRoute = (path: string) => {
     const normalized = normalizePath(path);
     return (
-      normalized === "/workspace" ||
       normalized === "/profile" ||
       normalized === "/settings" ||
-      normalized === "/dashboard" ||
       normalized === "/resume-builder" ||
       normalized === "/resume" ||
       normalized === "/ai-studio" ||
       normalized === "/studio" ||
       normalized === "/photo" ||
-      normalized === "/image"
+      normalized === "/image" ||
+      normalized === "/live-quiz" ||
+      normalized === "/quiz" ||
+      normalized === "/livequiz"
     );
   };
 
@@ -286,9 +311,11 @@ export default function App() {
   };
 
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
   const clearUnauthenticatedSessionData = async () => {
     setIsAuthenticated(false);
+    setIsAdmin(false);
     setCurrentUserId(null);
     setUserProfile(null);
     setSessions([]);
@@ -299,6 +326,8 @@ export default function App() {
       filesAnalysed: 0,
       favouriteModel: "No activity yet",
     });
+
+    setActiveTab((prev) => (prev === "student-management" ? "dashboard" : prev));
 
     try {
       localStorage.removeItem("astramind_auth");
@@ -315,6 +344,29 @@ export default function App() {
     } catch (e) {
       console.warn("Error clearing unauthenticated session data:", e);
     }
+  };
+
+  const checkAdminPrivileges = async (session: any): Promise<boolean> => {
+    const userEmail = session?.user?.email;
+    if (!userEmail || !isAuthorizedAdminEmail(userEmail)) {
+      setIsAdmin(false);
+      setActiveTab((prev) => (prev === "student-management" ? "dashboard" : prev));
+      return false;
+    }
+
+    try {
+      const serverCheck = await verifyAdminSessionWithServer(session.access_token);
+      if (serverCheck.isAdmin === true) {
+        setIsAdmin(true);
+        return true;
+      }
+    } catch (err) {
+      console.error("Admin session verification failed:", err);
+    }
+
+    setIsAdmin(false);
+    setActiveTab((prev) => (prev === "student-management" ? "dashboard" : prev));
+    return false;
   };
 
   const refreshUserStats = async (userId?: string | null) => {
@@ -365,15 +417,25 @@ export default function App() {
           const authEmail = session.user.email || "";
           const authPhoto = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || session.user.user_metadata?.photoURL;
           const authMemberSince = formatMemberSince(session.user.created_at);
+          const authRollNumber = session.user.user_metadata?.roll_number || session.user.user_metadata?.rollNumber || "";
+          const authBranch = session.user.user_metadata?.branch || "";
+          const authSection = session.user.user_metadata?.section || "";
 
           const profile = await getOrCreateSupabaseProfile(
             session.user.id,
             authEmail,
             authName,
             session.user.created_at,
-            authPhoto
+            authPhoto,
+            {
+              rollNumber: authRollNumber,
+              branch: authBranch,
+              section: authSection,
+            }
           );
           const activeProfile: UserProfile = {
+            id: session.user.id,
+            user_id: session.user.id,
             name: profile?.name || authName || (authEmail ? authEmail.split("@")[0] : ""),
             email: authEmail || profile?.email || "",
             age: profile?.age || "",
@@ -386,9 +448,16 @@ export default function App() {
             language: profile?.language || "English (US)",
             autoMode: true,
             avatarUrl: profile?.avatarUrl || authPhoto || "",
+            rollNumber: profile?.rollNumber || profile?.roll_number || authRollNumber || "",
+            roll_number: profile?.roll_number || profile?.rollNumber || authRollNumber || "",
+            branch: profile?.branch || authBranch || "",
+            section: profile?.section || authSection || "",
           };
           setUserProfile(activeProfile);
           localStorage.setItem("astramind_profile", JSON.stringify(activeProfile));
+
+          // Verify admin privileges strictly for authorized administrator
+          await checkAdminPrivileges(session);
 
           // Load user's persistent conversations and statistics from Supabase
           const [dbSessions, stats] = await Promise.all([
@@ -430,15 +499,25 @@ export default function App() {
         const authEmail = session.user.email || "";
         const authPhoto = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || session.user.user_metadata?.photoURL;
         const authMemberSince = formatMemberSince(session.user.created_at);
+        const authRollNumber = session.user.user_metadata?.roll_number || session.user.user_metadata?.rollNumber || "";
+        const authBranch = session.user.user_metadata?.branch || "";
+        const authSection = session.user.user_metadata?.section || "";
 
         const profile = await getOrCreateSupabaseProfile(
           session.user.id,
           authEmail,
           authName,
           session.user.created_at,
-          authPhoto
+          authPhoto,
+          {
+            rollNumber: authRollNumber,
+            branch: authBranch,
+            section: authSection,
+          }
         );
         const activeProfile: UserProfile = {
+          id: session.user.id,
+          user_id: session.user.id,
           name: profile?.name || authName || (authEmail ? authEmail.split("@")[0] : ""),
           email: authEmail || profile?.email || "",
           age: profile?.age || "",
@@ -451,9 +530,16 @@ export default function App() {
           language: profile?.language || "English (US)",
           autoMode: true,
           avatarUrl: profile?.avatarUrl || authPhoto || "",
+          rollNumber: profile?.rollNumber || profile?.roll_number || authRollNumber || "",
+          roll_number: profile?.roll_number || profile?.rollNumber || authRollNumber || "",
+          branch: profile?.branch || authBranch || "",
+          section: profile?.section || authSection || "",
         };
         setUserProfile(activeProfile);
         localStorage.setItem("astramind_profile", JSON.stringify(activeProfile));
+
+        // Verify admin privileges strictly for authorized administrator
+        await checkAdminPrivileges(session);
 
         // Load user's persistent conversations and stats from Supabase
         const [dbSessions, stats] = await Promise.all([
@@ -499,16 +585,21 @@ export default function App() {
 
     if (isProtectedRoute(path) && !isAuthenticated) {
       setRedirectDestination(path);
-      if (!redirectReason) {
+      if (path === "/live-quiz" || path === "/quiz" || path === "/livequiz") {
+        setRedirectReason("Please sign in to enter Live Quiz.");
+      } else if (!redirectReason) {
         setRedirectReason(`Sign in required to access ${path}.`);
       }
       updateUrl("/login", true);
-    } else if (path === "/workspace" && isAuthenticated) {
+    } else if (path === "/workspace") {
       setActiveTab("workspace");
       setIsModalOpen(false);
+    } else if ((path === "/live-quiz" || path === "/quiz" || path === "/livequiz") && isAuthenticated) {
+      setActiveTab("live-quiz");
+      setIsModalOpen(false);
     } else if (path === "/profile" && isAuthenticated) {
-      setModalTab("profile");
-      setIsModalOpen(true);
+      setActiveTab("profile");
+      setIsModalOpen(false);
     } else if (path === "/settings" && isAuthenticated) {
       setModalTab("settings");
       setIsModalOpen(true);
@@ -518,14 +609,35 @@ export default function App() {
     } else if (path === "/stress-relief" || path === "/offline-hub" || path === "/offline-games" || path === "/games") {
       setActiveTab("stress-relief");
       setIsModalOpen(false);
-    } else if (path === "/dashboard" && isAuthenticated) {
+    } else if (path === "/dashboard") {
       setActiveTab("dashboard");
+      setIsModalOpen(false);
+    } else if (path === "/pdf-study" || path === "/pdf") {
+      setActiveTab("pdf-study");
       setIsModalOpen(false);
     } else if ((path === "/ai-studio" || path === "/studio" || path === "/photo" || path === "/image") && isAuthenticated) {
       setActiveTab("ai-studio");
       setIsModalOpen(false);
     } else if ((path === "/resume-builder" || path === "/resume") && isAuthenticated) {
       setActiveTab("resume-builder");
+      setIsModalOpen(false);
+    } else if (path === "/notes") {
+      setActiveTab("notes");
+      setIsModalOpen(false);
+    } else if (path === "/coding") {
+      setActiveTab("coding");
+      setIsModalOpen(false);
+    } else if (path === "/learn") {
+      setActiveTab("learn");
+      setIsModalOpen(false);
+    } else if (path === "/interview-prep") {
+      setActiveTab("interview-prep");
+      setIsModalOpen(false);
+    } else if (path === "/ai-tools") {
+      setActiveTab("ai-tools");
+      setIsModalOpen(false);
+    } else if (path === "/founder") {
+      setActiveTab("founder");
       setIsModalOpen(false);
     } else if (path === "/login" && isAuthenticated) {
       const dest = redirectDestination || "/";
@@ -668,6 +780,74 @@ export default function App() {
   };
 
   const handleTabChange = (tab: NavTab) => {
+    // Handle Study Workspace specific sub-views
+    if (tab === "materials") {
+      setActiveTab("workspace");
+      setWorkspaceSubTab("materials");
+      updateUrl("/workspace");
+      return;
+    }
+    if (tab === "pdf-study") {
+      setActiveTab("pdf-study");
+      updateUrl("/pdf-study");
+      return;
+    }
+    if (tab === "quizzes") {
+      setActiveTab("workspace");
+      setWorkspaceSubTab("mcq");
+      updateUrl("/workspace");
+      return;
+    }
+    if (tab === "flashcards") {
+      setActiveTab("workspace");
+      setWorkspaceSubTab("flashcards");
+      updateUrl("/workspace");
+      return;
+    }
+    if (tab === "mock-exams") {
+      setActiveTab("workspace");
+      setWorkspaceSubTab("important");
+      updateUrl("/workspace");
+      return;
+    }
+    if (tab === "progress") {
+      setActiveTab("workspace");
+      setWorkspaceSubTab("progress");
+      updateUrl("/workspace");
+      return;
+    }
+    if (tab === "academics") {
+      try {
+        localStorage.setItem("astramind_btech_track_v6", "Engineering Academics");
+        window.dispatchEvent(new CustomEvent("astramind-set-learn-track", { detail: "Engineering Academics" }));
+      } catch {}
+      setActiveTab("learn");
+      updateUrl("/learn");
+      return;
+    }
+    if (tab === "career") {
+      try {
+        localStorage.setItem("astramind_btech_track_v6", "Interview & Career Roadmap");
+        localStorage.setItem("astramind_btech_mode_v6", "Career Roadmap");
+        window.dispatchEvent(new CustomEvent("astramind-set-learn-track", { detail: "Interview & Career Roadmap" }));
+        window.dispatchEvent(new CustomEvent("astramind-set-learn-mode", { detail: "Career Roadmap" }));
+      } catch {}
+      setActiveTab("learn");
+      updateUrl("/learn");
+      return;
+    }
+    if (tab === "live-quiz") {
+      if (!isAuthenticated) {
+        setRedirectDestination("/live-quiz");
+        setRedirectReason("Please sign in to enter Live Quiz.");
+        updateUrl("/login");
+        return;
+      }
+      setActiveTab("live-quiz");
+      updateUrl("/live-quiz");
+      return;
+    }
+
     const targetPath = tab === "chat" ? "/" : `/${tab}`;
     if (isProtectedRoute(targetPath) && !isAuthenticated) {
       const featureName =
@@ -675,8 +855,6 @@ export default function App() {
           ? "ATS Resume Builder"
           : tab === "ai-studio"
           ? "AI Photo Generator"
-          : tab === "workspace"
-          ? "Workspace"
           : tab;
       setRedirectDestination(targetPath);
       setRedirectReason(`Sign in required to access ${featureName}.`);
@@ -684,6 +862,7 @@ export default function App() {
       return;
     }
     setActiveTab(tab);
+    setIsModalOpen(false);
     updateUrl(targetPath);
   };
 
@@ -830,8 +1009,17 @@ export default function App() {
     localStorage.setItem("astramind_session_expires", (Date.now() + 86400000 * 7).toString());
 
     if (profileData) {
+      const uid = profileData.id || profileData.user_id;
+      if (uid) {
+        setCurrentUserId(uid);
+      }
       setUserProfile((prev) => {
-        const updated = { ...prev, ...profileData };
+        const updated = {
+          ...prev,
+          ...profileData,
+          user_id: uid || prev?.user_id || prev?.id,
+          id: uid || prev?.id || prev?.user_id,
+        };
         localStorage.setItem("astramind_profile", JSON.stringify(updated));
         return updated;
       });
@@ -856,6 +1044,24 @@ export default function App() {
     } else if (target === "/dashboard") {
       setActiveTab("dashboard");
       setIsModalOpen(false);
+    } else if (target === "/notes") {
+      setActiveTab("notes");
+      setIsModalOpen(false);
+    } else if (target === "/coding") {
+      setActiveTab("coding");
+      setIsModalOpen(false);
+    } else if (target === "/learn") {
+      setActiveTab("learn");
+      setIsModalOpen(false);
+    } else if (target === "/interview-prep") {
+      setActiveTab("interview-prep");
+      setIsModalOpen(false);
+    } else if (target === "/resume-builder" || target === "/resume") {
+      setActiveTab("resume-builder");
+      setIsModalOpen(false);
+    } else if (target === "/ai-studio" || target === "/studio") {
+      setActiveTab("ai-studio");
+      setIsModalOpen(false);
     } else {
       setActiveTab("chat");
       setIsModalOpen(false);
@@ -864,18 +1070,24 @@ export default function App() {
     updateUrl(target, true);
   };
 
-  const handleSignOut = async () => {
+  const handleSignOut = async (): Promise<{ success: boolean; error?: string }> => {
     try {
-      await supabase.auth.signOut();
-    } catch (err) {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Error signing out from Supabase:", error);
+        return { success: false, error: error.message || "Failed to sign out from Supabase." };
+      }
+    } catch (err: any) {
       console.error("Error signing out from Supabase:", err);
+      return { success: false, error: err?.message || "An unexpected error occurred during logout." };
     }
     await clearUnauthenticatedSessionData();
     setIsModalOpen(false);
     setActiveTab("chat");
     setRedirectDestination(null);
     setRedirectReason(null);
-    updateUrl("/", true);
+    updateUrl("/login", true);
+    return { success: true };
   };
 
   // Main chat sending/streaming logic
@@ -1309,10 +1521,10 @@ export default function App() {
   return (
     <div
       id="astramind-root"
-      className="min-h-screen flex flex-col font-sans bg-[#030712] text-slate-100 relative overflow-x-hidden selection:bg-blue-500/30 selection:text-white"
+      className="min-h-screen flex flex-col font-sans bg-[#0d0d0e] text-[#fcfcfc] relative overflow-x-hidden selection:bg-[#a78bfa]/30 selection:text-white"
     >
-      {/* Aurora Animated Moving Gradient Background */}
-      <AuroraBackground isLightMode={!isDarkMode} />
+      {/* Variation 3 Ambient Studio Orb Background */}
+      <div className="studio-orb pointer-events-none" />
 
       {/* Offline Mode Top Status Banner */}
       {isOffline && dismissedOfflineModal && (
@@ -1342,17 +1554,19 @@ export default function App() {
       {/* Transparent Floating Top Bar Navigation */}
       <TopBar
         onMenuToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-        onProfileClick={() => handleOpenModal("profile")}
+        onProfileClick={() => handleTabChange("profile")}
         onOpenSettings={() => handleOpenModal("settings")}
         onOpenFounder={() => setIsFounderOpen(true)}
         onOpenSearch={() => setIsSearchOpen(true)}
         userProfile={userProfile}
         isAuthenticated={isAuthenticated}
+        isAdmin={isAdmin}
         accentColorClass={activeAccent.gradient}
         activeTab={activeTab}
         onTabChange={(tab) => handleTabChange(tab)}
         isDarkMode={isDarkMode}
         onToggleDarkMode={handleToggleTheme}
+        currentWorkspaceTitle={activeWorkspace?.name || "Study Workspace"}
       />
 
       {/* Main Workspace Layout (Sidebar + Tab Pages) */}
@@ -1383,10 +1597,40 @@ export default function App() {
           accentColorClass={activeAccent.gradient}
           userProfile={userProfile}
           isAuthenticated={isAuthenticated}
+          isAdmin={isAdmin}
         />
 
         {/* Dynamic Workspace Panel based on activeTab */}
         <main id="main-chat-panel" className="flex-1 flex flex-col overflow-hidden relative min-w-0">
+          
+          {/* Admin Student Management (Exclusively authorized for ravicharan.7878@gmail.com) */}
+          {activeTab === "student-management" && (
+            isAdmin ? (
+              <div className="flex-1 overflow-y-auto z-10 scrollbar-thin">
+                <StudentManagementPage
+                  userProfile={userProfile}
+                  onNavigateBack={() => handleTabChange("dashboard")}
+                  accentColorClass={activeAccent.gradient}
+                />
+              </div>
+            ) : (
+              <div className="min-h-full flex flex-col items-center justify-center p-8 text-center bg-[#0d0d0e]">
+                <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 mb-4 animate-pulse">
+                  <ShieldAlert className="w-8 h-8" />
+                </div>
+                <h2 className="text-xl font-bold text-white mb-2">Access Denied</h2>
+                <p className="text-sm text-white/50 max-w-md mb-6 leading-relaxed">
+                  Student Management is restricted exclusively to the authorized administrator (<span className="text-[#a78bfa] font-mono">{AUTHORIZED_ADMIN_EMAIL}</span>).
+                </p>
+                <button
+                  onClick={() => handleTabChange("dashboard")}
+                  className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-all cursor-pointer"
+                >
+                  Return to Dashboard
+                </button>
+              </div>
+            )
+          )}
           
           {activeTab === "ai-tools" && (
             <div className="flex-1 overflow-y-auto z-10 scrollbar-thin">
@@ -1457,9 +1701,42 @@ export default function App() {
             </div>
           )}
 
+          {activeTab === "profile-enhancer" && (
+            <div className="flex-1 overflow-y-auto z-10 scrollbar-thin">
+              <ProfileEnhancerPage
+                accentColorClass={activeAccent.gradient}
+              />
+            </div>
+          )}
+
           {activeTab === "stress-relief" && (
             <div className="flex-1 overflow-y-auto z-10 scrollbar-thin">
               <StressReliefZonePage />
+            </div>
+          )}
+
+          {activeTab === "attendance" && (
+            <div className="flex-1 overflow-y-auto z-10 scrollbar-thin">
+              <AttendancePage
+                userProfile={userProfile}
+                isAuthenticated={isAuthenticated}
+                accentColorClass={activeAccent.gradient}
+                onOpenSignIn={() => updateUrl("/login")}
+                onOpenSettings={() => handleTabChange("profile")}
+              />
+            </div>
+          )}
+
+          {activeTab === "profile" && (
+            <div className="flex-1 overflow-y-auto z-10 scrollbar-thin">
+              <ProfilePage
+                userProfile={userProfile}
+                isAuthenticated={isAuthenticated}
+                onUpdateProfile={handleUpdateProfile}
+                onNavigateTab={(tab) => handleTabChange(tab)}
+                onOpenSignIn={() => updateUrl("/login")}
+                onSignOut={handleSignOut}
+              />
             </div>
           )}
           
@@ -1478,47 +1755,92 @@ export default function App() {
           )}
 
           {activeTab === "workspace" && (
-            <WorkspacePage
-              sessions={sessions}
-              onOpenResumeBuilder={() => handleTabChange("resume-builder")}
-              onFileClick={(attachment) => {
-                handleNewChat();
-                setActiveTab("chat");
-                handleSendMessage(`Analyze file: ${attachment.name}`, attachment);
+            <StudyWorkspaceView
+              workspace={activeWorkspace}
+              initialTab={workspaceSubTab}
+              onOpenCreateWorkspace={() => setIsCreateWorkspaceOpen(true)}
+              onSelectWorkspace={(ws) => {
+                setActiveWorkspace(ws);
+                setActiveWorkspaceId(ws.id);
               }}
-              onUploadAndChat={(attachment) => {
-                handleNewChat();
-                setActiveTab("chat");
-                handleSendMessage(`Analyze uploaded file: ${attachment.name}`, attachment);
-              }}
-              onSelectPrompt={(prompt) => {
+              onStartChatWithPrompt={(prompt) => {
                 handleNewChat();
                 setActiveTab("chat");
                 setTimeout(() => {
                   window.dispatchEvent(new CustomEvent("astramind-set-prompt", { detail: prompt }));
                 }, 50);
               }}
-              accentColorClass={activeAccent.gradient}
             />
+          )}
+
+          {activeTab === "pdf-study" && (
+            <div className="flex-1 flex flex-col overflow-hidden z-10">
+              <PDFStudyView
+                workspace={activeWorkspace}
+                onOpenWorkspace={() => handleTabChange("workspace")}
+                accentColorClass={activeAccent.gradient}
+              />
+            </div>
+          )}
+
+          {activeTab === "live-quiz" && (
+            <LiveQuizPage
+              userProfile={userProfile}
+              onBackToDashboard={() => handleTabChange("dashboard")}
+              onOpenAuth={() => {
+                setRedirectDestination("/live-quiz");
+                setRedirectReason("Please sign in to enter Live Quiz.");
+                updateUrl("/login");
+              }}
+            />
+          )}
+
+          {activeTab === "notes" && (
+            <div className="flex-1 overflow-y-auto z-10 scrollbar-thin">
+              <NotesPage
+                accentColorClass={activeAccent.gradient}
+                onStartChat={(prompt) => {
+                  handleNewChat();
+                  setActiveTab("chat");
+                  setTimeout(() => {
+                    window.dispatchEvent(new CustomEvent("astramind-set-prompt", { detail: prompt }));
+                  }, 50);
+                }}
+              />
+            </div>
+          )}
+
+          {activeTab === "coding" && (
+            <div className="flex-1 overflow-y-auto z-10 scrollbar-thin">
+              <CodingPage
+                accentColorClass={activeAccent.gradient}
+                onStartChat={(prompt) => {
+                  handleNewChat();
+                  setActiveTab("chat");
+                  setTimeout(() => {
+                    window.dispatchEvent(new CustomEvent("astramind-set-prompt", { detail: prompt }));
+                  }, 50);
+                }}
+              />
+            </div>
           )}
 
           {activeTab === "dashboard" && (
             <DashboardPage
-              sessions={sessions}
               userProfile={userProfile}
               isAuthenticated={isAuthenticated}
-              settings={settings}
-              accentColorClass={activeAccent.gradient}
-              onSelectSession={(id) => {
-                handleSelectSession(id);
-                setActiveTab("chat");
-              }}
               onNewChat={() => {
                 handleNewChat();
                 setActiveTab("chat");
               }}
-              onOpenSettings={() => handleOpenModal("settings")}
-              userStats={userStats}
+              onTabChange={handleTabChange}
+              onOpenCreateWorkspace={() => setIsCreateWorkspaceOpen(true)}
+              onSelectWorkspace={(ws, tab) => {
+                setActiveWorkspace(ws);
+                setActiveWorkspaceId(ws.id);
+                if (tab) setWorkspaceSubTab(tab);
+                setActiveTab("workspace");
+              }}
             />
           )}
 
@@ -1598,6 +1920,10 @@ export default function App() {
         favouriteModel={userStats.favouriteModel}
         accentColorClass={activeAccent.gradient}
         onOpenFounder={() => handleTabChange("founder")}
+        onNavigateTab={(tab) => {
+          handleTabChange(tab);
+          setIsModalOpen(false);
+        }}
       />
       <LiveVoiceModal isOpen={isLiveOpen} onClose={() => setIsLiveOpen(false)} accentColorClass={activeAccent.gradient} />
       <FounderModal isOpen={isFounderOpen} onClose={() => setIsFounderOpen(false)} accentColorClass={activeAccent.gradient} />
@@ -1605,6 +1931,18 @@ export default function App() {
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
         onSelectResult={handleSearchResultSelect}
+      />
+
+      {/* AstraMind Study Workspace Creation Modal */}
+      <CreateWorkspaceModal
+        isOpen={isCreateWorkspaceOpen}
+        onClose={() => setIsCreateWorkspaceOpen(false)}
+        onWorkspaceCreated={(newWs) => {
+          setActiveWorkspace(newWs);
+          setActiveWorkspaceId(newWs.id);
+          setWorkspaceSubTab("overview");
+          setActiveTab("workspace");
+        }}
       />
 
       {/* Welcome / About AstraMind AI Popup Modal */}

@@ -153,74 +153,66 @@ export default function StressReliefZonePage() {
   const selectedGameInfo = ALL_GAMES.find((g) => g.id === activeGame);
 
   return (
-    <div id="stress-relief-zone-page" className="min-h-screen text-slate-100 bg-[#030712] pt-6 pb-20 px-3 sm:px-6 font-sans">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <div id="stress-relief-zone-page" className="relative min-h-full w-full bg-[#0d0d0e] text-[#fcfcfc] py-8 px-4 sm:px-6 lg:px-8 overflow-hidden font-sans">
+      {/* Variation 3 Ambient Studio Orb Background */}
+      <div className="studio-orb pointer-events-none" />
+
+      <div className="relative z-10 max-w-6xl mx-auto space-y-8">
 
         {/* Top Header Card */}
-        <div className="relative p-6 sm:p-8 rounded-[28px] bg-[#090d1f]/90 border border-white/15 backdrop-blur-2xl shadow-2xl overflow-hidden space-y-4">
-          <div className="absolute top-0 right-0 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-80 h-80 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono-studio tracking-wider bg-[#a78bfa]/10 border border-[#a78bfa]/25 text-[#a78bfa] mb-3">
+              <Brain className="w-3.5 h-3.5" />
+              <span>Student Focus &amp; Mental Refresh</span>
+            </div>
+            <h1 className="font-serif-studio text-4xl sm:text-5xl font-medium text-white tracking-tight leading-tight">
+              Stress Relief Zone
+            </h1>
+            <p className="text-sm text-white/50 mt-1 font-normal tracking-wide">
+              "Take a short break. Refresh your mind. Get back to learning."
+            </p>
+          </div>
 
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold">
-                <Brain className="w-3.5 h-3.5 text-blue-400" />
-                <span>Student Focus & Mental Refresh</span>
+          {/* Live Connection Status Badge */}
+          <div className="shrink-0">
+            {isOnline ? (
+              <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#151517] border border-white/[0.08] text-emerald-400 text-xs font-semibold shadow-md">
+                <Wifi className="w-4 h-4 shrink-0" />
+                <span>Online • 100% Client-Side</span>
               </div>
-              <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight flex items-center gap-3">
-                <span>🧠 Stress Relief Zone</span>
-              </h1>
-              <p className="text-sm sm:text-base font-semibold text-blue-300">
-                "Take a short break. Refresh your mind. Get back to learning."
-              </p>
-            </div>
-
-            {/* Live Connection Status Badge */}
-            <div className="shrink-0 pt-2 md:pt-0">
-              {isOnline ? (
-                <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-bold">
-                  <Wifi className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <div>
-                    <div className="text-emerald-300">🌐 Online</div>
-                    <div className="text-[11px] text-emerald-400/80 font-normal">Play offline anytime to save mobile data</div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-bold animate-pulse">
-                  <WifiOff className="w-4 h-4 text-amber-400 shrink-0" />
-                  <div>
-                    <div className="text-amber-300">📴 Offline Mode</div>
-                    <div className="text-[11px] text-amber-400/80 font-normal">Playing offline without internet</div>
-                  </div>
-                </div>
-              )}
-            </div>
+            ) : (
+              <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#151517] border border-amber-500/30 text-amber-300 text-xs font-semibold shadow-md animate-pulse">
+                <WifiOff className="w-4 h-4 shrink-0" />
+                <span>Offline Mode Active</span>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Offline Friendly Information Banner */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 border border-blue-500/20 backdrop-blur-xl flex items-start gap-3 text-xs sm:text-sm text-slate-200">
-          <div className="p-2 rounded-xl bg-blue-500/20 border border-blue-500/30 text-blue-300 shrink-0 mt-0.5">
+        <div className="p-4 sm:p-5 rounded-[22px] bg-[#151517] border border-white/[0.06] shadow-lg flex items-start gap-3.5 text-xs sm:text-sm">
+          <div className="p-2 rounded-xl bg-[#a78bfa]/10 border border-[#a78bfa]/20 text-[#a78bfa] shrink-0 mt-0.5">
             <Zap className="w-4 h-4" />
           </div>
-          <div className="space-y-1">
-            <div className="font-bold text-white flex items-center gap-1.5">
-              <span>💡 Offline Friendly</span>
+          <div className="space-y-0.5">
+            <div className="font-semibold text-white flex items-center gap-1.5">
+              <span>Offline Friendly Study Breaks</span>
             </div>
-            <p className="text-slate-300 text-xs leading-relaxed">
-              "These games are designed to work without an internet connection, helping you save mobile data."
+            <p className="text-white/60 text-xs leading-relaxed">
+              These games are designed to run completely offline without an internet connection, helping you unwind and save mobile data.
             </p>
           </div>
         </div>
 
         {/* ACTIVE GAME SCREEN OR GAME CATALOG GRID */}
         {activeGame && selectedGameInfo ? (
-          <div className="space-y-4">
+          <div className="space-y-5">
             {/* Top Control Bar for Active Game */}
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-white/[0.04] p-4 rounded-2xl border border-white/10 backdrop-blur-xl">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-[#151517] p-4 sm:p-5 rounded-[24px] border border-white/[0.06] shadow-xl">
               <button
                 onClick={() => setActiveGame(null)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 hover:text-rose-200 text-xs font-bold transition-all cursor-pointer border border-rose-500/20 active:scale-95"
+                className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-white/80 hover:text-white text-xs font-semibold transition-all cursor-pointer border border-white/[0.08]"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span>Exit Game</span>
@@ -229,8 +221,8 @@ export default function StressReliefZonePage() {
               <div className="flex items-center gap-3">
                 <span className="text-2xl">{selectedGameInfo.icon}</span>
                 <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white">{selectedGameInfo.name}</h3>
-                  <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                  <h3 className="font-serif-studio text-lg font-medium text-white">{selectedGameInfo.name}</h3>
+                  <div className="flex items-center gap-2 text-[11px] font-mono-studio text-white/40">
                     <span>Difficulty: {selectedGameInfo.difficulty}</span>
                     <span>•</span>
                     <span>Time: {selectedGameInfo.playTime}</span>
@@ -241,30 +233,30 @@ export default function StressReliefZonePage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowInstructions(!showInstructions)}
-                  className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5"
+                  className="px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/70 hover:text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5"
                 >
-                  <Info className="w-3.5 h-3.5 text-indigo-400" />
+                  <Info className="w-3.5 h-3.5 text-[#a78bfa]" />
                   <span>{showInstructions ? "Hide Rules" : "Rules"}</span>
                 </button>
-                <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-mono font-bold flex items-center gap-1">
-                  🟢 Offline Ready
+                <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-mono-studio">
+                  Offline Ready
                 </span>
               </div>
             </div>
 
             {/* Instructions Box */}
             {showInstructions && (
-              <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 backdrop-blur-xl flex items-start gap-3 text-xs text-slate-200">
-                <Info className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+              <div className="p-4 sm:p-5 rounded-[22px] bg-[#151517] border border-white/[0.06] shadow-md flex items-start gap-3 text-xs">
+                <Info className="w-4 h-4 text-[#a78bfa] shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <span className="font-bold text-indigo-300">How to Play:</span>
-                  <p className="text-slate-300 leading-relaxed">{selectedGameInfo.instructions}</p>
+                  <span className="font-semibold text-white">How to Play:</span>
+                  <p className="text-white/60 leading-relaxed">{selectedGameInfo.instructions}</p>
                 </div>
               </div>
             )}
 
             {/* Render Actual Game Board Container */}
-            <div className="p-4 sm:p-6 rounded-[28px] bg-white/[0.03] border border-white/15 backdrop-blur-2xl shadow-2xl">
+            <div className="p-5 sm:p-8 rounded-[28px] bg-[#151517] border border-white/[0.06] shadow-2xl">
               {activeGame === "chess" && <ChessGame />}
               {activeGame === "number" && <NumberGuessingGame />}
               {activeGame === "tictactoe" && <TicTacToeGame />}
@@ -277,52 +269,52 @@ export default function StressReliefZonePage() {
           </div>
         ) : (
           /* GAME CATALOG GRID */
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div className="flex items-center justify-between px-1">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Gamepad2 className="w-5 h-5 text-indigo-400" />
+              <h2 className="font-serif-studio text-2xl font-medium text-white flex items-center gap-2">
+                <Gamepad2 className="w-5 h-5 text-[#a78bfa]" />
                 <span>Available Games ({ALL_GAMES.length})</span>
               </h2>
-              <span className="text-xs font-mono text-slate-400">100% Client-Side • Zero Data Usage</span>
+              <span className="text-xs font-mono-studio text-white/40">100% Client-Side • Zero Data Usage</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               {ALL_GAMES.map((game) => (
                 <div
                   key={game.id}
-                  className="p-5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 hover:border-indigo-500/30 transition-all duration-300 space-y-4 flex flex-col justify-between group shadow-xl backdrop-blur-xl"
+                  className="p-6 rounded-[26px] bg-[#151517] border border-white/[0.06] hover:border-[#a78bfa]/40 hover:-translate-y-1 transition-all duration-300 space-y-4 flex flex-col justify-between group shadow-xl"
                 >
                   <div className="space-y-3">
                     {/* Icon & Status */}
                     <div className="flex items-center justify-between">
-                      <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                      <div className="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-2xl group-hover:scale-105 transition-transform">
                         {game.icon}
                       </div>
-                      <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold flex items-center gap-1">
-                        🟢 Offline Ready
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono-studio">
+                        Offline Ready
                       </span>
                     </div>
 
                     {/* Title & Desc */}
                     <div>
-                      <h3 className="text-base font-bold text-white group-hover:text-indigo-300 transition-colors">
+                      <h3 className="font-serif-studio text-lg font-medium text-white group-hover:text-[#a78bfa] transition-colors">
                         {game.name}
                       </h3>
-                      <p className="text-xs text-slate-300 leading-relaxed mt-1 min-h-[36px]">
+                      <p className="text-xs text-white/50 leading-relaxed mt-1 min-h-[36px] font-normal">
                         {game.desc}
                       </p>
                     </div>
 
                     {/* Difficulty & Play Time */}
-                    <div className="pt-2 border-t border-white/5 grid grid-cols-2 gap-2 text-[11px]">
+                    <div className="pt-2 border-t border-white/[0.06] grid grid-cols-2 gap-2 text-[11px] font-mono-studio">
                       <div className="space-y-0.5">
-                        <span className="text-slate-400 block text-[10px]">Difficulty</span>
-                        <span className="font-semibold text-indigo-300">{game.difficulty}</span>
+                        <span className="text-white/40 block text-[10px]">Difficulty</span>
+                        <span className="font-semibold text-[#a78bfa]">{game.difficulty}</span>
                       </div>
                       <div className="space-y-0.5">
-                        <span className="text-slate-400 block text-[10px]">Play time</span>
-                        <span className="font-semibold text-slate-200 flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-slate-400" />
+                        <span className="text-white/40 block text-[10px]">Play time</span>
+                        <span className="font-semibold text-white/80 flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-white/40" />
                           <span>{game.playTime}</span>
                         </span>
                       </div>
@@ -332,10 +324,10 @@ export default function StressReliefZonePage() {
                   {/* Play Now Button */}
                   <button
                     onClick={() => setActiveGame(game.id)}
-                    className="w-full min-h-[44px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-all shadow-lg shadow-indigo-600/20 active:scale-95 cursor-pointer mt-2"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-white text-[#0d0d0e] hover:bg-slate-200 font-semibold text-xs transition-all shadow-md cursor-pointer mt-2"
                   >
-                    <Play className="w-3.5 h-3.5 fill-current" />
-                    <span>PLAY NOW</span>
+                    <Play className="w-3 h-3 fill-current" />
+                    <span>Play Now</span>
                   </button>
                 </div>
               ))}

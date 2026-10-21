@@ -165,128 +165,133 @@ export default function ExplorePage({ onSelectPrompt, onOpenResumeBuilder, accen
   });
 
   return (
-    <div id="explore-page-wrapper" className="w-full max-w-6xl mx-auto px-4 md:px-8 py-8 space-y-8 animate-in fade-in duration-300">
-      
-      {/* Header Banner */}
-      <div className="text-center space-y-4 max-w-2xl mx-auto">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-mono font-semibold">
-          <Compass className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: '8s' }} />
-          <span>PROJECT TITAN PROMPT VAULT &amp; CAREER HUB</span>
-        </div>
-        
-        <h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight">
-          Curated Intelligence Templates
-        </h1>
-        <p className="text-sm md:text-base text-slate-400">
-          Jumpstart your workflow with hand-crafted prompts optimized for reasoning, code, writing, and strategy.
-        </p>
-      </div>
+    <div id="explore-page-wrapper" className="relative min-h-full w-full bg-[#0d0d0e] text-[#fcfcfc] py-8 px-4 sm:px-6 lg:px-8 overflow-hidden font-sans">
+      {/* Variation 3 Ambient Studio Orb Background */}
+      <div className="studio-orb pointer-events-none" />
 
-      {/* Featured Career Hub / Learn Section: AI Resume Builder */}
-      {onOpenResumeBuilder && (
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-950/80 via-indigo-950/80 to-purple-950/80 border border-blue-500/30 p-6 md:p-8 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="space-y-2 max-w-xl text-center md:text-left">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs font-mono font-bold">
-              <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-              <span>AstraMind Career Hub &amp; Learn</span>
+      <div className="relative z-10 max-w-6xl mx-auto space-y-8">
+        
+        {/* Header Banner */}
+        <div className="text-center space-y-3 max-w-2xl mx-auto pt-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono-studio tracking-wider bg-[#a78bfa]/10 border border-[#a78bfa]/25 text-[#a78bfa] mb-1">
+            <Compass className="w-3.5 h-3.5" />
+            <span>Prompt Vault &amp; Career Hub</span>
+          </div>
+          
+          <h1 className="font-serif-studio text-4xl sm:text-5xl font-medium text-white tracking-tight leading-tight">
+            Curated Intelligence Templates
+          </h1>
+          <p className="text-sm text-white/50 max-w-lg mx-auto font-normal">
+            Jumpstart your workflow with hand-crafted prompts optimized for reasoning, code, writing, and strategy.
+          </p>
+        </div>
+
+        {/* Featured Career Hub / Learn Section: AI Resume Builder */}
+        {onOpenResumeBuilder && (
+          <div className="relative overflow-hidden rounded-[28px] bg-[#151517] border border-white/[0.06] p-6 sm:p-8 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="space-y-2 max-w-xl text-center md:text-left">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#a78bfa]/10 border border-[#a78bfa]/25 text-[#a78bfa] text-[11px] font-mono-studio">
+                <Sparkles className="w-3 h-3 text-[#a78bfa]" />
+                <span>Career Hub Feature</span>
+              </div>
+              <h2 className="font-serif-studio text-2xl sm:text-3xl font-medium text-white tracking-tight">
+                AI-Powered ATS Resume Builder
+              </h2>
+              <p className="text-xs sm:text-sm text-white/60 leading-relaxed font-normal">
+                Craft professional, high-scoring ATS resumes with AI-assisted STAR bullet polishing, automated skill recommendations, real-time compliance scoring, and instant local PDF download.
+              </p>
             </div>
-            <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight">
-              AI-Powered ATS Resume Builder
-            </h2>
-            <p className="text-xs md:text-sm text-slate-300 leading-relaxed">
-              Craft professional, high-scoring ATS resumes with AI-assisted STAR bullet polishing, automated skill recommendations, real-time compliance scoring, and instant local PDF download.
-            </p>
+
+            <button
+              onClick={onOpenResumeBuilder}
+              className="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-[#0d0d0e] hover:bg-slate-200 text-xs sm:text-sm font-semibold transition-all shadow-md hover:scale-[1.02] cursor-pointer"
+            >
+              <FileText className="w-4 h-4 text-[#a78bfa]" />
+              <span>Launch Resume Builder</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Search Bar & Category Filters */}
+        <div className="space-y-4">
+          <div className="relative max-w-xl mx-auto">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+            <input
+              type="text"
+              placeholder="Search templates by keyword, skill, or role..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-[#151517] border border-white/[0.08] rounded-full py-3 pl-11 pr-5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#a78bfa] transition-all shadow-xl"
+            />
           </div>
 
-          <button
-            onClick={onOpenResumeBuilder}
-            className="shrink-0 flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:opacity-90 text-white font-bold text-xs md:text-sm transition-all shadow-xl shadow-blue-500/20 cursor-pointer active:scale-95"
-          >
-            <FileText className="w-4 h-4" />
-            <span>Launch Resume Builder</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      {/* Search Bar & Category Filters */}
-      <div className="space-y-4">
-        <div className="relative max-w-xl mx-auto">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search templates by keyword, skill, or role..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 pl-11 pr-4 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-blue-500/50 backdrop-blur-xl transition-all shadow-inner"
-          />
+          {/* Category Pills */}
+          <div className="flex items-center justify-center gap-2 flex-wrap pt-1">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer border ${
+                  activeCategory === cat
+                    ? "bg-white text-[#0d0d0e] border-white shadow-md"
+                    : "bg-[#151517] border-white/[0.06] text-white/60 hover:text-white hover:bg-white/[0.04]"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Category Pills */}
-        <div className="flex items-center justify-center gap-2 flex-wrap pt-2">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                activeCategory === cat
-                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20 border border-blue-400/30"
-                  : "bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Templates Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 pt-4">
-        {filteredTemplates.map((template) => {
-          const Icon = template.icon;
-          return (
-            <div
-              key={template.id}
-              className="group relative flex flex-col justify-between p-6 rounded-3xl bg-white/[0.03] backdrop-blur-2xl border border-white/10 hover:border-blue-500/40 hover:shadow-[0_0_30px_rgba(59,130,246,0.15)] hover:-translate-y-1.5 transition-all duration-300 shadow-xl"
-            >
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="w-10 h-10 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shadow-sm">
-                    <Icon className="w-5 h-5" />
+        {/* Templates Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+          {filteredTemplates.map((template) => {
+            const Icon = template.icon;
+            return (
+              <div
+                key={template.id}
+                className="group relative flex flex-col justify-between p-6 rounded-[28px] bg-[#151517] border border-white/[0.06] hover:border-[#a78bfa]/40 hover:-translate-y-1 transition-all duration-300 shadow-xl"
+              >
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="w-10 h-10 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-[#a78bfa] shadow-sm">
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <span className="text-[10px] font-mono-studio uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[#a78bfa]/10 border border-[#a78bfa]/20 text-[#a78bfa]">
+                      {template.badge}
+                    </span>
                   </div>
-                  <span className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300">
-                    {template.badge}
-                  </span>
+
+                  <div className="space-y-1.5">
+                    <h3 className="font-serif-studio text-xl font-medium text-white group-hover:text-[#a78bfa] transition-colors">
+                      {template.title}
+                    </h3>
+                    <p className="text-xs text-white/50 leading-relaxed font-normal">
+                      {template.description}
+                    </p>
+                  </div>
+
+                  {/* Prompt Preview snippet */}
+                  <div className="p-3.5 rounded-2xl bg-[#0d0d0e]/60 border border-white/[0.04] text-[11px] font-mono-studio text-white/60 line-clamp-3 leading-relaxed">
+                    "{template.prompt}"
+                  </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <h3 className="text-base font-bold text-white group-hover:text-blue-300 transition-colors">
-                    {template.title}
-                  </h3>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    {template.description}
-                  </p>
-                </div>
-
-                {/* Prompt Preview snippet */}
-                <div className="p-3 rounded-xl bg-black/40 border border-white/5 text-[11px] font-mono text-slate-400 line-clamp-3 leading-relaxed">
-                  "{template.prompt}"
+                <div className="pt-5">
+                  <button
+                    onClick={() => onSelectPrompt(template.prompt)}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-white text-[#0d0d0e] hover:bg-slate-200 text-xs font-semibold transition-all cursor-pointer shadow-md"
+                  >
+                    <Zap className="w-3.5 h-3.5 text-[#a78bfa]" />
+                    <span>Use Template</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-[#0d0d0e]/60 group-hover:translate-x-1 transition-transform" />
+                  </button>
                 </div>
               </div>
-
-              <div className="pt-5">
-                <button
-                  onClick={() => onSelectPrompt(template.prompt)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-gradient-to-r hover:from-blue-600 hover:to-indigo-600 border border-white/10 hover:border-transparent text-xs font-semibold text-slate-200 hover:text-white transition-all cursor-pointer active:scale-95 shadow-md"
-                >
-                  <Zap className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Use Template</span>
-                  <ArrowRight className="w-3.5 h-3.5 opacity-70 group-hover:translate-x-1 transition-transform" />
-                </button>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

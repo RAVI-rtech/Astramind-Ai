@@ -279,6 +279,12 @@ export default function ChatWindow({
                           {thinkingContent && <ThinkingAccordion content={thinkingContent} />}
                           <ReactMarkdown
                             components={{
+                              p({ children, ...props }: any) {
+                                return <div className="mb-2 leading-relaxed" {...props}>{children}</div>;
+                              },
+                              pre({ children }: any) {
+                                return <>{children}</>;
+                              },
                               code({ node, inline, className, children, ...props }: any) {
                                 const match = /language-(\w+)/.exec(className || '');
                                 const codeText = String(children).replace(/\n$/, '');

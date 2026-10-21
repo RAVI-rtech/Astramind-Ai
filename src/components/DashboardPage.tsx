@@ -1,208 +1,343 @@
-import React, { useState } from "react";
-import { 
-  Search, 
-  GraduationCap, 
-  FileText, 
-  BookOpen, 
-  Compass, 
-  Briefcase, 
-  Code2, 
+import React, { useState, useEffect } from "react";
+import {
+  Search,
+  BookOpen,
   ArrowRight,
-  Sparkles
+  Plus,
+  Zap,
+  Users,
+  School,
+  CalendarCheck,
+  Briefcase,
+  FileText,
+  Linkedin,
+  GraduationCap
 } from "lucide-react";
-import { motion } from "motion/react";
-import { ChatSession, UserProfile, Settings } from "../types";
+import { UserProfile, StudyWorkspace } from "../types";
+import {
+  getAllWorkspaces,
+  getActiveWorkspace,
+  setActiveWorkspaceId
+} from "../lib/studyWorkspaceStorage";
+import { getLearningStreak } from "../lib/streakTracker";
 import { NavTab } from "./TopBar";
-import { useLanguage } from "../i18n";
+import AdSenseBanner from "./AdSenseBanner";
+import { ADSENSE_CONFIG } from "../config/adsense";
 
 interface DashboardPageProps {
-  sessions?: ChatSession[];
   userProfile?: UserProfile | null;
-  isAuthenticated?: boolean;
-  settings?: Settings;
-  accentColorClass?: string;
-  onSelectSession?: (id: string) => void;
+  isAuthenticated: boolean;
   onNewChat: () => void;
   onTabChange?: (tab: NavTab) => void;
-  onOpenVoiceModal?: () => void;
-  onOpenSettings?: () => void;
-  userStats?: any;
+  onOpenCreateWorkspace?: () => void;
+  onSelectWorkspace?: (ws: StudyWorkspace, tab?: any) => void;
 }
 
 export default function DashboardPage({
   userProfile,
-  isAuthenticated = false,
+  isAuthenticated,
   onNewChat,
-  onTabChange
+  onTabChange,
+  onOpenCreateWorkspace,
+  onSelectWorkspace,
 }: DashboardPageProps) {
-  const { t } = useLanguage();
+  const [workspaces, setWorkspaces] = useState<StudyWorkspace[]>([]);
+  const [activeWs, setActiveWs] = useState<StudyWorkspace | null>(null);
+  const [streakData, setStreakData] = useState({ currentStreak: 1, longestStreak: 3 });
   const [searchQuery, setSearchQuery] = useState("");
-  const userName = (isAuthenticated && userProfile?.name) ? userProfile.name : "";
+
+  const studentName = userProfile?.name
+    ? userProfile.name.split(" ")[0]
+    : userProfile?.email
+    ? userProfile.email.split("@")[0]
+    : "Student";
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
+
+  useEffect(() => {
+    const all = getAllWorkspaces();
+    setWorkspaces(all);
+    const curr = getActiveWorkspace();
+    setActiveWs(curr || (all.length > 0 ? all[0] : null));
+
+    const streak = getLearningStreak();
+    setStreakData({
+      currentStreak: Math.max(1, streak.currentStreak),
+      longestStreak: Math.max(3, streak.longestStreak),
+    });
+  }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchQuery.trim()) {
-      onNewChat();
-      return;
-    }
+    if (!searchQuery.trim()) return;
     onNewChat();
     setTimeout(() => {
       window.dispatchEvent(new CustomEvent("astramind-set-prompt", { detail: searchQuery.trim() }));
     }, 60);
   };
 
-  const featureCards = [
-    {
-      id: "learn",
-      tab: "learn" as NavTab,
-      title: "AI Tutor",
-      description: "Personalized step-by-step guidance, concept explanations, and study assistance.",
-      icon: GraduationCap,
-      color: "from-blue-500/20 to-cyan-500/10 text-blue-400 border-blue-500/20",
-    },
-    {
-      id: "resume-builder",
-      tab: "resume-builder" as NavTab,
-      title: "Resume Builder",
-      description: "Craft ATS-friendly professional resumes with real-time score optimization.",
-      icon: FileText,
-      color: "from-sky-500/20 to-blue-600/10 text-sky-400 border-sky-500/20",
-    },
-    {
-      id: "notes",
-      tab: "notes" as NavTab,
-      title: "AI Notes",
-      description: "Summarize lectures, organize key insights, and auto-generate flashcards.",
-      icon: BookOpen,
-      color: "from-blue-600/20 to-indigo-600/10 text-blue-300 border-blue-400/20",
-    },
-    {
-      id: "roadmaps",
-      tab: "learn" as NavTab,
-      title: "Roadmaps",
-      description: "Structured learning paths for Python, Web Dev, DSA, AI & Data Structures.",
-      icon: Compass,
-      color: "from-cyan-500/20 to-blue-500/10 text-cyan-300 border-cyan-500/20",
-    },
-    {
-      id: "interview-prep",
-      tab: "interview-prep" as NavTab,
-      title: "Interview Prep",
-      description: "Mock technical interviews with instant feedback on speed & accuracy.",
-      icon: Briefcase,
-      color: "from-indigo-500/20 to-blue-500/10 text-indigo-300 border-indigo-500/20",
-    },
-    {
-      id: "coding",
-      tab: "coding" as NavTab,
-      title: "Coding Practice",
-      description: "Interactive coding environment with real-time linting, debugging, and hints.",
-      icon: Code2,
-      color: "from-blue-500/20 to-sky-500/10 text-blue-400 border-blue-500/20",
-    },
-  ];
+  const handleOpenWorkspace = (ws: StudyWorkspace, tab?: any) => {
+    setActiveWorkspaceId(ws.id);
+    if (onSelectWorkspace) {
+      onSelectWorkspace(ws, tab);
+    } else if (onTabChange) {
+      onTabChange("workspace");
+    }
+  };
+
+  const academicTag = userProfile?.branch
+    ? `Vignan • ${userProfile.branch}${userProfile?.section ? ` • Sec-${userProfile.section}` : ""}`
+    : "Vignan • CSE (AI&ML) • Sec-A";
 
   return (
-    <div id="home-page-container" className="flex-1 overflow-y-auto px-3 sm:px-6 md:px-8 py-6 sm:py-10 max-w-5xl mx-auto w-full flex flex-col items-center justify-center min-h-[calc(100vh-5rem)]">
-      
-      {/* HERO SECTION */}
-      <motion.div 
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full text-center space-y-3 sm:space-y-4 mb-6 sm:mb-10"
-      >
-        <div className="inline-flex items-center gap-2 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold tracking-wide">
-          <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-          <span>AstraMind Intelligence Hub</span>
-        </div>
+    <div className="relative min-h-full w-full bg-[#0d0d0e] text-[#fcfcfc] py-8 px-4 sm:px-6 lg:px-8 overflow-hidden font-sans">
+      {/* Variation 3 Ambient Studio Orb Background */}
+      <div className="studio-orb pointer-events-none" />
 
-        <h1 className="text-[26px] sm:text-[34px] md:text-[42px] font-bold text-white tracking-tight leading-tight">
-          {t("dashboard.welcome", "Welcome back")}{userName ? `, ${userName}` : ""}
-        </h1>
+      <div className="relative z-10 max-w-6xl mx-auto space-y-10">
 
-        <p className="text-[16px] sm:text-[20px] md:text-[24px] text-[#A1A1AA] font-normal max-w-xl mx-auto">
-          {t("dashboard.subtitle", "What would you like to learn today?")}
-        </p>
-      </motion.div>
-
-      {/* LARGE GLASS SEARCH BAR */}
-      <motion.form 
-        onSubmit={handleSearchSubmit}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-2xl mb-8 sm:mb-12 relative group"
-      >
-        <div className="relative flex items-center w-full">
-          <div className="absolute left-3.5 sm:left-5 text-[#A1A1AA] group-focus-within:text-blue-400 transition-colors pointer-events-none">
-            <Search className="w-4 h-4 sm:w-5 sm:h-5" />
+        {/* 1. HERO SECTION */}
+        <section className="text-center pt-4 sm:pt-8 pb-4">
+          <div className="inline-block font-mono-studio text-[11px] uppercase tracking-wider bg-[#a78bfa]/10 border border-[#a78bfa]/25 text-[#a78bfa] px-4 py-1.5 rounded-full mb-5">
+            {academicTag}
           </div>
 
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t("dashboard.askAnything", "Ask anything...")}
-            className="w-full pl-10 sm:pl-13 pr-24 sm:pr-32 py-3.5 sm:py-4 rounded-[20px] sm:rounded-[24px] bg-[#111827]/80 backdrop-blur-2xl border border-white/10 text-white placeholder-[#A1A1AA] text-sm sm:text-base focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/15 transition-all outline-none shadow-2xl"
-          />
+          <h1 className="font-serif-studio text-5xl sm:text-6xl md:text-7xl font-medium text-white tracking-tight leading-[0.92] mb-6">
+            {getGreeting()},<br />
+            {studentName}.
+          </h1>
 
-          <button
-            type="submit"
-            className="absolute right-1.5 sm:right-2 px-3.5 sm:px-5 py-2 sm:py-2.5 min-h-[44px] rounded-[16px] sm:rounded-[18px] bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs sm:text-sm transition-all flex items-center gap-1.5 shadow-lg shadow-blue-600/30 active:scale-95 cursor-pointer"
-          >
-            <span>{t("dashboard.askBtn", "Ask")}</span>
-            <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          </button>
-        </div>
-      </motion.form>
+          <div className="max-w-xl mx-auto">
+            <form onSubmit={handleSearchSubmit} className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="What are we learning today?"
+                className="w-full bg-[#151517] border border-white/[0.08] px-6 py-4 rounded-full text-white text-sm sm:text-base placeholder-white/30 shadow-2xl focus:outline-none focus:border-[#a78bfa] transition-all"
+              />
+              <button
+                type="submit"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 px-4 py-2 rounded-full bg-white text-[#0d0d0e] hover:bg-slate-200 text-xs font-semibold transition-all shadow-sm"
+              >
+                Ask AI
+              </button>
+            </form>
+          </div>
+        </section>
 
-      {/* FEATURE CARDS GRID */}
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-        className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-6"
-      >
-        {featureCards.map((card, index) => {
-          const Icon = card.icon;
-          return (
-            <motion.div
-              key={card.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.2 + index * 0.05 }}
-              whileHover={{ scale: 1.02, y: -4 }}
+        {/* 2. MAIN BENTO GRID */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+
+          {/* CARD 1 (SPAN 8): MULTIPLAYER ACTIVE / LIVE TOURNAMENT */}
+          <div className="md:col-span-8 p-8 rounded-[32px] bg-[#151517] border border-white/[0.06] shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 transition-transform hover:-translate-y-1 duration-300">
+            <div className="max-w-md space-y-3">
+              <div className="text-[10px] uppercase tracking-[0.15em] text-white/40 font-semibold">
+                Multiplayer Active
+              </div>
+              <h2 className="font-serif-studio text-2xl sm:text-3xl text-white font-medium leading-snug">
+                Host synchronized classroom battles.
+              </h2>
+              <p className="text-xs text-white/50 leading-relaxed">
+                Challenge up to 100 engineering peers in real time with AI-generated live quiz questions and dynamic scoring.
+              </p>
+              <div className="pt-2">
+                <button
+                  onClick={() => onTabChange?.("live-quiz")}
+                  className="px-6 py-2.5 rounded-full bg-white text-[#0d0d0e] hover:bg-slate-200 text-xs sm:text-sm font-semibold transition-all shadow-md cursor-pointer"
+                >
+                  Enter Live Tournament
+                </button>
+              </div>
+            </div>
+
+            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 border-[#a78bfa] flex items-center justify-center font-serif-studio text-3xl sm:text-4xl text-[#a78bfa] shrink-0 self-center sm:self-end">
+              100
+            </div>
+          </div>
+
+          {/* CARD 2 (SPAN 4): LEARNING STREAK */}
+          <div className="md:col-span-4 p-8 rounded-[32px] bg-gradient-to-br from-[#1b172a] via-[#151517] to-[#151517] border border-white/[0.06] shadow-xl flex flex-col justify-between transition-transform hover:-translate-y-1 duration-300">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.15em] text-white/40 font-semibold">
+                Learning Streak
+              </div>
+              <div className="font-serif-studio text-5xl sm:text-6xl text-white my-3 leading-none">
+                {streakData.currentStreak} {streakData.currentStreak === 1 ? "Day" : "Days"}
+              </div>
+              <p className="text-xs text-white/50 leading-relaxed">
+                Your personal best is {streakData.longestStreak} days. Keep the momentum going!
+              </p>
+            </div>
+
+            <div className="pt-4 flex items-center justify-between text-xs text-[#a78bfa]">
+              <span className="font-mono-studio">Active Track</span>
+              <button
+                onClick={() => onTabChange?.("attendance")}
+                className="underline hover:text-[#c4b5fd] cursor-pointer"
+              >
+                View Attendance &rarr;
+              </button>
+            </div>
+          </div>
+
+          {/* CARD 3 (SPAN 4): CURRENT MODULE */}
+          <div className="md:col-span-4 p-8 rounded-[32px] bg-[#151517] border border-white/[0.06] shadow-xl flex flex-col justify-between transition-transform hover:-translate-y-1 duration-300">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.15em] text-white/40 font-semibold">
+                Current Module
+              </div>
+              <h3 className="font-serif-studio text-2xl font-medium text-white mt-2 mb-1 truncate">
+                {activeWs ? activeWs.name : "Engineering Core"}
+              </h3>
+              <p className="text-xs text-white/50 mb-6 truncate">
+                {activeWs?.detectedTopics?.[0] || "Unit 1: Applied Physics & Engineering Concepts"}
+              </p>
+
+              <div className="h-1 w-full bg-white/[0.06] rounded-full relative mb-6 overflow-hidden">
+                <div
+                  className="absolute left-0 top-0 h-full bg-[#a78bfa] rounded-full transition-all duration-500"
+                  style={{ width: `${activeWs ? Math.max(5, activeWs.progressPercent) : 35}%` }}
+                />
+              </div>
+            </div>
+
+            <button
               onClick={() => {
-                if (onTabChange) {
-                  onTabChange(card.tab);
+                if (activeWs) {
+                  handleOpenWorkspace(activeWs);
+                } else if (onOpenCreateWorkspace) {
+                  onOpenCreateWorkspace();
                 } else {
-                  onNewChat();
+                  onTabChange?.("workspace");
                 }
               }}
-              className="p-4 sm:p-6 rounded-[20px] sm:rounded-[26px] bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] hover:border-blue-500/30 hover:bg-white/[0.07] transition-all cursor-pointer group flex flex-col justify-between space-y-3 sm:space-y-4 shadow-xl"
+              className="w-full py-2.5 rounded-full border border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.08] text-white text-xs font-semibold transition-all cursor-pointer text-center"
             >
-              <div className="space-y-2.5 sm:space-y-3">
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br ${card.color} border flex items-center justify-center transition-transform group-hover:scale-110`}>
-                  <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
+              Resume Studio
+            </button>
+          </div>
+
+          {/* CARD 4 (SPAN 8): RECENT ASSETS */}
+          <div className="md:col-span-8 p-8 rounded-[32px] bg-[#151517] border border-white/[0.06] shadow-xl flex flex-col justify-between transition-transform hover:-translate-y-1 duration-300">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.15em] text-white/40 font-semibold mb-3">
+                Recent Assets
+              </div>
+
+              <div className="divide-y divide-white/[0.06]">
+                <div className="flex items-center justify-between py-3.5">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <FileText className="w-4 h-4 text-[#a78bfa] shrink-0" />
+                    <span className="text-xs sm:text-sm text-white/90 truncate">
+                      {activeWs?.materials?.[0]?.name || "AEP-notes for MID-1-2026-27.pdf"}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono-studio text-white/40 uppercase tracking-wider shrink-0 ml-4">
+                    3.4 MB
+                  </span>
                 </div>
 
-                <div className="space-y-1">
-                  <h3 className="text-[16px] sm:text-[18px] font-semibold text-white tracking-tight flex items-center justify-between">
-                    <span>{card.title}</span>
-                    <ArrowRight className="w-4 h-4 text-[#A1A1AA] group-hover:text-blue-400 group-hover:translate-x-1 transition-all opacity-0 group-hover:opacity-100" />
-                  </h3>
-                  <p className="text-[12px] sm:text-[13px] text-[#A1A1AA] leading-relaxed">
-                    {card.description}
-                  </p>
+                <div className="flex items-center justify-between py-3.5">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <FileText className="w-4 h-4 text-[#a78bfa] shrink-0" />
+                    <span className="text-xs sm:text-sm text-white/90 truncate">
+                      {activeWs?.materials?.[1]?.name || "Unit_2_Non_Linear_Trees_Graphs.pptx"}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono-studio text-white/40 uppercase tracking-wider shrink-0 ml-4">
+                    4.1 MB
+                  </span>
                 </div>
               </div>
-            </motion.div>
-          );
-        })}
-      </motion.div>
+            </div>
 
+            <div className="pt-4 flex flex-wrap gap-3">
+              <button
+                onClick={() => onTabChange?.("pdf-study")}
+                className="px-5 py-2 rounded-full border border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.08] text-white text-xs font-semibold transition-all cursor-pointer"
+              >
+                PDF Studio
+              </button>
+              <button
+                onClick={() => onTabChange?.("workspace")}
+                className="px-5 py-2 rounded-full border border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.08] text-white text-xs font-semibold transition-all cursor-pointer"
+              >
+                Browse Files
+              </button>
+            </div>
+          </div>
+
+          {/* CARD 5 (SPAN 12): CAREER & PLACEMENT SUITE */}
+          <div className="md:col-span-12 p-8 rounded-[32px] border border-dashed border-white/[0.12] bg-[#151517]/40 shadow-lg">
+            <div className="text-[10px] uppercase tracking-[0.15em] text-white/40 font-semibold text-center mb-6">
+              Career & Placement Suite
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
+              <div
+                onClick={() => onTabChange?.("resume-builder")}
+                className="p-4 rounded-2xl hover:bg-white/[0.03] transition-all cursor-pointer group"
+              >
+                <div className="text-sm font-semibold text-white group-hover:text-[#a78bfa] transition-colors mb-1">
+                  Resume Builder
+                </div>
+                <div className="text-[10px] uppercase tracking-[0.15em] text-white/40 font-semibold">
+                  ATS Optimizer
+                </div>
+              </div>
+
+              <div
+                onClick={() => onTabChange?.("profile-enhancer")}
+                className="p-4 rounded-2xl hover:bg-white/[0.03] transition-all cursor-pointer group"
+              >
+                <div className="text-sm font-semibold text-white group-hover:text-[#a78bfa] transition-colors mb-1">
+                  Profile Enhancer
+                </div>
+                <div className="text-[10px] uppercase tracking-[0.15em] text-white/40 font-semibold">
+                  LinkedIn AI
+                </div>
+              </div>
+
+              <div
+                onClick={() => onTabChange?.("interview-prep")}
+                className="p-4 rounded-2xl hover:bg-white/[0.03] transition-all cursor-pointer group"
+              >
+                <div className="text-sm font-semibold text-white group-hover:text-[#a78bfa] transition-colors mb-1">
+                  Interview Prep
+                </div>
+                <div className="text-[10px] uppercase tracking-[0.15em] text-white/40 font-semibold">
+                  Mock Engine
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* 3. FOOTER */}
+        <footer className="border-t border-white/[0.06] pt-6 pb-2 flex flex-col sm:flex-row items-center justify-between text-[11px] text-white/40 gap-3 font-mono-studio">
+          <span>AstraMind AI Intelligence • v3.6 Flash</span>
+          <span>Engineered for B.Tech Excellence</span>
+          <span>2026-27 Academic Cycle</span>
+        </footer>
+
+        {/* AdSense Banner */}
+        <AdSenseBanner
+          id="home-bottom-ad-banner"
+          slotId={ADSENSE_CONFIG.slots.homeBottomBanner}
+          format="auto"
+          responsive={true}
+          variant="banner"
+          className="w-full max-w-5xl mx-auto mt-4 px-1"
+        />
+
+      </div>
     </div>
   );
 }
-

@@ -11,7 +11,8 @@ import {
   Check, 
   Command,
   Crown,
-  User
+  User,
+  FolderKanban
 } from "lucide-react";
 import Logo from "./Logo";
 import { UserProfile } from "../types";
@@ -20,21 +21,34 @@ import { useLanguage } from "../i18n";
 
 export type NavTab = 
   | "dashboard" 
+  | "workspace"
+  | "pdf-study"
+  | "materials"
+  | "quizzes"
+  | "flashcards"
+  | "mock-exams"
+  | "live-quiz"
+  | "progress"
   | "chat" 
   | "resume-builder" 
   | "notes" 
   | "ai-tools" 
   | "interview-prep" 
-  | "workspace" 
   | "history" 
   | "settings" 
   | "founder"
   | "coding"
   | "learn"
+  | "academics"
+  | "career"
   | "ai-studio"
   | "explore"
   | "offline-hub"
-  | "stress-relief";
+  | "stress-relief"
+  | "profile-enhancer"
+  | "attendance"
+  | "profile"
+  | "student-management";
 
 interface TopBarProps {
   onMenuToggle: () => void;
@@ -45,11 +59,13 @@ interface TopBarProps {
   onOpenSearch?: () => void;
   userProfile?: UserProfile;
   isAuthenticated?: boolean;
+  isAdmin?: boolean;
   accentColorClass: string;
   activeTab?: NavTab;
   onTabChange?: (tab: NavTab) => void;
   isDarkMode?: boolean;
   onToggleDarkMode?: () => void;
+  currentWorkspaceTitle?: string;
 }
 
 export default function TopBar({
@@ -64,6 +80,7 @@ export default function TopBar({
   onTabChange,
   isDarkMode: propIsDarkMode,
   onToggleDarkMode,
+  currentWorkspaceTitle,
 }: TopBarProps) {
   const { t } = useLanguage();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -117,8 +134,8 @@ export default function TopBar({
       <div
         className={`max-w-[1400px] mx-auto flex items-center justify-between px-3 md:px-4 h-14 rounded-2xl transition-all duration-300 pointer-events-auto border ${
           isScrolled
-            ? "bg-[#060914]/90 backdrop-blur-2xl border-purple-500/25 shadow-2xl shadow-purple-950/40"
-            : "bg-[#080d1e]/70 backdrop-blur-xl border-white/10 shadow-xl shadow-black/50"
+            ? "bg-[#151517]/95 backdrop-blur-2xl border-white/[0.08] shadow-2xl shadow-black/60"
+            : "bg-[#151517]/85 backdrop-blur-xl border-white/[0.06] shadow-xl shadow-black/40"
         }`}
       >
         {/* Left Section: Mobile Menu Toggle & AstraMind Logo */}
@@ -149,6 +166,16 @@ export default function TopBar({
               )
             ) : null}
           </div>
+
+          {currentWorkspaceTitle && (
+            <div 
+              onClick={() => onTabChange?.("workspace")}
+              className="hidden xl:flex items-center gap-2 px-3 py-1 bg-blue-500/10 border border-blue-500/20 rounded-xl text-xs text-blue-300 font-medium cursor-pointer hover:bg-blue-500/20 transition-colors"
+            >
+              <FolderKanban className="w-3.5 h-3.5 text-blue-400" />
+              <span className="truncate max-w-[180px]">{currentWorkspaceTitle}</span>
+            </div>
+          )}
         </div>
 
         {/* Center Section: Global Search Bar */}
@@ -186,17 +213,17 @@ export default function TopBar({
           <div className="relative">
             <button
               onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 min-h-[44px] rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-200 text-xs font-semibold transition-all cursor-pointer shadow-sm"
+              className="flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 min-h-[38px] rounded-full bg-[#a78bfa]/10 hover:bg-[#a78bfa]/20 border border-[#a78bfa]/25 text-[#a78bfa] text-xs font-semibold transition-all cursor-pointer shadow-sm"
             >
-              <Sparkles className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+              <Sparkles className="w-3.5 h-3.5 text-[#a78bfa] shrink-0" />
               <span className="hidden lg:inline">{selectedModel}</span>
-              <span className="lg:hidden text-[11px] font-mono">Flash</span>
-              <ChevronDown className="w-3.5 h-3.5 text-purple-300 shrink-0" />
+              <span className="lg:hidden text-[11px] font-mono-studio">Flash</span>
+              <ChevronDown className="w-3 h-3 text-[#a78bfa]/80 shrink-0" />
             </button>
 
             {isModelDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-64 max-w-[85vw] rounded-2xl bg-[#090d1f] border border-purple-500/30 shadow-2xl p-2 z-50 backdrop-blur-2xl space-y-1">
-                <div className="px-3 py-1.5 border-b border-white/10 text-[10px] font-mono text-slate-400 uppercase font-semibold">
+              <div className="absolute right-0 mt-2 w-64 max-w-[85vw] rounded-2xl bg-[#151517] border border-white/[0.08] shadow-2xl p-2 z-50 space-y-1">
+                <div className="px-3 py-1.5 border-b border-white/[0.06] text-[10px] font-mono-studio text-white/40 uppercase font-semibold">
                   Select AI Engine
                 </div>
                 {aiModels.map((m) => (
@@ -206,17 +233,17 @@ export default function TopBar({
                       setSelectedModel(m.name);
                       setIsModelDropdownOpen(false);
                     }}
-                    className={`w-full text-left px-3 py-2.5 min-h-[44px] rounded-xl text-xs flex items-center justify-between transition-all cursor-pointer ${
+                    className={`w-full text-left px-3 py-2 min-h-[40px] rounded-xl text-xs flex items-center justify-between transition-all cursor-pointer ${
                       selectedModel === m.name
-                        ? "bg-purple-600/30 text-white border border-purple-500/40"
-                        : "text-slate-300 hover:bg-white/5"
+                        ? "bg-[#a78bfa]/15 text-white border border-[#a78bfa]/30"
+                        : "text-white/70 hover:bg-white/[0.04]"
                     }`}
                   >
                     <div>
-                      <p className="font-semibold">{m.name}</p>
-                      <p className="text-[10px] text-slate-400">{m.speed}</p>
+                      <p className="font-semibold text-white">{m.name}</p>
+                      <p className="text-[10px] text-white/40">{m.speed}</p>
                     </div>
-                    {selectedModel === m.name && <Check className="w-3.5 h-3.5 text-purple-400" />}
+                    {selectedModel === m.name && <Check className="w-3.5 h-3.5 text-[#a78bfa]" />}
                   </button>
                 ))}
               </div>
@@ -232,28 +259,28 @@ export default function TopBar({
                 setInternalDarkMode(!internalDarkMode);
               }
             }}
-            className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            className="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center rounded-full text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
             title={isDarkMode ? "Switch to Day Mode (Light Theme)" : "Switch to Night Mode (Dark Theme)"}
           >
-            {isDarkMode ? <Moon className="w-4 h-4 text-purple-300" /> : <Sun className="w-4 h-4 text-amber-300" />}
+            {isDarkMode ? <Moon className="w-4 h-4 text-[#a78bfa]" /> : <Sun className="w-4 h-4 text-amber-300" />}
           </button>
 
           {/* User Avatar Button */}
           <button
             id="topbar-profile-btn"
             onClick={onProfileClick}
-            className="group flex items-center gap-2 px-2 sm:px-2.5 py-1.5 min-h-[44px] rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all cursor-pointer"
+            className="group flex items-center gap-2 px-2.5 py-1 min-h-[38px] rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] transition-all cursor-pointer"
           >
-            <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shadow-md shadow-purple-900/50 overflow-hidden shrink-0">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#1f1b2e] to-[#2d224d] border border-[#a78bfa]/30 flex items-center justify-center text-xs font-semibold text-[#a78bfa] shadow-md overflow-hidden shrink-0 font-serif-studio">
               {isAuthenticated && userProfile?.avatarUrl ? (
                 <img src={userProfile.avatarUrl} alt="User Avatar" className="w-full h-full object-cover" />
               ) : isAuthenticated ? (
                 getInitials(userProfile?.name, userProfile?.email)
               ) : (
-                <User className="w-4 h-4 text-slate-300" />
+                <User className="w-4 h-4 text-white/60" />
               )}
             </div>
-            <span className="text-xs font-medium text-slate-200 hidden sm:inline">
+            <span className="text-xs font-medium text-white/90 hidden sm:inline">
               {isAuthenticated ? (userProfile?.name ? userProfile.name.split(" ")[0] : userProfile?.email ? userProfile.email.split("@")[0] : "Profile") : "Sign in"}
             </span>
           </button>

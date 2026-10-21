@@ -67,6 +67,8 @@ import ModernExecutiveTemplate from "./resumeTemplates/ModernExecutiveTemplate";
 import MinimalistAtsTemplate from "./resumeTemplates/MinimalistAtsTemplate";
 import TechLeadTemplate from "./resumeTemplates/TechLeadTemplate";
 import ElegantSerifTemplate from "./resumeTemplates/ElegantSerifTemplate";
+import AdSenseBanner from "./AdSenseBanner";
+import { ADSENSE_CONFIG } from "../config/adsense";
 
 interface ResumeBuilderProps {
   accentColorClass: string;
@@ -517,42 +519,44 @@ export default function ResumeBuilderPage({ accentColorClass, isAuthenticated }:
   };
 
   return (
-    <div id="astramind-resume-builder-page" className="min-h-screen text-slate-100 bg-[#030712] pt-6 pb-16 px-3 sm:px-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div id="astramind-resume-builder-page" className="relative min-h-full w-full bg-[#0d0d0e] text-[#fcfcfc] py-8 px-4 sm:px-6 lg:px-8 overflow-hidden font-sans">
+      {/* Variation 3 Ambient Studio Orb Background */}
+      <div className="studio-orb pointer-events-none" />
 
-        {/* Vision Pro Glass Hero Banner */}
-        <div className="glass-panel p-6 sm:p-8 relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border border-purple-500/20 shadow-2xl shadow-purple-950/30">
-          <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-gradient-to-br from-purple-600/30 via-indigo-600/20 to-transparent blur-3xl pointer-events-none" />
-          <div className="space-y-2 max-w-2xl relative z-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300 text-xs font-semibold">
+      <div className="relative z-10 max-w-7xl mx-auto space-y-6">
+
+        {/* Studio Page Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-6 border-b border-white/[0.06]">
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#a78bfa]/10 border border-[#a78bfa]/25 text-[#a78bfa] text-xs font-mono-studio mb-1">
               <FileText className="w-3.5 h-3.5" />
               <span>AstraMind ATS Resume Architect</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
-              AI Resume &amp; Career Suite
+            <h1 className="font-serif-studio text-4xl sm:text-5xl font-medium text-white tracking-tight leading-tight">
+              Resume Builder
             </h1>
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+            <p className="text-xs sm:text-sm text-white/50 leading-relaxed font-normal">
               Build high-converting ATS tech resumes with real-time AI suggestions, live template rendering, and sanitized PDF export.
             </p>
           </div>
           
-          <div className="flex items-center gap-2 relative z-10 shrink-0">
+          <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={handleDownloadPDF}
-              className="glass-button-primary px-5 py-2.5 flex items-center gap-2 cursor-pointer text-xs shadow-xl shadow-purple-600/30"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-white text-[#0d0d0e] hover:bg-slate-200 text-xs sm:text-sm font-semibold transition-all shadow-md hover:scale-[1.02] cursor-pointer"
             >
-              <Download className="w-4 h-4" />
+              <Download className="w-4 h-4 text-[#a78bfa]" />
               <span>Export Sanitized PDF</span>
             </button>
           </div>
         </div>
 
         {/* Top Workspace Header Bar */}
-        <div id="resume-builder-toolbar" className="bg-[#090d1f]/90 border border-white/10 backdrop-blur-xl rounded-2xl p-4 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+        <div id="resume-builder-toolbar" className="bg-[#151517] border border-white/[0.06] rounded-[24px] p-4 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
           
           {/* Left Title & Resume Switcher */}
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            <div className="p-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400">
+            <div className="p-2.5 bg-white/[0.04] border border-white/[0.08] rounded-2xl text-[#a78bfa]">
               <FileText className="w-5 h-5" />
             </div>
             
@@ -562,15 +566,15 @@ export default function ResumeBuilderPage({ accentColorClass, isAuthenticated }:
                   type="text"
                   value={activeResume.title}
                   onChange={(e) => handleUpdateResume({ ...activeResume, title: e.target.value })}
-                  className="bg-transparent text-sm sm:text-base font-bold text-white outline-none border-b border-transparent hover:border-white/20 focus:border-indigo-500 px-1 py-0.5 rounded transition-all"
+                  className="bg-transparent text-sm sm:text-base font-medium text-white outline-none border-b border-transparent hover:border-white/20 focus:border-[#a78bfa] px-1 py-0.5 rounded transition-all"
                   title="Click to rename resume title"
                 />
-                <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                <span className="text-[10px] font-mono-studio font-medium uppercase px-2 py-0.5 rounded-full bg-[#a78bfa]/10 text-[#a78bfa] border border-[#a78bfa]/20">
                   ATS Ready
                 </span>
 
                 {/* Auto-Save Live Status Badge */}
-                <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[10px] font-mono font-medium">
+                <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[10px] font-mono-studio font-medium">
                   <span className="relative flex h-2 w-2">
                     {isAutoSaving ? (
                       <span className="animate-spin h-2 w-2 rounded-full border border-emerald-400 border-t-transparent"></span>
@@ -584,8 +588,8 @@ export default function ResumeBuilderPage({ accentColorClass, isAuthenticated }:
                   <span>{isAutoSaving ? "Saving..." : `Auto-saved at ${lastSavedTime}`}</span>
                 </div>
               </div>
-              <p className="text-xs text-slate-400">
-                AstraMind AI Executive Resume Suite
+              <p className="text-xs text-white/40 font-mono-studio">
+                AstraMind Executive Resume Suite
               </p>
             </div>
 
@@ -2013,6 +2017,18 @@ export default function ResumeBuilderPage({ accentColorClass, isAuthenticated }:
           )}
 
         </div>
+
+        {/* ===================================================================== */}
+        {/* 4. RESUME BUILDER — BOTTOM AD SLOT                                   */}
+        {/* ===================================================================== */}
+        <AdSenseBanner
+          id="resume-builder-bottom-ad-slot"
+          slotId={ADSENSE_CONFIG.slots.resumeBuilderBottom}
+          format="auto"
+          responsive={true}
+          variant="banner"
+          className="pt-4 w-full"
+        />
 
       </div>
 

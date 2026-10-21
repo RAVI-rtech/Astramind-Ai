@@ -47,15 +47,15 @@ export const SAMPLE_RESUME: ResumeData = {
     {
       id: "exp-1",
       jobTitle: "Lead Full-Stack AI Engineer",
-      company: "AstraMind Neural Systems",
+      company: "Apex Cloud Innovations",
       location: "San Francisco, CA",
       startDate: "2023",
       endDate: "Present",
       isCurrent: true,
       bulletPoints: [
-        "Architected an ultra-low-latency web streaming gateway for Gemini 2.5 and Llama models, serving 120,000+ active monthly users with 99.98% uptime.",
-        "Engineered real-time canvas visualizers and image-processing routers using React, TypeScript, and Tailwind CSS, reducing client render times by 40%.",
-        "Pioneered automated fallback execution chains across multi-vendor AI providers, guaranteeing zero downtime during upstream service outages."
+        "Architected an ultra-low-latency web streaming gateway for modern LLMs and reasoning models with automated provider failover.",
+        "Engineered real-time canvas visualizers and image-processing pipelines using React, TypeScript, and modern CSS, optimizing client render performance.",
+        "Designed and implemented resilient fallback execution chains across multi-vendor AI APIs, enhancing system availability."
       ]
     },
     {

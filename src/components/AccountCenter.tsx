@@ -31,11 +31,18 @@ import {
   CheckCircle2,
   RefreshCw,
   Eye,
-  EyeOff
+  EyeOff,
+  Hash,
+  GraduationCap,
+  Layers,
+  Flame,
+  CalendarCheck,
+  ArrowRight
 } from "lucide-react";
 import { UserProfile, Settings, Theme, UserSessionDevice } from "../types";
 import { useLanguage } from "../i18n";
 import { checkPasswordStrength } from "../utils/security";
+import LearningStreakWidget from "./LearningStreakWidget";
 import {
   supabase,
   getOrCreateSupabaseProfile,
@@ -46,6 +53,29 @@ import {
   formatMemberSince,
   isProUser,
 } from "../lib/supabase";
+
+const BRANCH_OPTIONS = [
+  "CSE",
+  "CSE (AI&ML)",
+  "CSE (Data Science)",
+  "IT",
+  "AI&ML",
+  "AI&DS",
+  "ECE",
+  "EIE",
+  "EEE",
+  "Mechanical",
+  "Civil",
+  "Other"
+];
+
+const SECTION_OPTIONS = [
+  "A",
+  "B",
+  "C",
+  "D",
+  "Other"
+];
 
 interface AccountCenterProps {
   userProfile?: UserProfile | null;
@@ -134,6 +164,10 @@ export default function AccountCenter({
   const [showConfirmPwd, setShowConfirmPwd] = useState(false);
   const [pwdStatus, setPwdStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
+  const [profileSuccessMsg, setProfileSuccessMsg] = useState<string | null>(null);
+  const [profileErrorMsg, setProfileErrorMsg] = useState<string | null>(null);
+  const [isSavingProfile, setIsSavingProfile] = useState<boolean>(false);
+
   const pwdStrength = checkPasswordStrength(newPwd);
 
   // Lockout Timer countdown
@@ -183,13 +217,37 @@ export default function AccountCenter({
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    onUpdateProfile(editForm);
-    setIsEditing(false);
+    setIsSavingProfile(true);
+    setProfileSuccessMsg(null);
+    setProfileErrorMsg(null);
 
-    // Persist to Supabase profiles table
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (sessionData?.session?.user?.id) {
-      await updateSupabaseProfile(sessionData.session.user.id, editForm);
+    const trimmedRoll = (editForm.rollNumber || editForm.roll_number || "").trim().toUpperCase();
+    const updatedForm = {
+      ...editForm,
+      rollNumber: trimmedRoll,
+      roll_number: trimmedRoll,
+    };
+
+    onUpdateProfile(updatedForm);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session?.user?.id) {
+        const res = await updateSupabaseProfile(sessionData.session.user.id, updatedForm);
+        if (res && !res.success && res.error) {
+          console.warn("Profile update notice:", res.error);
+        }
+      }
+      setProfileSuccessMsg("Profile updated successfully.");
+      setIsEditing(false);
+      setTimeout(() => {
+        setProfileSuccessMsg(null);
+      }, 4000);
+    } catch (err: any) {
+      console.error("Save profile error:", err);
+      setProfileErrorMsg("Unable to save profile changes. Please try again.");
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
@@ -445,7 +503,7 @@ export default function AccountCenter({
           <div className="flex items-center gap-2">
             <User className="w-4 h-4 text-blue-400" />
             <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-200">
-              Account Overview
+              Student Profile &amp; Overview
             </h4>
           </div>
           <span className="flex items-center gap-1.5 text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
@@ -454,92 +512,234 @@ export default function AccountCenter({
           </span>
         </div>
 
+        {/* Global Profile Success/Error Messages */}
+        {profileSuccessMsg && (
+          <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-medium flex items-center gap-2.5 animate-in fade-in duration-200 shadow-lg shadow-emerald-500/10">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+            <span>{profileSuccessMsg}</span>
+          </div>
+        )}
+        {profileErrorMsg && (
+          <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-medium flex items-center gap-2.5 animate-in fade-in duration-200 shadow-lg shadow-rose-500/10">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+            <span>{profileErrorMsg}</span>
+          </div>
+        )}
+
         {!isEditing ? (
-          <div className="relative p-6 rounded-3xl bg-gradient-to-b from-white/[0.06] to-white/[0.02] border border-white/10 hover:border-white/20 transition-all duration-300 shadow-xl backdrop-blur-xl space-y-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="relative group shrink-0">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 p-0.5 shadow-lg shadow-blue-500/20 flex items-center justify-center overflow-hidden">
-                    {userProfile?.avatarUrl ? (
-                      <img
-                        src={userProfile.avatarUrl}
-                        alt={userProfile.name || "User Avatar"}
-                        className="w-full h-full object-cover rounded-[15px]"
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = "none";
-                        }}
-                      />
+          <div className="space-y-4">
+            {/* Header Card */}
+            <div className="relative p-6 rounded-3xl bg-gradient-to-b from-white/[0.06] to-white/[0.02] border border-white/10 hover:border-white/20 transition-all duration-300 shadow-xl backdrop-blur-xl space-y-5">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="relative group shrink-0">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 p-0.5 shadow-lg shadow-blue-500/20 flex items-center justify-center overflow-hidden">
+                      {userProfile?.avatarUrl ? (
+                        <img
+                          src={userProfile.avatarUrl}
+                          alt={userProfile.name || "User Avatar"}
+                          className="w-full h-full object-cover rounded-[15px]"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-[#080d22] rounded-[15px] flex items-center justify-center text-white text-xl font-bold font-mono tracking-wider">
+                          {getInitials(userProfile?.name, userProfile?.email)}
+                        </div>
+                      )}
+                    </div>
+                    {/* Plan Badge */}
+                    {isProUser(userProfile) ? (
+                      <div className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-md bg-amber-400 text-slate-950 font-mono text-[9px] font-black tracking-widest shadow">
+                        PRO
+                      </div>
                     ) : (
-                      <div className="w-full h-full bg-[#080d22] rounded-[15px] flex items-center justify-center text-white text-xl font-bold font-mono tracking-wider">
-                        {getInitials(userProfile?.name, userProfile?.email)}
+                      <div className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-md bg-slate-700/90 text-slate-300 border border-slate-600/60 font-mono text-[9px] font-bold tracking-widest shadow uppercase">
+                        FREE
                       </div>
                     )}
                   </div>
-                  {/* Badge logic: PRO if profile.plan == "pro", FREE if logged in non-pro */}
-                  {isProUser(userProfile) ? (
-                    <div className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-md bg-amber-400 text-slate-950 font-mono text-[9px] font-black tracking-widest shadow">
-                      PRO
+
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-bold text-white tracking-tight">
+                        {userProfile?.name || userProfile?.email?.split("@")[0] || "Student"}
+                      </h3>
+                      <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0" />
                     </div>
-                  ) : (
-                    <div className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-md bg-slate-700/90 text-slate-300 border border-slate-600/60 font-mono text-[9px] font-bold tracking-widest shadow uppercase">
-                      FREE
+                    {userProfile?.email && (
+                      <p className="text-xs text-slate-400 font-mono flex items-center gap-1.5">
+                        <Mail className="w-3 h-3 text-slate-500 shrink-0" />
+                        {userProfile.email}
+                      </p>
+                    )}
+
+                    {/* Student Chips */}
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      {(userProfile?.rollNumber || userProfile?.roll_number) && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/25 text-blue-300 font-semibold">
+                          <Hash className="w-2.5 h-2.5" />
+                          {userProfile.rollNumber || userProfile.roll_number}
+                        </span>
+                      )}
+                      {userProfile?.branch && (
+                        <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/25 text-purple-300 font-semibold">
+                          <GraduationCap className="w-2.5 h-2.5" />
+                          {userProfile.branch}
+                        </span>
+                      )}
+                      {userProfile?.section && (
+                        <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 font-semibold">
+                          <Layers className="w-2.5 h-2.5" />
+                          Section {userProfile.section}
+                        </span>
+                      )}
+                      <LearningStreakWidget variant="badge" />
                     </div>
-                  )}
+                  </div>
                 </div>
 
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-bold text-white tracking-tight">
-                      {userProfile?.name || userProfile?.email?.split("@")[0] || ""}
-                    </h3>
-                    <ShieldCheck className="w-4 h-4 text-blue-400" />
+                <button
+                  id="edit-profile-btn"
+                  onClick={() => setIsEditing(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-slate-200 hover:text-white text-xs font-semibold transition-all cursor-pointer hover:-translate-y-0.5 active:scale-95 shadow"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Edit Profile</span>
+                </button>
+              </div>
+
+              {/* Account Meta Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                {userProfile?.memberSince && (
+                  <div className="p-3.5 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <Calendar className="w-4 h-4 text-purple-400" />
+                      <span className="text-xs text-slate-400">Member Since</span>
+                    </div>
+                    <span className="text-xs font-semibold font-mono text-white">
+                      {formatMemberSince(userProfile.memberSince)}
+                    </span>
                   </div>
-                  {userProfile?.email && (
-                    <p className="text-xs text-slate-400 font-mono flex items-center gap-1.5 mt-0.5">
-                      <Mail className="w-3 h-3 text-slate-500" />
-                      {userProfile.email}
-                    </p>
-                  )}
+                )}
+
+                <div className="p-3.5 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <span className="text-xs text-slate-400">Current Plan</span>
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold font-mono border ${
+                    isProUser(userProfile)
+                      ? "bg-gradient-to-r from-amber-500/20 to-blue-500/20 border-amber-500/30 text-amber-300"
+                      : "bg-slate-800/80 border-slate-700 text-slate-300"
+                  }`}>
+                    {isProUser(userProfile) ? "AstraMind Pro" : "Free"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* DEDICATED ACADEMIC INFORMATION CARD */}
+            <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-b from-white/[0.04] to-white/[0.01] border border-white/10 hover:border-white/15 transition-all shadow-xl backdrop-blur-xl space-y-4">
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <div className="flex items-center gap-2">
+                  <GraduationCap className="w-4 h-4 text-purple-400" />
+                  <h5 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-200">
+                    Academic Information
+                  </h5>
+                </div>
+                <span className="text-[10px] font-mono text-purple-300 bg-purple-500/10 border border-purple-500/20 px-2.5 py-0.5 rounded-full">
+                  Student Record
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Roll Number */}
+                <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/5 space-y-1">
+                  <div className="flex items-center gap-1.5 text-slate-400 text-[11px]">
+                    <Hash className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Roll Number</span>
+                  </div>
+                  <p className="text-sm font-semibold font-mono text-white tracking-wide">
+                    {userProfile?.rollNumber || userProfile?.roll_number || "Not specified"}
+                  </p>
+                </div>
+
+                {/* Branch */}
+                <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/5 space-y-1">
+                  <div className="flex items-center gap-1.5 text-slate-400 text-[11px]">
+                    <GraduationCap className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Branch</span>
+                  </div>
+                  <p className="text-sm font-semibold text-white">
+                    {userProfile?.branch || "Not specified"}
+                  </p>
+                </div>
+
+                {/* Section */}
+                <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/5 space-y-1">
+                  <div className="flex items-center gap-1.5 text-slate-400 text-[11px]">
+                    <Layers className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Section</span>
+                  </div>
+                  <p className="text-sm font-semibold text-white">
+                    {userProfile?.section ? `Section ${userProfile.section}` : "Not specified"}
+                  </p>
                 </div>
               </div>
 
+              {/* Callout if student profile missing fields */}
+              {(!userProfile?.rollNumber && !userProfile?.roll_number || !userProfile?.branch || !userProfile?.section) && (
+                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-200">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>Academic details incomplete. Add your Roll Number, Branch, and Section to unlock customized workspace experiences.</span>
+                  </div>
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-semibold text-xs shrink-0 transition-colors cursor-pointer text-center"
+                  >
+                    Complete Academic Info
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* COLLEGE ATTENDANCE PORTAL SHORTCUT */}
+            <div className="p-5 rounded-3xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 border border-emerald-500/25 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl backdrop-blur-xl">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                  <CalendarCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h5 className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-300">
+                      College Attendance Portal
+                    </h5>
+                    <span className="text-[9px] font-bold font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      Live Portal Sync
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    View real-time subject-wise percentage, aggregate status, and bunk margin calculations.
+                  </p>
+                </div>
+              </div>
               <button
-                id="edit-profile-btn"
-                onClick={() => setIsEditing(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-slate-200 hover:text-white text-xs font-semibold transition-all cursor-pointer hover:-translate-y-0.5 active:scale-95 shadow"
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent("astramind-navigate-tab", { detail: "attendance" }));
+                }}
+                className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-all shadow-md flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
               >
-                <Edit3 className="w-3.5 h-3.5 text-blue-400" />
-                <span>Edit Profile</span>
+                <span>Check Attendance</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-              {userProfile?.memberSince && (
-                <div className="p-3.5 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <Calendar className="w-4 h-4 text-purple-400" />
-                    <span className="text-xs text-slate-400">Member Since</span>
-                  </div>
-                  <span className="text-xs font-semibold font-mono text-white">
-                    {formatMemberSince(userProfile.memberSince)}
-                  </span>
-                </div>
-              )}
-
-              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <Sparkles className="w-4 h-4 text-amber-400" />
-                  <span className="text-xs text-slate-400">Current Plan</span>
-                </div>
-                <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold font-mono border ${
-                  isProUser(userProfile)
-                    ? "bg-gradient-to-r from-amber-500/20 to-blue-500/20 border-amber-500/30 text-amber-300"
-                    : "bg-slate-800/80 border-slate-700 text-slate-300"
-                }`}>
-                  {isProUser(userProfile) ? "AstraMind Pro" : "Free"}
-                </span>
-              </div>
-            </div>
+            {/* DEDICATED DAILY LEARNING STREAK CARD */}
+            <LearningStreakWidget variant="card" showLogButton={true} />
           </div>
         ) : (
           <form
@@ -548,7 +748,7 @@ export default function AccountCenter({
           >
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <span className="text-xs font-bold text-blue-400 font-mono uppercase tracking-wider flex items-center gap-2">
-                <Edit3 className="w-3.5 h-3.5" /> Editing Profile
+                <Edit3 className="w-3.5 h-3.5" /> Edit Student Profile
               </span>
               <button
                 type="button"
@@ -559,37 +759,103 @@ export default function AccountCenter({
               </button>
             </div>
 
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider ml-1">Display Name</label>
+            <div className="space-y-4">
+              {/* Full Name */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider ml-1">
+                  Full Name <span className="text-rose-400">*</span>
+                </label>
                 <input
                   type="text"
                   value={editForm.name || ""}
                   onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  placeholder="Your display name"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500/50 transition-all"
+                  placeholder="e.g. Ravi Charan"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/70 transition-all"
                   required
                 />
               </div>
 
-              <div className="space-y-1">
+              {/* Roll Number */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider ml-1 flex items-center gap-1.5">
+                  <Hash className="w-3 h-3 text-purple-400" />
+                  <span>Roll Number</span>
+                </label>
+                <input
+                  type="text"
+                  value={editForm.rollNumber || editForm.roll_number || ""}
+                  onChange={(e) => setEditForm({ ...editForm, rollNumber: e.target.value, roll_number: e.target.value })}
+                  placeholder="e.g. 231FA04001"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500/70 transition-all font-mono uppercase tracking-wider"
+                />
+              </div>
+
+              {/* Branch & Section */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider ml-1">
+                    Branch
+                  </label>
+                  <select
+                    value={editForm.branch || ""}
+                    onChange={(e) => setEditForm({ ...editForm, branch: e.target.value })}
+                    className="w-full bg-[#0D1229] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500/70 transition-all cursor-pointer"
+                  >
+                    <option value="" disabled className="bg-[#0A0E22] text-slate-400">
+                      Select Branch
+                    </option>
+                    {BRANCH_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt} className="bg-[#0A0E22] text-white">
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider ml-1">
+                    Section
+                  </label>
+                  <select
+                    value={editForm.section || ""}
+                    onChange={(e) => setEditForm({ ...editForm, section: e.target.value })}
+                    className="w-full bg-[#0D1229] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500/70 transition-all cursor-pointer"
+                  >
+                    <option value="" disabled className="bg-[#0A0E22] text-slate-400">
+                      Select Section
+                    </option>
+                    {SECTION_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt} className="bg-[#0A0E22] text-white">
+                        {opt === "Other" ? "Other" : `Section ${opt}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Avatar URL */}
+              <div className="space-y-1.5">
                 <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider ml-1">Photo / Avatar URL</label>
                 <input
                   type="url"
                   value={editForm.avatarUrl || ""}
                   onChange={(e) => setEditForm({ ...editForm, avatarUrl: e.target.value })}
                   placeholder="https://example.com/avatar.jpg"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500/50 transition-all"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/70 transition-all"
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider ml-1">Email Address</label>
+              {/* Email Address (read-only) */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider ml-1 flex items-center justify-between">
+                  <span>Email Address</span>
+                  <span className="text-[10px] text-slate-500 lowercase font-normal">managed by account security</span>
+                </label>
                 <input
                   type="email"
                   value={editForm.email || ""}
                   readOnly
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-slate-400 focus:outline-none transition-all cursor-not-allowed opacity-70"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-slate-400 focus:outline-none transition-all cursor-not-allowed opacity-60"
                 />
               </div>
             </div>
@@ -598,16 +864,27 @@ export default function AccountCenter({
               <button
                 type="button"
                 onClick={() => setIsEditing(false)}
-                className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-slate-300 cursor-pointer"
+                disabled={isSavingProfile}
+                className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-slate-300 cursor-pointer disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className={`px-4 py-1.5 rounded-xl font-bold text-xs text-white bg-gradient-to-r ${accentColorClass} hover:brightness-110 cursor-pointer shadow-md flex items-center gap-1.5`}
+                disabled={isSavingProfile}
+                className={`px-4 py-2 rounded-xl font-bold text-xs text-white bg-gradient-to-r ${accentColorClass} hover:brightness-110 cursor-pointer shadow-md flex items-center gap-1.5 disabled:opacity-50`}
               >
-                <Check className="w-3.5 h-3.5" />
-                <span>Save Profile</span>
+                {isSavingProfile ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Save Profile</span>
+                  </>
+                )}
               </button>
             </div>
           </form>

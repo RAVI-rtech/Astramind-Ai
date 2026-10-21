@@ -502,42 +502,41 @@ export default function CodingPage({ accentColorClass, onStartChat }: CodingPage
   };
 
   return (
-    <div id="coding-tutor-page-wrapper" className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6 pb-24">
-      {/* HEADER BANNER */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-950/80 via-[#070b24] to-blue-950/80 border border-indigo-500/20 p-6 shadow-2xl backdrop-blur-xl">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+    <div id="coding-tutor-page-wrapper" className="relative min-h-full w-full bg-[#0d0d0e] text-[#fcfcfc] py-8 px-4 sm:px-6 lg:px-8 overflow-hidden font-sans">
+      {/* Variation 3 Ambient Studio Orb Background */}
+      <div className="studio-orb pointer-events-none" />
+
+      <div className="relative z-10 max-w-6xl mx-auto space-y-8 pb-16">
+        
+        {/* Studio Page Header Banner */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-6 border-b border-white/[0.06]">
           <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <span className="px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-bold flex items-center gap-1.5">
-                <GraduationCap className="w-3.5 h-3.5 text-indigo-400" />
-                1st Year B.Tech &amp; Beginner Friendly
-              </span>
-              <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-bold flex items-center gap-1">
-                <Sparkles className="w-3 h-3" />
-                AI Mentor 2.0
-              </span>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono-studio tracking-wider bg-[#a78bfa]/10 border border-[#a78bfa]/25 text-[#a78bfa] mb-2">
+              <GraduationCap className="w-3.5 h-3.5" />
+              <span>B.Tech Computer Science Professor</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-2">
-              <span>AstraMind AI Coding Tutor</span>
+            <h1 className="font-serif-studio text-4xl sm:text-5xl font-medium text-white tracking-tight leading-tight">
+              AI Coding Tutor
             </h1>
-            <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-              Your personal 24/7 Computer Science Professor. Complex coding concepts explained with simple definitions, easy examples, real-world analogies, and step-by-step practice questions!
+            <p className="text-sm text-white/50 max-w-2xl leading-relaxed font-normal">
+              Complex coding concepts explained with simple definitions, easy examples, real-world analogies, and step-by-step practice questions.
             </p>
           </div>
 
           {/* Difficulty Level Switcher */}
-          <div className="flex flex-col gap-1.5 bg-black/40 p-2 rounded-2xl border border-white/10 backdrop-blur-md self-stretch sm:self-auto">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2">Knowledge Depth</span>
+          <div className="flex flex-col gap-1.5 bg-[#151517] p-2 rounded-2xl border border-white/[0.06] shadow-md self-stretch sm:self-auto shrink-0">
+            <span className="text-[10px] font-mono-studio uppercase tracking-wider text-white/40 px-2 font-semibold">
+              Knowledge Depth
+            </span>
             <div className="flex items-center gap-1">
               {(["Beginner", "Intermediate", "Advanced"] as const).map((lvl) => (
                 <button
                   key={lvl}
                   onClick={() => setCurrentLevel(lvl)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                     currentLevel === lvl
-                      ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/30"
-                      : "text-slate-400 hover:text-white hover:bg-white/5"
+                      ? "bg-white text-[#0d0d0e] shadow-md"
+                      : "text-white/60 hover:text-white hover:bg-white/[0.04]"
                   }`}
                 >
                   {lvl}
@@ -546,219 +545,219 @@ export default function CodingPage({ accentColorClass, onStartChat }: CodingPage
             </div>
           </div>
         </div>
-      </div>
 
-      {/* QUICK TOPIC CHIPS / STARTER QUESTIONS */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-            <Lightbulb className="w-4 h-4 text-amber-400" />
-            <span>Popular Beginner Topics (1-Click Learning)</span>
+        {/* QUICK TOPIC CHIPS / STARTER QUESTIONS */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-mono-studio uppercase tracking-wider text-white/40 font-semibold">
+              <Lightbulb className="w-4 h-4 text-[#a78bfa]" />
+              <span>Curated Engineering Starters</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-white/40 font-mono-studio">
+              <span>Filter:</span>
+              <select
+                value={selectedSubject}
+                onChange={(e) => setSelectedSubject(e.target.value)}
+                className="bg-[#151517] border border-white/[0.08] rounded-xl px-2.5 py-1 text-xs text-white outline-none focus:border-[#a78bfa] cursor-pointer"
+              >
+                <option value="All">All Subjects</option>
+                <option value="Python">Python</option>
+                <option value="C & C++">C &amp; C++</option>
+                <option value="Data Structures">Data Structures</option>
+                <option value="Algorithms">Algorithms</option>
+              </select>
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <span>Filter Subject:</span>
-            <select
-              value={selectedSubject}
-              onChange={(e) => setSelectedSubject(e.target.value)}
-              className="bg-slate-900 border border-white/15 rounded-lg px-2 py-1 text-xs text-white outline-none"
-            >
-              <option value="All">All Subjects</option>
-              <option value="Python">Python</option>
-              <option value="C & C++">C &amp; C++</option>
-              <option value="Data Structures">Data Structures</option>
-              <option value="Algorithms">Algorithms</option>
-            </select>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+            {STARTER_TOPICS.filter((t) => selectedSubject === "All" || t.category.includes(selectedSubject) || selectedSubject.includes(t.category)).map((topic, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleSend(topic.prompt)}
+                disabled={isLoading}
+                className="group text-left p-4 rounded-[22px] bg-[#151517] border border-white/[0.06] hover:border-[#a78bfa]/40 hover:-translate-y-0.5 transition-all cursor-pointer flex flex-col justify-between space-y-3 shadow-md"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xl">{topic.icon}</span>
+                  <span className="text-[10px] font-mono-studio font-medium text-[#a78bfa] bg-[#a78bfa]/10 px-2 py-0.5 rounded-full border border-[#a78bfa]/20">
+                    {topic.category}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-xs font-medium text-white group-hover:text-[#a78bfa] transition-colors line-clamp-1">
+                    {topic.title}
+                  </h3>
+                  <p className="text-[11px] text-white/50 line-clamp-2 mt-0.5 leading-normal font-normal">
+                    {topic.desc}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 text-[11px] font-medium text-[#a78bfa] pt-1 border-t border-white/[0.04]">
+                  <span>Explore topic</span>
+                  <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {STARTER_TOPICS.filter((t) => selectedSubject === "All" || t.category.includes(selectedSubject) || selectedSubject.includes(t.category)).map((topic, idx) => (
-            <button
-              key={idx}
-              onClick={() => handleSend(topic.prompt)}
-              disabled={isLoading}
-              className="group text-left p-3 rounded-2xl bg-[#080d26] border border-white/10 hover:border-indigo-500/50 hover:bg-indigo-950/30 transition-all cursor-pointer flex flex-col justify-between space-y-2 shadow-lg"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xl">{topic.icon}</span>
-                <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">
-                  {topic.category}
-                </span>
+        {/* AI TUTOR CHAT SECTION */}
+        <div id="ai-tutor-chat-section" className="bg-[#151517] border border-white/[0.06] rounded-[28px] p-5 sm:p-7 shadow-xl space-y-6">
+          <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl overflow-hidden border border-white/10 bg-[#1f1b2e] flex items-center justify-center shrink-0 p-1">
+                <img src="/logo.png" alt="AstraMind Logo" className="w-full h-full object-contain rounded-xl" />
               </div>
               <div>
-                <h3 className="text-xs font-bold text-white group-hover:text-indigo-300 transition-colors line-clamp-1">
-                  {topic.title}
-                </h3>
-                <p className="text-[11px] text-slate-400 line-clamp-2 mt-0.5 leading-tight">
-                  {topic.desc}
-                </p>
+                <h2 className="text-base font-medium text-white flex items-center gap-2">
+                  <span>Interactive Mentor Session</span>
+                  <span className="w-2 h-2 rounded-full bg-[#a78bfa] animate-pulse" />
+                </h2>
+                <p className="text-xs text-white/40 font-mono-studio">Structured explanation format • {currentLevel} Mode</p>
               </div>
-              <div className="flex items-center gap-1 text-[11px] font-semibold text-indigo-400 pt-1 border-t border-white/5">
-                <span>Ask AI Tutor</span>
-                <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* AI TUTOR CHAT SECTION */}
-      <div id="ai-tutor-chat-section" className="bg-[#050818] border border-white/10 rounded-3xl p-4 sm:p-6 shadow-2xl space-y-6">
-        <div className="flex items-center justify-between border-b border-white/10 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl overflow-hidden border border-white/10 bg-[#0f1424] flex items-center justify-center shadow-[0_0_12px_rgba(255,255,255,0.08)] shrink-0 p-1">
-              <img src="/logo.png" alt="AstraMind Logo" className="w-full h-full object-contain rounded-xl" />
             </div>
-            <div>
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <span>AI Tutor Conversation</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              </h2>
-              <p className="text-xs text-slate-400">Structured B.Tech explanation format active • Asking in {currentLevel} Mode</p>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleClearChat}
+                className="px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-rose-500/20 hover:text-rose-300 text-white/50 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer border border-white/[0.06]"
+                title="Reset AI Tutor Session"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Reset Chat</span>
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleClearChat}
-              className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-rose-500/20 hover:text-rose-300 text-slate-400 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-white/10"
-              title="Reset AI Tutor Session"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Reset Chat</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Message Stream */}
-        <div className="space-y-6 min-h-[380px] max-h-[600px] overflow-y-auto pr-2 scrollbar-thin">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex flex-col ${
-                msg.sender === "user" ? "items-end" : "items-start"
-              } space-y-2 animate-in fade-in duration-200`}
-            >
-              <div className="flex items-center gap-2 text-[11px] text-slate-400 px-1">
-                {msg.sender === "user" ? (
-                  <>
-                    <span>You (Student)</span>
-                    <span>•</span>
-                    <span>{msg.timestamp}</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-indigo-400 font-bold flex items-center gap-1">
-                      <Sparkles className="w-3 h-3" />
-                      AstraMind AI Mentor
-                    </span>
-                    <span>•</span>
-                    <span>{msg.timestamp}</span>
-                  </>
-                )}
-              </div>
-
-              {msg.sender === "user" ? (
-                <div className="max-w-2xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-2xl rounded-tr-none px-4 py-3 text-sm font-medium shadow-md">
-                  {msg.text}
+          {/* Message Stream */}
+          <div className="space-y-6 min-h-[380px] max-h-[600px] overflow-y-auto pr-2 scrollbar-thin">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex flex-col ${
+                  msg.sender === "user" ? "items-end" : "items-start"
+                } space-y-2 animate-in fade-in duration-200`}
+              >
+                <div className="flex items-center gap-2 text-[11px] text-white/40 px-1 font-mono-studio">
+                  {msg.sender === "user" ? (
+                    <>
+                      <span>You (Student)</span>
+                      <span>•</span>
+                      <span>{msg.timestamp}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-[#a78bfa] font-medium flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" />
+                        AstraMind AI Tutor
+                      </span>
+                      <span>•</span>
+                      <span>{msg.timestamp}</span>
+                    </>
+                  )}
                 </div>
-              ) : (
-                <div className="w-full bg-[#080d26] border border-white/10 rounded-2xl rounded-tl-none p-4 sm:p-5 shadow-xl space-y-4">
-                  {renderTutorText(msg.text)}
 
-                  {/* Actions under AI response */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-white/10 text-xs">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <button
-                        onClick={() => handleSend(`Can you give me another simpler real-life analogy for this?`)}
-                        disabled={isLoading}
-                        className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 text-[11px] font-medium flex items-center gap-1 border border-white/10 cursor-pointer disabled:opacity-50"
-                      >
-                        <Brain className="w-3 h-3 text-amber-400" />
-                        <span>Simpler Analogy</span>
-                      </button>
-                      <button
-                        onClick={() => handleSend(`Give me another practice question on this concept to test my knowledge.`)}
-                        disabled={isLoading}
-                        className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-purple-500/20 hover:text-purple-300 text-slate-300 text-[11px] font-medium flex items-center gap-1 border border-white/10 cursor-pointer disabled:opacity-50"
-                      >
-                        <Target className="w-3 h-3 text-purple-400" />
-                        <span>More Practice Questions</span>
-                      </button>
-                      <button
-                        onClick={() => handleSend(`Can you explain this at a deeper / advanced level now?`)}
-                        disabled={isLoading}
-                        className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-indigo-500/20 hover:text-indigo-300 text-slate-300 text-[11px] font-medium flex items-center gap-1 border border-white/10 cursor-pointer disabled:opacity-50"
-                      >
-                        <Zap className="w-3 h-3 text-indigo-400" />
-                        <span>Deepen Technical Level</span>
-                      </button>
-                    </div>
+                {msg.sender === "user" ? (
+                  <div className="max-w-2xl bg-white text-[#0d0d0e] rounded-2xl rounded-tr-none px-4 py-3 text-sm font-semibold shadow-md">
+                    {msg.text}
+                  </div>
+                ) : (
+                  <div className="w-full bg-[#1a1a1d] border border-white/[0.06] rounded-[24px] rounded-tl-none p-5 sm:p-6 shadow-xl space-y-4">
+                    {renderTutorText(msg.text)}
 
-                    <div className="flex items-center gap-2 text-slate-400">
-                      <button
-                        onClick={() => toggleBookmark(msg.id)}
-                        className={`p-1.5 rounded-lg border border-white/10 hover:text-white transition-colors cursor-pointer ${
-                          bookmarks[msg.id] ? "bg-amber-500/20 text-amber-300 border-amber-500/30" : "bg-white/5"
-                        }`}
-                        title="Bookmark Explanation"
-                      >
-                        <Bookmark className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleCopyText(msg.text, msg.id)}
-                        className="p-1.5 rounded-lg bg-white/5 border border-white/10 hover:text-white transition-colors cursor-pointer"
-                        title="Copy Response"
-                      >
-                        {copiedId === msg.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                      </button>
+                    {/* Actions under AI response */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-white/[0.06] text-xs">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <button
+                          onClick={() => handleSend(`Can you give me another simpler real-life analogy for this?`)}
+                          disabled={isLoading}
+                          className="px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-amber-500/15 hover:text-amber-300 text-white/70 text-[11px] font-medium flex items-center gap-1.5 border border-white/[0.06] cursor-pointer disabled:opacity-50 transition-colors"
+                        >
+                          <Brain className="w-3 h-3 text-amber-400" />
+                          <span>Simpler Analogy</span>
+                        </button>
+                        <button
+                          onClick={() => handleSend(`Give me another practice question on this concept to test my knowledge.`)}
+                          disabled={isLoading}
+                          className="px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-purple-500/15 hover:text-purple-300 text-white/70 text-[11px] font-medium flex items-center gap-1.5 border border-white/[0.06] cursor-pointer disabled:opacity-50 transition-colors"
+                        >
+                          <Target className="w-3 h-3 text-[#a78bfa]" />
+                          <span>Practice Challenge</span>
+                        </button>
+                        <button
+                          onClick={() => handleSend(`Can you explain this at a deeper / advanced level now?`)}
+                          disabled={isLoading}
+                          className="px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-[#a78bfa]/20 hover:text-white text-white/70 text-[11px] font-medium flex items-center gap-1.5 border border-white/[0.06] cursor-pointer disabled:opacity-50 transition-colors"
+                        >
+                          <Zap className="w-3 h-3 text-[#a78bfa]" />
+                          <span>Deepen Depth</span>
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 text-white/40">
+                        <button
+                          onClick={() => toggleBookmark(msg.id)}
+                          className={`p-1.5 rounded-full border border-white/[0.06] hover:text-white transition-colors cursor-pointer ${
+                            bookmarks[msg.id] ? "bg-amber-500/20 text-amber-300 border-amber-500/30" : "bg-white/[0.04]"
+                          }`}
+                          title="Bookmark Explanation"
+                        >
+                          <Bookmark className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleCopyText(msg.text, msg.id)}
+                          className="p-1.5 rounded-full bg-white/[0.04] border border-white/[0.06] hover:text-white transition-colors cursor-pointer"
+                          title="Copy Response"
+                        >
+                          {copiedId === msg.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-          ))}
+                )}
+              </div>
+            ))}
 
-          {isLoading && (
-            <div className="flex items-center gap-3 p-4 bg-[#080d26] border border-white/10 rounded-2xl w-fit animate-pulse text-xs text-indigo-300 font-medium">
-              <Bot className="w-4 h-4 animate-spin text-indigo-400" />
-              <span>AstraMind AI Tutor is preparing your structured B.Tech explanation...</span>
-            </div>
-          )}
+            {isLoading && (
+              <div className="flex items-center gap-3 p-4 bg-[#1a1a1d] border border-white/[0.06] rounded-2xl w-fit animate-pulse text-xs text-[#a78bfa] font-medium">
+                <Bot className="w-4 h-4 animate-spin text-[#a78bfa]" />
+                <span>AstraMind AI Tutor is preparing your structured B.Tech explanation...</span>
+              </div>
+            )}
 
-          <div ref={messagesEndRef} />
-        </div>
+            <div ref={messagesEndRef} />
+          </div>
 
-        {/* INPUT BOX */}
-        <div className="space-y-2 pt-2 border-t border-white/10">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSend();
-            }}
-            className="flex items-center gap-2 bg-[#080d26] border border-white/15 rounded-2xl p-2 focus-within:border-indigo-500/80 transition-all shadow-inner"
-          >
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask your AI Tutor any coding question (e.g. 'What is a binary tree?', 'Explain recursion')..."
-              className="flex-1 bg-transparent px-3 py-2 text-xs sm:text-sm text-white placeholder-slate-400 outline-none"
-              disabled={isLoading}
-            />
-            <button
-              type="submit"
-              disabled={!input.trim() || isLoading}
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-indigo-500/25 cursor-pointer disabled:opacity-40 transition-all"
+          {/* INPUT BOX */}
+          <div className="space-y-2 pt-2 border-t border-white/[0.06]">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSend();
+              }}
+              className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.08] rounded-full p-2 focus-within:border-[#a78bfa] transition-all shadow-inner"
             >
-              <span>Ask AI Mentor</span>
-              <Send className="w-3.5 h-3.5" />
-            </button>
-          </form>
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Ask any programming question (e.g. 'What is a binary search tree?', 'Explain recursion')..."
+                className="flex-1 bg-transparent px-4 py-2 text-xs sm:text-sm text-white placeholder-white/30 outline-none"
+                disabled={isLoading}
+              />
+              <button
+                type="submit"
+                disabled={!input.trim() || isLoading}
+                className="px-5 py-2.5 rounded-full bg-white text-[#0d0d0e] hover:bg-slate-200 text-xs font-semibold flex items-center gap-1.5 shadow-md cursor-pointer disabled:opacity-40 transition-all"
+              >
+                <span>Ask</span>
+                <Send className="w-3.5 h-3.5 text-[#0d0d0e]" />
+              </button>
+            </form>
 
-          <div className="flex items-center justify-between text-[11px] text-slate-400 px-2">
-            <span>💡 Tip: Reply to practice questions to get instant feedback from your AI Mentor!</span>
-            <span>AstraMind CS Education Engine</span>
+            <div className="flex items-center justify-between text-[11px] text-white/40 px-3 font-mono-studio">
+              <span>Reply to practice questions to receive feedback</span>
+              <span>AstraMind CS Education</span>
+            </div>
           </div>
         </div>
       </div>

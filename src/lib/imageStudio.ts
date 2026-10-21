@@ -317,17 +317,19 @@ export async function apiGenerateImage(
         const trimmed = line.trim();
         if (trimmed.startsWith("data:")) {
           const jsonStr = trimmed.replace(/^data:\s*/, "");
+          let parsed: any;
           try {
-            const parsed = JSON.parse(jsonStr);
-            if (parsed.type === "status" && parsed.message) {
-              if (onStatusUpdate) onStatusUpdate(parsed.message);
-            } else if (parsed.type === "result" && parsed.imageUrl) {
-              finalImageUrl = parsed.imageUrl;
-            } else if (parsed.type === "error") {
-              throw new Error(parsed.error || "Image generation is currently unavailable. Please try again later.");
-            }
-          } catch (pErr: any) {
-            if (pErr.message && pErr.message.includes("unavailable")) throw pErr;
+            parsed = JSON.parse(jsonStr);
+          } catch {
+            continue;
+          }
+
+          if (parsed.type === "status" && parsed.message) {
+            if (onStatusUpdate) onStatusUpdate(parsed.message);
+          } else if (parsed.type === "result" && parsed.imageUrl) {
+            finalImageUrl = parsed.imageUrl;
+          } else if (parsed.type === "error") {
+            throw new Error(parsed.error || "Image generation is currently unavailable. Please try again later.");
           }
         }
       }
@@ -337,14 +339,10 @@ export async function apiGenerateImage(
       return finalImageUrl;
     }
 
-    throw new Error("Image generation is currently unavailable. Please try again later.");
+    throw new Error("Image generation completed without returning an image.");
   } catch (err: any) {
     console.error("[Client Image Studio] Error generating image:", err);
-    throw new Error(
-      err?.message && err.message.length < 100 && !err.message.includes("Failed to fetch")
-        ? err.message
-        : "Image generation is currently unavailable. Please try again later."
-    );
+    throw new Error(err?.message || "Image generation is currently unavailable. Please try again later.");
   }
 }
 

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { StickyNote, Plus, Search, Trash2, Edit3, Save, Sparkles, Folder, Check, Copy, Tag, Clock } from "lucide-react";
+import AdSenseBanner from "./AdSenseBanner";
+import { ADSENSE_CONFIG } from "../config/adsense";
 
 export interface Note {
   id: string;
@@ -104,144 +106,147 @@ export default function NotesPage({ onStartChat }: NotesPageProps) {
   };
 
   return (
-    <div id="notes-page-container" className="flex-1 overflow-y-auto z-10 px-4 md:px-8 py-8 max-w-7xl mx-auto w-full space-y-8 scrollbar-thin">
-      
-      {/* Vision Pro Glassmorphism Hero Section */}
-      <div className="glass-panel p-8 md:p-10 relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border border-purple-500/20 shadow-2xl shadow-purple-950/30">
-        <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-gradient-to-br from-purple-600/30 to-indigo-600/10 blur-3xl pointer-events-none" />
-        <div className="space-y-3 max-w-2xl relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300 text-xs font-semibold">
-            <StickyNote className="w-3.5 h-3.5" />
-            <span>AstraMind AI Knowledge Base</span>
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
-            Smart AI Notes &amp; Ideas Scratchpad
-          </h1>
-          <p className="text-sm text-slate-300 leading-relaxed">
-            Organize thoughts, research insights, code snippets, and interview prep in floating translucent cards powered by AstraMind AI.
-          </p>
-        </div>
+    <div id="notes-page-container" className="relative min-h-full w-full bg-[#0d0d0e] text-[#fcfcfc] py-8 px-4 sm:px-6 lg:px-8 overflow-hidden font-sans">
+      {/* Variation 3 Ambient Studio Orb Background */}
+      <div className="studio-orb pointer-events-none" />
 
-        <div className="flex items-center gap-3 relative z-10">
-          <button
-            onClick={handleCreateNote}
-            className="glass-button-primary px-5 py-3 flex items-center gap-2 cursor-pointer text-sm shadow-xl shadow-purple-600/30"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Create New Note</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Main Workspace Layout (Sidebar List + Editor) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="relative z-10 max-w-6xl mx-auto space-y-8">
         
-        {/* Left Notes Navigator (4 cols) */}
-        <div className="lg:col-span-4 space-y-4">
-          <div className="glass-card p-4 space-y-3 border border-white/10">
-            {/* Search Input */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search notes..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-black/40 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-purple-500/50"
-              />
+        {/* Studio Page Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono-studio tracking-wider bg-[#a78bfa]/10 border border-[#a78bfa]/25 text-[#a78bfa] mb-3">
+              <StickyNote className="w-3.5 h-3.5" />
+              <span>AstraMind Knowledge Base</span>
             </div>
-
-            {/* Category Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-thin pb-1">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setFilterCategory(cat)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                    filterCategory === cat
-                      ? "bg-purple-600/80 text-white shadow-md shadow-purple-500/20"
-                      : "bg-white/5 text-slate-400 hover:text-white"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
+            <h1 className="font-serif-studio text-4xl sm:text-5xl font-medium text-white tracking-tight leading-tight">
+              Smart Notes
+            </h1>
+            <p className="text-sm text-white/50 mt-1 font-normal tracking-wide">
+              Organize lecture takeaways, code snippets, and research insights in clean studio notes.
+            </p>
           </div>
 
-          {/* Note List Cards */}
-          <div className="space-y-3 max-h-[550px] overflow-y-auto scrollbar-thin pr-1">
-            {filteredNotes.map((note) => {
-              const isActive = note.id === activeNoteId;
-              return (
-                <div
-                  key={note.id}
-                  onClick={() => setActiveNoteId(note.id)}
-                  className={`p-4 rounded-2xl cursor-pointer transition-all duration-200 border ${
-                    isActive
-                      ? "bg-gradient-to-r from-purple-900/40 to-indigo-900/40 border-purple-500/50 text-white shadow-lg shadow-purple-950/40 scale-[1.01]"
-                      : "bg-slate-900/40 hover:bg-slate-800/50 border-white/10 text-slate-300"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2 mb-1.5">
-                    <h3 className="font-bold text-sm text-white truncate max-w-[80%]">{note.title}</h3>
-                    <button
-                      onClick={(e) => handleDeleteNote(note.id, e)}
-                      className="text-slate-400 hover:text-rose-400 p-1 rounded-lg hover:bg-rose-500/10 transition-colors"
-                      title="Delete note"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed mb-3">
-                    {note.content}
-                  </p>
-                  <div className="flex items-center justify-between text-[10px] text-slate-400">
-                    <span className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 font-mono font-medium text-purple-300">
-                      {note.category}
-                    </span>
-                    <span className="flex items-center gap-1 font-mono">
-                      <Clock className="w-3 h-3 text-slate-400" />
-                      {note.updatedAt}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleCreateNote}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-white text-[#0d0d0e] hover:bg-slate-200 text-xs sm:text-sm font-semibold transition-all shadow-md hover:scale-[1.02] cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Create New Note</span>
+            </button>
           </div>
         </div>
 
-        {/* Right Active Note Editor Panel (8 cols) */}
-        <div className="lg:col-span-8">
-          {activeNote ? (
-            <div className="glass-panel p-6 md:p-8 space-y-6 border border-purple-500/20 shadow-2xl shadow-purple-950/30 flex flex-col min-h-[580px]">
-              
-              {/* Header Editor Controls */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
+        {/* Main Workspace Layout (Sidebar List + Editor) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          {/* Left Notes Navigator (4 cols) */}
+          <div className="lg:col-span-4 space-y-4">
+            <div className="p-4 rounded-[24px] bg-[#151517] border border-white/[0.06] shadow-xl space-y-3">
+              {/* Search Input */}
+              <div className="relative">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
                 <input
                   type="text"
-                  value={activeNote.title}
-                  onChange={(e) => handleUpdateActiveNote({ title: e.target.value })}
-                  placeholder="Note Title..."
-                  className="bg-transparent text-xl font-bold text-white focus:outline-none focus:border-b focus:border-purple-500/50 pb-1 w-full"
+                  placeholder="Search notes..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-full pl-10 pr-4 py-2 text-xs text-white placeholder-white/30 focus:outline-none focus:border-[#a78bfa] transition-all"
                 />
+              </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+              {/* Category Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-thin pb-1">
+                {categories.map((cat) => (
                   <button
-                    onClick={handleCopyContent}
-                    className="glass-button-secondary px-3 py-1.5 text-xs flex items-center gap-1.5 cursor-pointer"
-                    title="Copy note text"
+                    key={cat}
+                    onClick={() => setFilterCategory(cat)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all cursor-pointer ${
+                      filterCategory === cat
+                        ? "bg-[#a78bfa] text-[#0d0d0e] font-semibold shadow-md shadow-[#a78bfa]/20"
+                        : "bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]"
+                    }`}
                   >
-                    {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{isCopied ? "Copied" : "Copy"}</span>
+                    {cat}
                   </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Note List Cards */}
+            <div className="space-y-3 max-h-[550px] overflow-y-auto scrollbar-thin pr-1">
+              {filteredNotes.map((note) => {
+                const isActive = note.id === activeNoteId;
+                return (
+                  <div
+                    key={note.id}
+                    onClick={() => setActiveNoteId(note.id)}
+                    className={`p-4 rounded-[20px] cursor-pointer transition-all duration-200 border ${
+                      isActive
+                        ? "bg-[#1a1a1d] border-[#a78bfa]/40 text-white shadow-lg shadow-black/40 scale-[1.01]"
+                        : "bg-[#151517] hover:bg-[#18181b] border-white/[0.06] text-white/70"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <h3 className="font-medium text-sm text-white truncate max-w-[80%]">{note.title}</h3>
+                      <button
+                        onClick={(e) => handleDeleteNote(note.id, e)}
+                        className="text-white/40 hover:text-rose-400 p-1 rounded-lg hover:bg-rose-500/10 transition-colors"
+                        title="Delete note"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-white/50 line-clamp-2 leading-relaxed mb-3 font-normal">
+                      {note.content}
+                    </p>
+                    <div className="flex items-center justify-between text-[11px] text-white/40">
+                      <span className="px-2 py-0.5 rounded-full bg-[#a78bfa]/10 border border-[#a78bfa]/20 font-mono-studio font-medium text-[#a78bfa]">
+                        {note.category}
+                      </span>
+                      <span className="flex items-center gap-1 font-mono-studio text-[10px]">
+                        <Clock className="w-3 h-3 text-white/30" />
+                        {note.updatedAt}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Right Active Note Editor Panel (8 cols) */}
+          <div className="lg:col-span-8">
+            {activeNote ? (
+              <div className="p-6 md:p-8 rounded-[28px] bg-[#151517] border border-white/[0.06] shadow-xl space-y-6 flex flex-col min-h-[580px]">
+                
+                {/* Header Editor Controls */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
+                  <input
+                    type="text"
+                    value={activeNote.title}
+                    onChange={(e) => handleUpdateActiveNote({ title: e.target.value })}
+                    placeholder="Note Title..."
+                    className="bg-transparent font-serif-studio text-2xl sm:text-3xl font-medium text-white focus:outline-none focus:border-b focus:border-[#a78bfa] pb-1 w-full"
+                  />
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={handleCopyContent}
+                      className="px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-xs flex items-center gap-1.5 cursor-pointer text-white/80 transition-colors"
+                      title="Copy note text"
+                    >
+                      {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{isCopied ? "Copied" : "Copy"}</span>
+                    </button>
 
                   {onStartChat && (
                     <button
                       onClick={() => onStartChat(`Summarize and expand on this note:\n\nTitle: ${activeNote.title}\n\nContent:\n${activeNote.content}`)}
-                      className="glass-button-primary px-3 py-1.5 text-xs flex items-center gap-1.5 cursor-pointer shadow-md"
+                      className="px-3.5 py-1.5 rounded-full bg-white text-[#0d0d0e] hover:bg-slate-200 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-md transition-all"
                     >
-                      <Sparkles className="w-3.5 h-3.5" />
+                      <Sparkles className="w-3.5 h-3.5 text-[#a78bfa]" />
                       <span>Ask AI to Expand</span>
                     </button>
                   )}
@@ -250,12 +255,12 @@ export default function NotesPage({ onStartChat }: NotesPageProps) {
 
               {/* Category Selector */}
               <div className="flex items-center gap-2 text-xs">
-                <Tag className="w-3.5 h-3.5 text-purple-400" />
-                <span className="text-slate-400 font-mono">Category:</span>
+                <Tag className="w-3.5 h-3.5 text-[#a78bfa]" />
+                <span className="text-white/40 font-mono-studio">Category:</span>
                 <select
                   value={activeNote.category}
                   onChange={(e) => handleUpdateActiveNote({ category: e.target.value })}
-                  className="bg-slate-900 border border-white/10 rounded-lg px-2.5 py-1 text-white text-xs outline-none focus:border-purple-500/50"
+                  className="bg-[#151517] border border-white/[0.08] rounded-xl px-3 py-1.5 text-white text-xs outline-none focus:border-[#a78bfa] cursor-pointer"
                 >
                   <option value="Architecture">Architecture</option>
                   <option value="Interview">Interview</option>
@@ -270,31 +275,44 @@ export default function NotesPage({ onStartChat }: NotesPageProps) {
                   value={activeNote.content}
                   onChange={(e) => handleUpdateActiveNote({ content: e.target.value })}
                   placeholder="Write note contents here..."
-                  className="w-full flex-1 bg-black/30 border border-white/10 rounded-2xl p-4 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-purple-500/50 resize-none font-sans leading-relaxed scrollbar-thin"
+                  className="w-full flex-1 bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#a78bfa] resize-none font-sans leading-relaxed scrollbar-thin"
                 />
               </div>
 
-              <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-white/10">
-                <span className="font-mono text-[11px] text-purple-300">
+              <div className="flex items-center justify-between text-xs text-white/40 pt-2 border-t border-white/[0.06]">
+                <span className="font-mono-studio text-[11px] text-[#a78bfa]">
                   {activeNote.content.split(/\s+/).filter(Boolean).length} words
                 </span>
-                <span className="font-mono text-[11px]">
-                  Saved locally to AstraMind OS
+                <span className="font-mono-studio text-[11px] text-white/40">
+                  Saved locally to AstraMind Studio
                 </span>
               </div>
             </div>
           ) : (
-            <div className="glass-panel p-12 text-center text-slate-400 flex flex-col items-center justify-center min-h-[400px]">
-              <StickyNote className="w-12 h-12 text-slate-500 mb-4 animate-bounce" />
-              <p className="text-sm font-semibold">No note selected</p>
-              <button onClick={handleCreateNote} className="mt-4 glass-button-primary px-4 py-2 text-xs cursor-pointer">
+            <div className="p-12 rounded-[28px] bg-[#151517] border border-white/[0.06] text-center text-white/40 flex flex-col items-center justify-center min-h-[400px]">
+              <StickyNote className="w-10 h-10 text-white/20 mb-4" />
+              <p className="text-sm font-medium text-white/60">No note selected</p>
+              <button onClick={handleCreateNote} className="mt-4 px-5 py-2.5 rounded-full bg-white text-[#0d0d0e] hover:bg-slate-200 text-xs font-semibold cursor-pointer shadow-md transition-all">
                 Create First Note
               </button>
             </div>
           )}
         </div>
-
       </div>
+
+      {/* ===================================================================== */}
+      {/* 3. NOTES / RESOURCES — BOTTOM AD SLOT                                 */}
+      {/* ===================================================================== */}
+      <AdSenseBanner
+        id="notes-bottom-ad-slot"
+        slotId={ADSENSE_CONFIG.slots.notesBottom}
+        format="auto"
+        responsive={true}
+        variant="banner"
+        className="pt-2 sm:pt-4 w-full"
+      />
+
     </div>
-  );
+  </div>
+);
 }

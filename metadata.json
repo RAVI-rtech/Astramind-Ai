@@ -1,6 +1,6 @@
 {
   "name": "AstraMind AI",
-  "description": "A premium, futuristic, and minimal AI assistant with deep glassmorphism themes and intelligent context-aware chat capabilities.",
+  "description": "AstraMind Study Workspace: A premium AI study workspace for B.Tech students with intelligent materials analysis, guided lessons, quizzes, flashcards, mock exams, and real-time live quizzes.",
   "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

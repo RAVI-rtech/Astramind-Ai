@@ -7,11 +7,13 @@ export interface GenerateImageParams {
   aspectRatio?: string;
   size?: string;
   customModel?: string;
+  providerId?: string;
 }
 
 export interface EditImageParams {
   prompt: string;
   image: string; // base64 or URL
+  providerId?: string;
 }
 
 export interface ImageRouterResult {
@@ -77,21 +79,31 @@ export class ImageRouter {
 
     notifyStatus("Generating image...");
 
-    let attemptCount = 0;
+    // Order providers: if specific providerId requested, put it first
+    let providersToTry = [...this.providers];
+    if (params.providerId) {
+      const targetProvider = providersToTry.find((p) => p.id === params.providerId);
+      if (targetProvider) {
+        providersToTry = [targetProvider, ...providersToTry.filter((p) => p.id !== params.providerId)];
+      }
+    }
 
-    for (const provider of this.providers) {
+    let attemptCount = 0;
+    let lastError: Error | null = null;
+
+    for (const provider of providersToTry) {
       attemptCount++;
 
       if (attemptCount > 1) {
-        notifyStatus("Trying another provider...");
+        notifyStatus(`Routing to alternate synthesis provider (${provider.name})...`);
       }
 
-      console.log(`[ImageRouter] Attempting Provider ${attemptCount}/${this.providers.length}: "${provider.name}" (${provider.id})`);
+      console.log(`[ImageRouter] Attempting Provider ${attemptCount}/${providersToTry.length}: "${provider.name}" (${provider.id})`);
 
       try {
         const isAvail = await provider.isAvailable().catch(() => false);
         if (!isAvail) {
-          console.warn(`[ImageRouter Log] Provider "${provider.name}" reported as unavailable. Skipping to next.`);
+          console.warn(`[ImageRouter Log] Provider "${provider.name}" reported as unavailable. Skipping.`);
           continue;
         }
 
@@ -107,14 +119,17 @@ export class ImageRouter {
           };
         }
       } catch (err: any) {
-        // Log detailed technical error on server for developer inspection
         console.warn(`[ImageRouter Internal Log] Provider "${provider.name}" failed:`, err?.message || err);
-        // Do NOT rethrow or expose raw provider technical details to client
+        lastError = err;
+        // Continue to fallback providers so the user request succeeds with authentic AI imagery
       }
     }
 
     // If all providers failed or were unavailable
     console.error("[ImageRouter Error] All registered providers failed or were unavailable.");
+    if (lastError) {
+      throw lastError;
+    }
     throw new Error("Image generation is currently unavailable. Please try again later.");
   }
 
@@ -348,7 +363,7 @@ export class GoogleGeminiFlashProvider implements ImageProvider {
 export class PollinationsAIProvider implements ImageProvider {
   public id = "pollinations-ai";
   public name = "Pollinations Open Studio";
-  public priority = 4;
+  public priority = 2;
 
   public async isAvailable(): Promise<boolean> {
     return true; // Public endpoint requiring no keys
@@ -381,7 +396,7 @@ export class PollinationsAIProvider implements ImageProvider {
     const pollinationsUrl = `https://image.pollinations.ai/prompt/${cleanPrompt}?width=${width}&height=${height}&seed=${seed}&nologo=true`;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 sec timeout
+    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 sec timeout for deep diffusion
 
     try {
       const response = await fetch(pollinationsUrl, { signal: controller.signal });
@@ -413,87 +428,16 @@ export class PollinationsAIProvider implements ImageProvider {
 }
 
 /**
- * Provider 5: AstraMind Aesthetic Visual Art Provider (Always reliable fallback)
- */
-export class AstraMindVisualArtProvider implements ImageProvider {
-  public id = "astramind-art";
-  public name = "AstraMind Visual Art Engine";
-  public priority = 5;
-
-  public async isAvailable(): Promise<boolean> {
-    return true;
-  }
-
-  public async generateImage(params: GenerateImageParams): Promise<{ imageUrl: string; modelUsed: string }> {
-    let width = 1024;
-    let height = 1024;
-    if (params.aspectRatio === "16:9") { width = 1280; height = 720; }
-    else if (params.aspectRatio === "9:16") { width = 720; height = 1280; }
-    else if (params.aspectRatio === "4:3") { width = 1024; height = 768; }
-    else if (params.aspectRatio === "3:4") { width = 768; height = 1024; }
-
-    const seed = Array.from(params.prompt).reduce((acc, char) => acc + char.charCodeAt(0), 0) + Math.floor(Math.random() * 1000);
-    const picsumUrl = `https://picsum.photos/seed/${seed}/${width}/${height}`;
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-    try {
-      const response = await fetch(picsumUrl, { signal: controller.signal });
-      clearTimeout(timeoutId);
-      if (response.ok) {
-        const arrayBuffer = await response.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        const base64 = buffer.toString("base64");
-        return {
-          imageUrl: `data:image/jpeg;base64,${base64}`,
-          modelUsed: "astramind-art-canvas",
-        };
-      }
-    } catch (e) {
-      clearTimeout(timeoutId);
-    }
-
-    // High quality SVG data URL as ultimate fallback
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-      <defs>
-        <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#0f172a"/>
-          <stop offset="50%" stop-color="#1e1b4b"/>
-          <stop offset="100%" stop-color="#312e81"/>
-        </linearGradient>
-        <filter id="b"><feGaussianBlur stdDeviation="60"/></filter>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#g)"/>
-      <circle cx="${width * 0.3}" cy="${height * 0.3}" r="${width * 0.25}" fill="#6366f1" opacity="0.4" filter="url(#b)"/>
-      <circle cx="${width * 0.7}" cy="${height * 0.7}" r="${width * 0.3}" fill="#ec4899" opacity="0.3" filter="url(#b)"/>
-      <text x="50%" y="45%" dominant-baseline="middle" text-anchor="middle" fill="#f8fafc" font-family="sans-serif" font-size="${Math.min(width, height) * 0.04}" font-weight="bold" opacity="0.9">AstraMind Neural Art</text>
-      <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="${Math.min(width, height) * 0.025}">${params.prompt.slice(0, 40)}...</text>
-    </svg>`;
-    const base64Svg = Buffer.from(svg).toString("base64");
-    return {
-      imageUrl: `data:image/svg+xml;base64,${base64Svg}`,
-      modelUsed: "astramind-vector-canvas",
-    };
-  }
-
-  public async editImage(params: EditImageParams): Promise<{ imageUrl: string; modelUsed: string }> {
-    return this.generateImage({ prompt: params.prompt });
-  }
-}
-
-/**
- * Default Global Router Instance initialized with all providers
+ * Default Global Router Instance initialized with authentic AI providers
  */
 export function createDefaultImageRouter(getGenAI: () => GoogleGenAI | null): ImageRouter {
   const router = new ImageRouter();
 
   // Register providers in priority order
   router.registerProvider(new HuggingFaceImageProvider());
+  router.registerProvider(new PollinationsAIProvider());
   router.registerProvider(new GoogleImagenProvider(getGenAI));
   router.registerProvider(new GoogleGeminiFlashProvider(getGenAI));
-  router.registerProvider(new PollinationsAIProvider());
-  router.registerProvider(new AstraMindVisualArtProvider());
 
   return router;
 }
