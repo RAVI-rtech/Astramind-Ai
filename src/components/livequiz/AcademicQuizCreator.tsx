@@ -288,9 +288,12 @@ export default function AcademicQuizCreator({
   }, [initialDraft]);
 
   const loadDraftIntoState = (d: AcademicQuizDraft) => {
-    if (d.branch && VITS_BRANCHES.includes(d.branch as any)) setBranch(d.branch as VitsBranch);
-    if (d.year && VITS_YEARS.includes(d.year as any)) setYear(d.year as AcademicYear);
-    if (d.semester && VITS_SEMESTERS.includes(d.semester as any)) setSemester(d.semester as AcademicSemester);
+    if (d.college) setCollege(d.college);
+    if (d.regulation !== undefined) setRegulation(d.regulation);
+    if (d.programType) setProgramType(d.programType);
+    if (d.branch) setBranch(d.branch);
+    if (d.year) setYear(d.year);
+    if (d.semester) setSemester(d.semester);
     if (d.subject) setSubject(d.subject);
     if (d.unit) setUnit(d.unit);
     if (d.topic) setTopic(d.topic);
