@@ -2791,13 +2791,20 @@ app.get("/api/admin/stats", async (req, res) => {
     const pending = students.filter((s) => s.status === "Pending").length;
     const branches: Record<string, number> = {};
 
-    let totalAttendance = 0;
-    for (const s of students) {
-      branches[s.branch] = (branches[s.branch] || 0) + 1;
-      totalAttendance += Number(s.attendance_percentage) || 0;
+    const knownAttendance: number[] = [];
+    for (const student of students) {
+      if (typeof student.branch === "string" && student.branch.trim()) {
+        branches[student.branch] = (branches[student.branch] || 0) + 1;
+      }
+      const attendance = student.attendance_percentage;
+      if (attendance !== null && attendance !== undefined && attendance !== "" && Number.isFinite(Number(attendance))) {
+        knownAttendance.push(Number(attendance));
+      }
     }
 
-    const avgAttendance = total > 0 ? Math.round(totalAttendance / total) : 0;
+    const avgAttendance = knownAttendance.length > 0
+      ? Math.round(knownAttendance.reduce((sum, value) => sum + value, 0) / knownAttendance.length)
+      : null;
 
     res.json({
       success: true,
