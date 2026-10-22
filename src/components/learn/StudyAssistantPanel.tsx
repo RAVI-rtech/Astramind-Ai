@@ -26,14 +26,12 @@ export default function StudyAssistantPanel({ onClose, onAddXp }: StudyAssistant
   // Document Summarizer State
   const [pastedText, setPastedText] = useState("");
   const [summaryResult, setSummaryResult] = useState<string | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
 
   // Flashcards State
-  const [flashcards, setFlashcards] = useState<Flashcard[]>([
-    { id: "fc-1", question: "What is Time Complexity of Binary Search?", answer: "O(log n) time complexity because it cuts the search space in half each iteration.", category: "Algorithms" },
-    { id: "fc-2", question: "What is the difference between let, const, and var in JS?", answer: "let and const are block-scoped. const prevents re-assignment. var is function-scoped and hoisted.", category: "JavaScript" },
-    { id: "fc-3", question: "What is the main advantage of PyTorch over TensorFlow 1.x?", answer: "PyTorch uses dynamic computational graphs (eager execution) making debugging much easier.", category: "Deep Learning" }
-  ]);
+  const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
+  const [flashcardError, setFlashcardError] = useState<string | null>(null);
   const [currentCardIdx, setCurrentCardIdx] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [newTopicForFlashcards, setNewTopicForFlashcards] = useState("");
@@ -45,6 +43,7 @@ export default function StudyAssistantPanel({ onClose, onAddXp }: StudyAssistant
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const [userQuizAnswers, setUserQuizAnswers] = useState<Record<number, number>>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
+  const [quizError, setQuizError] = useState<string | null>(null);
 
   // Revision Planner
   const [examSubject, setExamSubject] = useState("");
@@ -56,20 +55,24 @@ export default function StudyAssistantPanel({ onClose, onAddXp }: StudyAssistant
   const handleSummarize = async () => {
     if (!pastedText.trim() || isSummarizing) return;
     setIsSummarizing(true);
+    setSummaryError(null);
+    setSummaryResult(null);
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [{ sender: "user", text: `Summarize the following study notes/PDF text into executive bullet points, key terminology, and high-yield exam takeaways:\n\n${pastedText}` }],
+          messages: [{ sender: "user", text: "Summarize the following study notes/PDF text into executive bullet points, key terminology, and high-yield exam takeaways:\n\n" + pastedText }],
           systemInstruction: "You are an expert study assistant and notes summarizer. Format outputs cleanly using Markdown headings, bullet points, and key takeaways."
         })
       });
       const data = await res.json();
-      setSummaryResult(data.text || "Summary completed.");
+      if (!res.ok || data.error) throw new Error(data.error || "Summary generation failed.");
+      if (typeof data.text !== "string" || data.text.trim().length < 10) throw new Error("The AI service returned an empty summary.");
+      setSummaryResult(data.text.trim());
       onAddXp(20);
-    } catch (err) {
-      setSummaryResult("Failed to generate summary. Please try again.");
+    } catch (err: any) {
+      setSummaryError(err?.message || "Failed to generate summary. Please try again.");
     } finally {
       setIsSummarizing(false);
     }
@@ -79,30 +82,42 @@ export default function StudyAssistantPanel({ onClose, onAddXp }: StudyAssistant
   const handleGenerateFlashcards = async () => {
     if (!newTopicForFlashcards.trim() || isGeneratingFlashcards) return;
     setIsGeneratingFlashcards(true);
+    setFlashcardError(null);
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [{ sender: "user", text: `Generate 4 high-yield active recall flashcards for topic: "${newTopicForFlashcards}". Return valid JSON array of objects with keys: question, answer, category.` }],
-          systemInstruction: "Return ONLY a valid JSON array of flashcards without markdown formatting or introductory text."
+          messages: [{ sender: "user", text: "Generate 4 active-recall flashcards for this topic: " + newTopicForFlashcards + ". Return a JSON array with question, answer, and category." }],
+          systemInstruction: "Return only a JSON array. Every card must have a nonempty question and a nonempty answer."
         })
       });
       const data = await res.json();
-      try {
-        const cleanJson = data.text.replace(/```json/g, "").replace(/```/g, "").trim();
-        const parsed: Flashcard[] = JSON.parse(cleanJson);
-        const formatted = parsed.map((fc, i) => ({ ...fc, id: `gen-${Date.now()}-${i}` }));
-        setFlashcards(prev => [...formatted, ...prev]);
-        setCurrentCardIdx(0);
-        setIsFlipped(false);
-        setNewTopicForFlashcards("");
-        onAddXp(30);
-      } catch (e) {
-        // fallback
-      }
-    } catch (e) {
-      console.error(e);
+      if (!res.ok || data.error) throw new Error(data.error || "Flashcard generation failed.");
+      if (typeof data.text !== "string") throw new Error("The AI service returned no flashcards.");
+      let cleanJson = data.text.trim();
+      const fence = String.fromCharCode(96).repeat(3);
+      if (cleanJson.startsWith(fence + "json")) cleanJson = cleanJson.slice((fence + "json").length);
+      else if (cleanJson.startsWith(fence)) cleanJson = cleanJson.slice(fence.length);
+      if (cleanJson.trimEnd().endsWith(fence)) cleanJson = cleanJson.trimEnd().slice(0, -fence.length);
+      const parsed = JSON.parse(cleanJson.trim());
+      const usable = Array.isArray(parsed)
+        ? parsed.filter((card: any) => card && typeof card.question === "string" && card.question.trim() && typeof card.answer === "string" && card.answer.trim())
+        : [];
+      if (usable.length === 0) throw new Error("No valid flashcards were returned. Please retry.");
+      const formatted: Flashcard[] = usable.map((card: any, i: number) => ({
+        id: "gen-" + Date.now() + "-" + i,
+        question: card.question.trim(),
+        answer: card.answer.trim(),
+        category: typeof card.category === "string" && card.category.trim() ? card.category : newTopicForFlashcards.trim(),
+      }));
+      setFlashcards((prev) => [...formatted, ...prev]);
+      setCurrentCardIdx(0);
+      setIsFlipped(false);
+      setNewTopicForFlashcards("");
+      onAddXp(30);
+    } catch (err: any) {
+      setFlashcardError(err?.message || "Flashcard generation failed. Please try again.");
     } finally {
       setIsGeneratingFlashcards(false);
     }
@@ -112,24 +127,36 @@ export default function StudyAssistantPanel({ onClose, onAddXp }: StudyAssistant
   const handleGenerateQuiz = async () => {
     if (!quizTopic.trim() || isGeneratingQuiz) return;
     setIsGeneratingQuiz(true);
+    setQuizError(null);
     setQuizSubmitted(false);
     setUserQuizAnswers({});
+    setGeneratedQuiz([]);
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [{ sender: "user", text: `Generate 3 multiple choice questions for topic: "${quizTopic}". Return valid JSON array of objects with keys: question, options (array of 4 strings), correctIndex (0-3), explanation.` }],
-          systemInstruction: "Return ONLY valid JSON array of quiz questions."
+          messages: [{ sender: "user", text: "Generate 3 multiple-choice questions for topic: " + quizTopic + ". Return a JSON array with question, options (array of nonempty strings), correctIndex (integer from 0 to options.length - 1), and explanation." }],
+          systemInstruction: "Return only valid JSON. Every question must have a correct answer key and a nonempty explanation."
         })
       });
       const data = await res.json();
-      const cleanJson = data.text.replace(/```json/g, "").replace(/```/g, "").trim();
-      const parsed = JSON.parse(cleanJson);
-      setGeneratedQuiz(parsed);
+      if (!res.ok || data.error) throw new Error(data.error || "Quiz generation failed.");
+      if (typeof data.text !== "string") throw new Error("The AI service returned no quiz questions.");
+      let cleanJson = data.text.trim();
+      const fence = String.fromCharCode(96).repeat(3);
+      if (cleanJson.startsWith(fence + "json")) cleanJson = cleanJson.slice((fence + "json").length);
+      else if (cleanJson.startsWith(fence)) cleanJson = cleanJson.slice(fence.length);
+      if (cleanJson.trimEnd().endsWith(fence)) cleanJson = cleanJson.trimEnd().slice(0, -fence.length);
+      const parsed = JSON.parse(cleanJson.trim());
+      const usable = Array.isArray(parsed)
+        ? parsed.filter((question: any) => question && typeof question.question === "string" && question.question.trim() && Array.isArray(question.options) && question.options.length >= 2 && question.options.every((option: unknown) => typeof option === "string" && option.trim()) && Number.isInteger(question.correctIndex) && question.correctIndex >= 0 && question.correctIndex < question.options.length && typeof question.explanation === "string" && question.explanation.trim())
+        : [];
+      if (usable.length === 0) throw new Error("No valid quiz questions with answer keys were returned.");
+      setGeneratedQuiz(usable);
       onAddXp(30);
-    } catch (e) {
-      console.error(e);
+    } catch (err: any) {
+      setQuizError(err?.message || "Quiz generation failed. Please try again.");
     } finally {
       setIsGeneratingQuiz(false);
     }
