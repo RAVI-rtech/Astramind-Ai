@@ -143,7 +143,7 @@ CRITICAL GROUNDING RULES:
 1. Ground your response primarily and authoritatively in the provided document content.
 2. DO NOT invent facts, formulas, or claims not supported by the document.
 3. If the user asks about something outside the document, politely state that it is not covered in "${pdfTitle}", but provide the closest related concept from the text.
-4. Always provide specific page numbers or section references where the concept appears in "${pdfTitle}".
+4. Cite a page or section only if it is explicitly preserved in the supplied text; otherwise cite by exact quote without a page number.
 5. Structure answers with clear headings, bullet points, and exact formulas.
 6. When answering math/electrical/engineering questions, show step-by-step reasoning.
 7. Return citations at the bottom or in citation fields.`;
@@ -248,13 +248,13 @@ Return a JSON object:
   "overviewText": "A 2-3 paragraph crisp overview of the material.",
   "keyConcepts": ["Concept 1 with concise explanation", "Concept 2 with concise explanation"],
   "importantDefinitions": [
-    {"term": "Term Name", "definition": "Exact definition according to notes", "page": 1}
+    {"term": "Term Name", "definition": "Exact definition according to notes", "page": null}
   ],
   "formulas": [
-    {"formula": "Mathematical / Electrical formula", "description": "What each variable represents", "page": 1}
+    {"formula": "Mathematical / Electrical formula", "description": "What each variable represents", "page": null}
   ],
   "examples": [
-    {"title": "Example Problem / Scenario", "explanation": "Step-by-step solution from text", "page": 1}
+    {"title": "Example Problem / Scenario", "explanation": "Step-by-step solution from text", "page": null}
   ],
   "importantPoints": ["Key takeaway point 1", "Key takeaway point 2"],
   "examFocusedPoints": ["High-yield exam tip 1", "Common university exam pitfall 2"]
@@ -275,9 +275,24 @@ Return a JSON object:
       chapterOrScope,
       overviewText: data.overviewText.trim(),
       keyConcepts: Array.isArray(data.keyConcepts) ? data.keyConcepts : [],
-      importantDefinitions: Array.isArray(data.importantDefinitions) ? data.importantDefinitions : [],
-      formulas: Array.isArray(data.formulas) ? data.formulas : [],
-      examples: Array.isArray(data.examples) ? data.examples : [],
+      importantDefinitions: Array.isArray(data.importantDefinitions)
+        ? data.importantDefinitions
+            .filter((item: any) => item && typeof item.term === "string" && item.term.trim() && typeof item.definition === "string" && item.definition.trim())
+            .map((item: any) => ({ term: item.term.trim(), definition: item.definition.trim() }))
+        : [],
+      formulas: Array.isArray(data.formulas)
+        ? data.formulas
+            .filter((item: any) => item && typeof item.formula === "string" && item.formula.trim())
+            .map((item: any) => ({
+              formula: item.formula.trim(),
+              description: typeof item.description === "string" ? item.description : "",
+            }))
+        : [],
+      examples: Array.isArray(data.examples)
+        ? data.examples
+            .filter((item: any) => item && typeof item.title === "string" && item.title.trim() && typeof item.explanation === "string" && item.explanation.trim())
+            .map((item: any) => ({ title: item.title.trim(), explanation: item.explanation.trim() }))
+        : [],
       importantPoints: Array.isArray(data.importantPoints) ? data.importantPoints : [],
       examFocusedPoints: Array.isArray(data.examFocusedPoints) ? data.examFocusedPoints : [],
       createdAt: Date.now(),
@@ -328,7 +343,7 @@ ${pdfContent.slice(0, 36000)}
 Return a JSON object:
 {
   "title": "Clean Title for Notes",
-  "topic": "${topic || "Core Principles"}",
+  "topic": "${topic || "A topic identified in the uploaded document"}",
   "markdownContent": "Full formatted markdown notes with headers, bullet points, tables where helpful, bold terms, and code/formulas.",
   "definitions": [
     {"term": "Term", "meaning": "Definition"}
@@ -419,7 +434,7 @@ Do not copy facts from unrelated domains. If the source does not specify a page,
       front: card.front.trim(),
       back: card.back.trim(),
       topic: typeof card.topic === "string" && card.topic.trim() ? card.topic : pdfTitle,
-      pageNumber: typeof card.pageNumber === "number" && card.pageNumber > 0 ? card.pageNumber : undefined,
+      pageNumber: undefined,
       category: ["Definition", "Formula", "Law/Principle", "Comparison", "Core Concept", "Exam Concept"].includes(card.category) ? card.category : "Core Concept",
     }));
   } catch (err) {
@@ -490,7 +505,7 @@ For MCQs, use four plausible options and make the correct answer match one optio
       options: Array.isArray(question.options) ? question.options : undefined,
       correctAnswer: question.correctAnswer.trim(),
       explanation: typeof question.explanation === "string" ? question.explanation : "",
-      pageReference: typeof question.pageReference === "number" && question.pageReference > 0 ? question.pageReference : undefined,
+      pageReference: undefined,
       marks: typeof question.marks === "number" && question.marks > 0 ? question.marks : undefined,
       difficulty: ["Easy", "Medium", "Hard", "Exam Preparation"].includes(question.difficulty) ? question.difficulty : difficulty,
       topic: typeof question.topic === "string" && question.topic.trim() ? question.topic : topic || pdfTitle,
@@ -547,7 +562,7 @@ Return JSON:
       stepByStepBreakdown: Array.isArray(data.stepByStepBreakdown) ? data.stepByStepBreakdown.filter((step: unknown) => typeof step === "string" && step.trim()) : [],
       keyFormulas: Array.isArray(data.keyFormulas) ? data.keyFormulas.filter((formula: unknown) => typeof formula === "string" && formula.trim()) : [],
       examTakeaways: Array.isArray(data.examTakeaways) ? data.examTakeaways.filter((takeaway: unknown) => typeof takeaway === "string" && takeaway.trim()) : [],
-      pageReference: typeof data.pageReference === "number" && data.pageReference > 0 ? data.pageReference : undefined,
+      pageReference: undefined,
     };
   } catch (err) {
     throw new Error("Topic explanation failed. No unrelated explanation was substituted.");
@@ -563,13 +578,14 @@ export async function findImportantPdfTopics(params: {
   subject?: string;
 }): Promise<PDFImportantTopic[]> {
   const { pdfTitle, pdfContent, subject } = params;
+  const sourceTextLower = pdfContent.toLowerCase();
 
   const systemInstruction = `You are an academic study assistant.
 Identify important topics solely from the provided document. Use emphasis, repeated concepts, headings and stated learning objectives as evidence.
 Do not invent external university exam frequencies, marks allocation, or statistical probabilities unless they are explicitly stated in the provided text.
 Return strictly a JSON array.`;
 
-  const prompt = `Scan "${pdfTitle}" (${subject || "Engineering Core"}) and extract the top high-yield exam topics.
+  const prompt = `Scan "${pdfTitle}" (${subject || "the uploaded document's subject"}) and identify topics emphasized by the source.
 
 DOCUMENT CONTENT:
 """
@@ -601,10 +617,16 @@ Return a JSON array of objects:
       rank: typeof item.rank === "number" && item.rank > 0 ? item.rank : idx + 1,
       topic: item.topic.trim(),
       importance: ["Critical", "High", "Medium"].includes(item.importance) ? item.importance : "Medium",
-      examFrequency: typeof item.examFrequency === "string" && item.examFrequency.trim() ? item.examFrequency : "Not stated in the uploaded document.",
+      examFrequency: typeof item.examFrequency === "string" && item.examFrequency.trim() &&
+        sourceTextLower.includes(item.examFrequency.trim().toLowerCase())
+          ? item.examFrequency.trim()
+          : "Not stated in the uploaded document.",
       keyConcepts: Array.isArray(item.keyConcepts) ? item.keyConcepts.filter((concept: unknown) => typeof concept === "string" && concept.trim()) : [],
-      expectedMarks: typeof item.expectedMarks === "string" && item.expectedMarks.trim() ? item.expectedMarks : undefined,
-      pageReference: typeof item.pageReference === "number" && item.pageReference > 0 ? item.pageReference : undefined,
+      expectedMarks: typeof item.expectedMarks === "string" && item.expectedMarks.trim() &&
+        sourceTextLower.includes(item.expectedMarks.trim().toLowerCase())
+          ? item.expectedMarks.trim()
+          : undefined,
+      pageReference: undefined,
       whyImportant: typeof item.whyImportant === "string" && item.whyImportant.trim() ? item.whyImportant : "No explanation of importance was returned.",
     }));
   } catch (err) {
