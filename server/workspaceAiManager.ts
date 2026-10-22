@@ -328,7 +328,10 @@ export async function generateGuidedLesson(params: {
   materialSummary?: string;
   previousConcepts?: string[];
 }) {
-  const { subject, topic, extractedContent, materialSummary } = params;
+  const { subject, topic, extractedContent } = params;
+  if (typeof extractedContent !== "string" || extractedContent.trim().length < 30) {
+    throw new Error("Upload a readable study document before generating a lesson.");
+  }
 
   const systemInstruction = `You are a master academic educator and tutor.
 Your lesson MUST BE AUTHORITATIVELY ROOTED in the provided source material.
@@ -340,7 +343,7 @@ Subject / Domain: "${subject}"
 Topic: "${topic}"
 
 SOURCE MATERIAL CONTEXT:
-${(extractedContent || materialSummary || "").slice(0, 14000)}
+${extractedContent.slice(0, 14000)}
 
 RETURN STRICT JSON ONLY:
 {
@@ -710,20 +713,26 @@ Do not wrap in markdown. Output valid JSON only.`;
   try {
     const raw = await runPromptWithAI(systemInstruction, prompt);
     const parsed = extractJSON(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed.map((p: any, idx: number) => ({
-        id: p.id || `prac-${Date.now()}-${idx}`,
-        title: p.title || `Exercise ${idx + 1}`,
-        topic: p.topic || topic || subject,
-        type: p.type || "problem",
-        difficulty: p.difficulty || difficulty,
-        problemStatement: p.problemStatement,
-        hint: p.hint,
-        solution: p.solution,
-        explanation: p.explanation || "Step-by-step solution from the curriculum.",
-      }));
-    }
-    throw new Error("Invalid practice exercises received");
+    const validExercises = Array.isArray(parsed)
+      ? parsed.filter((exercise: any) =>
+          exercise &&
+          typeof exercise.title === "string" && exercise.title.trim() &&
+          typeof exercise.problemStatement === "string" && exercise.problemStatement.trim() &&
+          typeof exercise.solution === "string" && exercise.solution.trim()
+        )
+      : [];
+    if (validExercises.length === 0) throw new Error("The model returned no usable practice exercises.");
+    return validExercises.map((exercise: any, idx: number) => ({
+      id: typeof exercise.id === "string" && exercise.id.trim() ? exercise.id : `prac-${Date.now()}-${idx}`,
+      title: exercise.title.trim(),
+      topic: typeof exercise.topic === "string" && exercise.topic.trim() ? exercise.topic : topic || subject,
+      type: ["code", "problem", "concept", "scenario"].includes(exercise.type) ? exercise.type : "concept",
+      difficulty: ["Easy", "Medium", "Hard"].includes(exercise.difficulty) ? exercise.difficulty : difficulty,
+      problemStatement: exercise.problemStatement.trim(),
+      hint: typeof exercise.hint === "string" ? exercise.hint : "",
+      solution: exercise.solution.trim(),
+      explanation: typeof exercise.explanation === "string" ? exercise.explanation : "",
+    }));
   } catch (e: any) {
     console.error("Practice generation error:", e);
     throw new Error(`Unable to generate practice for "${subject}": ${e.message}`);
