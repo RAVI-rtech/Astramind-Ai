@@ -795,55 +795,72 @@ export default function AcademicQuizCreator({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* College & Regulation (Fixed VR25) */}
+            {/* Institution, program, regulation and department are editable for all schools/colleges. */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                College / Institution
-              </label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">College / University</label>
               <input
                 type="text"
                 value={college}
-                disabled
-                className="w-full text-xs bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 cursor-not-allowed font-medium"
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setCollege(next);
+                  if (next.trim().toLowerCase() === VITS_COLLEGE_NAME.toLowerCase()) {
+                    setRegulation("VR25");
+                    setProgramType("B.Tech");
+                    setBranch(VITS_BRANCHES[0]);
+                  } else if (next !== college) {
+                    setRegulation("");
+                    setBranch("");
+                  }
+                  setSubject("");
+                  setUnit("All Units (Comprehensive)");
+                }}
+                className="w-full text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                placeholder="Your college or university name"
+                required
               />
+              <p className="text-[10px] text-slate-500 dark:text-slate-400">Vignan Institute of Technology and Science is selected by default. Change it for another institution.</p>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Academic Regulation
-              </label>
-              <div className="relative">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Degree / Program</label>
+                <select
+                  value={programType}
+                  onChange={(e) => { setProgramType(e.target.value); setSubject(""); }}
+                  className="w-full text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                >
+                  {["B.Tech", "B.E.", "B.Sc.", "B.A.", "B.Com.", "BBA", "BCA", "M.Tech", "M.E.", "M.Sc.", "M.A.", "MBA", "MCA", "Diploma", "MBBS / Health Sciences", "Law", "School / High School", "Other / Self-directed"].map((program) => (
+                    <option key={program} value={program}>{program}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Academic Regulation / Curriculum</label>
                 <input
                   type="text"
-                  value={`${regulation} (Vignan Academic Regulation 2025)`}
-                  disabled
-                  className="w-full text-xs bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 cursor-not-allowed font-medium"
+                  value={regulation}
+                  onChange={(e) => setRegulation(e.target.value)}
+                  className="w-full text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  placeholder="e.g. VR25, 2024 curriculum, semester system"
                 />
-                <span className="absolute right-3 top-2.5 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-                  Active
-                </span>
               </div>
-            </div>
-
-            {/* Department / Branch */}
-            <div className="space-y-1.5 md:col-span-2">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                <span>Engineering Department / Branch</span>
-                <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-normal">
-                  All 11 B.Tech Disciplines Supported
-                </span>
-              </label>
-              <select
-                value={branch}
-                onChange={(e) => setBranch(e.target.value as VitsBranch)}
-                className="w-full text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              >
-                {VITS_BRANCHES.map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
-                ))}
-              </select>
+              <div className="space-y-1.5 sm:col-span-2">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Branch / Major / Department</label>
+                <input
+                  type="text"
+                  value={branch}
+                  onChange={(e) => { setBranch(e.target.value); setSubject(""); }}
+                  list={isVitsBTech ? "vits-live-quiz-branches" : undefined}
+                  className="w-full text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  placeholder="e.g. CSE, Physics, Commerce, Nursing, Civil Engineering"
+                />
+                {isVitsBTech && (
+                  <datalist id="vits-live-quiz-branches">
+                    {VITS_BRANCHES.map((item) => <option key={item} value={item} />)}
+                  </datalist>
+                )}
+              </div>
             </div>
 
             {/* Academic Year */}
