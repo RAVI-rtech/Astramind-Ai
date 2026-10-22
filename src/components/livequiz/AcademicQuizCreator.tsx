@@ -265,6 +265,108 @@ export default function AcademicQuizCreator({
     ? getVitsSubjects(branch as VitsBranch, year as AcademicYear, semester as AcademicSemester)
     : [];
 
+  const clearImportedSyllabus = () => {
+    setSourceMaterialText("");
+    setSyllabusSourceUrl("");
+    setSyllabusLinks([]);
+    setSyllabusNote(null);
+    setSyllabusError(null);
+  };
+
+  const handleDiscoverOfficialSyllabus = async () => {
+    if (!college.trim()) {
+      setSyllabusError("Enter the college or university name first.");
+      return;
+    }
+    setIsDiscoveringSyllabus(true);
+    setSyllabusError(null);
+    setSyllabusNote(null);
+    setSyllabusLinks([]);
+    try {
+      let sourceUrl = officialWebsiteUrl.trim();
+      let sourceNote = "";
+      if (!sourceUrl) {
+        const lookupResponse = await fetch("/api/college-syllabus/find-official-site", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ college: college.trim() }),
+        });
+        const lookup = await lookupResponse.json();
+        if (!lookupResponse.ok || lookup.error) throw new Error(lookup.error || "Could not find the official college website.");
+        sourceUrl = typeof lookup.officialWebsiteUrl === "string" ? lookup.officialWebsiteUrl.trim() : "";
+        if (!sourceUrl) throw new Error("No official website was identified. Paste the college's official URL and try again.");
+        sourceNote = lookup.note || "A candidate official website was found.";
+        setOfficialWebsiteUrl(sourceUrl);
+      }
+      const response = await fetch("/api/college-syllabus/discover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          college: college.trim(),
+          officialWebsiteUrl: sourceUrl,
+          programType,
+          branch,
+          year,
+          semester,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.error) throw new Error(result.error || "Could not inspect the official syllabus page.");
+      const links = Array.isArray(result.links) ? result.links : [];
+      setSyllabusLinks(links);
+      setSyllabusNote([sourceNote, result.note].filter(Boolean).join(" "));
+      if (links.length === 0) setSyllabusError("No syllabus links were found. Paste the official academics/syllabus page URL or open the official site and select a syllabus PDF.");
+    } catch (error: any) {
+      setSyllabusError(error?.message || "Official syllabus discovery failed.");
+    } finally {
+      setIsDiscoveringSyllabus(false);
+    }
+  };
+
+  const handleImportSyllabusPdf = async (link: { title: string; url: string; kind: "pdf" | "page" }) => {
+    if (link.kind !== "pdf") {
+      setSyllabusError("This result is an academic page, not a direct PDF. Open it and choose a syllabus PDF listed there.");
+      return;
+    }
+    const sourceUrl = officialWebsiteUrl.trim();
+    if (!sourceUrl) {
+      setSyllabusError("The official college page is missing. Find the official site first.");
+      return;
+    }
+    setIsImportingSyllabusUrl(link.url);
+    setSyllabusError(null);
+    try {
+      const response = await fetch("/api/college-syllabus/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          college: college.trim(),
+          officialWebsiteUrl: sourceUrl,
+          syllabusUrl: link.url,
+          programType,
+          branch,
+          year,
+          semester,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.error) throw new Error(result.error || "Could not import the official syllabus PDF.");
+      const extractedText = typeof result.extractedText === "string" ? result.extractedText.trim() : "";
+      if (extractedText.length < 30) {
+        throw new Error("This PDF has no usable text. Download a text-readable PDF or scan-free source and try again.");
+      }
+      setSourceMaterialText(extractedText.slice(0, 30000));
+      setSyllabusSourceUrl(result.syllabusUrl || link.url);
+      setSyllabusNote(`Imported ${result.fileName || link.title}. AI-drafted questions will be grounded in the extracted syllabus text.`);
+      setSubject(link.title.replace(/\.pdf$/i, "").replace(/[_-]+/g, " ").trim() || subject);
+      setUnit("All Units (Comprehensive)");
+    } catch (error: any) {
+      setSyllabusError(error?.message || "Could not import this syllabus PDF.");
+    } finally {
+      setIsImportingSyllabusUrl("");
+    }
+  };
+
   // Initialize subject when branch/year/sem change
   useEffect(() => {
     if (availableSubjects.length > 0) {
