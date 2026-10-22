@@ -372,18 +372,18 @@ DOCUMENT TEXT:
 ${pdfContent.slice(0, 36000)}
 """
 
-Return a JSON array of objects:
+Return a JSON array of objects using this schema. The field values are instructions, not content to copy:
 [
   {
-    "id": "card_1",
-    "front": "What is Kirchhoff's Current Law (KCL)?",
-    "back": "The algebraic sum of currents entering a node or junction in any electrical network equals zero (Σ I = 0). It is based on the law of conservation of charge.",
-    "topic": "Electrical Networks",
-    "pageNumber": 14,
-    "category": "Law/Principle"
+    "id": "unique identifier",
+    "front": "Question based on a real concept in the uploaded document",
+    "back": "Answer supported by the uploaded document",
+    "topic": "Topic found in the uploaded document",
+    "pageNumber": null,
+    "category": "Definition"
   }
 ]
-Categories can be: "Definition", "Formula", "Law/Principle", "Comparison", "Core Concept", "Exam Concept".`;
+Do not copy facts from unrelated domains. If the source does not specify a page, use null. Categories may be "Definition", "Formula", "Law/Principle", "Comparison", "Core Concept", or "Exam Concept".`;
 
   try {
     const rawJson = await callGeminiOrFallback(systemInstruction, prompt, 0.25, true);
@@ -437,26 +437,22 @@ DOCUMENT CONTENT:
 ${pdfContent.slice(0, 36000)}
 """
 
-Return a JSON array of question objects:
+Return a JSON array of question objects using this schema. The field values are instructions, not example answers:
 [
   {
-    "id": "q_1",
-    "type": "mcq",
-    "question": "What is the condition for maximum power transfer in a DC circuit?",
-    "options": [
-      "A) Load resistance equals source internal resistance (RL = Rth)",
-      "B) Load resistance is infinite",
-      "C) Load resistance is zero",
-      "D) Source voltage equals load voltage"
-    ],
-    "correctAnswer": "A) Load resistance equals source internal resistance (RL = Rth)",
-    "explanation": "According to the Maximum Power Transfer Theorem, maximum power is delivered to the load when RL equals Thevenin equivalent resistance Rth.",
-    "pageReference": 22,
-    "marks": 2,
+    "id": "unique identifier",
+    "type": "mcq, short, long, fill-blanks, true-false, or exam-style",
+    "question": "Question answerable from the uploaded text",
+    "options": null,
+    "correctAnswer": "Answer grounded in the uploaded text",
+    "explanation": "Explanation grounded in that text",
+    "pageReference": null,
+    "marks": null,
     "difficulty": "${difficulty}",
-    "topic": "Network Theorems"
+    "topic": "Topic from the uploaded text"
   }
-]`;
+]
+For MCQs, use four plausible options and make the correct answer match one option exactly. Do not invent page numbers or marks; use null when unknown.`;
 
   try {
     const rawJson = await callGeminiOrFallback(systemInstruction, prompt, 0.25, true);
@@ -509,20 +505,12 @@ Return JSON:
 {
   "topic": "${topic}",
   "documentTitle": "${pdfTitle}",
-  "analogy": "An intuitive everyday real-world analogy to help the student visualize the concept immediately.",
-  "coreDefinition": "Precise academic definition from the curriculum notes.",
-  "stepByStepBreakdown": [
-    "Step 1: Foundational condition",
-    "Step 2: Operating mechanism",
-    "Step 3: Output / Resolution"
-  ],
-  "keyFormulas": [
-    "Formula 1: V = IR"
-  ],
-  "examTakeaways": [
-    "Key marks-awarding keywords that evaluators check for"
-  ],
-  "pageReference": 5
+  "analogy": "Relevant analogy grounded in the uploaded topic, or an empty string",
+  "coreDefinition": "Definition grounded in uploaded document text",
+  "stepByStepBreakdown": ["Steps grounded in the uploaded source"],
+  "keyFormulas": [],
+  "examTakeaways": [],
+  "pageReference": null
 }`;
 
   try {
@@ -532,14 +520,12 @@ Return JSON:
     return {
       topic: data.topic || topic,
       documentTitle: pdfTitle,
-      analogy: data.analogy || "Think of this like water flowing through connected pipes where pressure equals voltage and flow rate equals current.",
-      coreDefinition: data.coreDefinition || `Definition of ${topic} based on curriculum notes.`,
-      stepByStepBreakdown: Array.isArray(data.stepByStepBreakdown) 
-        ? data.stepByStepBreakdown 
-        : ["State conditions", "Apply governing equation", "Compute final result"],
-      keyFormulas: Array.isArray(data.keyFormulas) ? data.keyFormulas : [],
-      examTakeaways: Array.isArray(data.examTakeaways) ? data.examTakeaways : ["Always include diagrams and formula derivations."],
-      pageReference: typeof data.pageReference === "number" ? data.pageReference : 1,
+      analogy: typeof data.analogy === "string" ? data.analogy : "",
+      coreDefinition: typeof data.coreDefinition === "string" ? data.coreDefinition : "",
+      stepByStepBreakdown: Array.isArray(data.stepByStepBreakdown) ? data.stepByStepBreakdown.filter((step: unknown) => typeof step === "string" && step.trim()) : [],
+      keyFormulas: Array.isArray(data.keyFormulas) ? data.keyFormulas.filter((formula: unknown) => typeof formula === "string" && formula.trim()) : [],
+      examTakeaways: Array.isArray(data.examTakeaways) ? data.examTakeaways.filter((takeaway: unknown) => typeof takeaway === "string" && takeaway.trim()) : [],
+      pageReference: typeof data.pageReference === "number" && data.pageReference > 0 ? data.pageReference : undefined,
     };
   } catch (err) {
     throw new Error("Topic explanation failed. No unrelated explanation was substituted.");
@@ -556,9 +542,9 @@ export async function findImportantPdfTopics(params: {
 }): Promise<PDFImportantTopic[]> {
   const { pdfTitle, pdfContent, subject } = params;
 
-  const systemInstruction = `You are a senior university engineering examiner.
-Scan the provided syllabus/lecture document "${pdfTitle}" and identify the top 5 to 15 high-yield exam topics.
-For each topic, provide the real university examination probability, expected marks, key concepts to master, and page references.
+  const systemInstruction = `You are an academic study assistant.
+Identify important topics solely from the provided document. Use emphasis, repeated concepts, headings and stated learning objectives as evidence.
+Do not invent external university exam frequencies, marks allocation, or statistical probabilities unless they are explicitly stated in the provided text.
 Return strictly a JSON array.`;
 
   const prompt = `Scan "${pdfTitle}" (${subject || "Engineering Core"}) and extract the top high-yield exam topics.
@@ -572,13 +558,13 @@ Return a JSON array of objects:
 [
   {
     "rank": 1,
-    "topic": "Kirchhoff's Laws & Mesh Analysis",
-    "importance": "Critical",
-    "examFrequency": "Asked in 95% of semester exams / Compulsory Part-B question",
-    "keyConcepts": ["KCL statement & equation", "KVL loop formulation", "Mesh matrix equation"],
-    "expectedMarks": "10-14 Marks",
-    "pageReference": 14,
-    "whyImportant": "Directly tested in Unit-I every year as a compulsory numerical and theory question."
+    "topic": "Topic discussed in the uploaded document",
+    "importance": "Medium",
+    "examFrequency": "Not stated in the uploaded document",
+    "keyConcepts": ["Concepts from the supplied text"],
+    "expectedMarks": null,
+    "pageReference": null,
+    "whyImportant": "Explain importance from the document itself, not invented exam history."
   }
 ]`;
 
