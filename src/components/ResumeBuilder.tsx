@@ -47,141 +47,31 @@ import {
   LanguageItem,
 } from "../types";
 
-// Default Sample Starter Resume
-const INITIAL_RESUME: ResumeData = {
-  id: "resume_sample_1",
-  title: "Senior AI & Full Stack Engineer Resume",
+// Blank starter structure; it contains no fictitious personal history.
+const EMPTY_RESUME_TEMPLATE: ResumeData = {
+  id: "resume-empty-template",
+  title: "My Resume",
   lastUpdated: Date.now(),
   templateId: "modern-executive",
   accentColor: "indigo",
   personalInfo: {
-    fullName: "Alex Rivera",
-    jobTitle: "Senior AI & Full Stack Software Engineer",
-    email: "alex.rivera@astramind.ai",
-    phone: "+1 (555) 382-9102",
-    location: "San Francisco, CA (Open to Remote)",
-    linkedinUrl: "https://linkedin.com/in/alex-rivera-tech",
-    githubUrl: "https://github.com/alexrivera-dev",
-    portfolioUrl: "https://alexrivera.dev",
-    summary:
-      "Results-driven Senior Full Stack Engineer with 6+ years of experience architecting high-throughput web applications and AI-driven workflows. Proven track record in scaling cloud architectures, integrating Gemini/LLM APIs, and leading cross-functional teams to deliver enterprise-grade web platforms.",
+    fullName: "",
+    jobTitle: "",
+    email: "",
+    phone: "",
+    location: "",
+    linkedinUrl: "",
+    githubUrl: "",
+    portfolioUrl: "",
+    summary: "",
   },
-  education: [
-    {
-      id: "edu_1",
-      degree: "B.S. in Computer Science",
-      school: "University of California, Berkeley",
-      location: "Berkeley, CA",
-      startDate: "2016",
-      endDate: "2020",
-      gpa: "3.88 / 4.0",
-      highlights: "Dean's Honors List, President of AI & Robotics Club, Algorithms Teaching Assistant",
-    },
-  ],
-  experience: [
-    {
-      id: "exp_1",
-      jobTitle: "Senior Full Stack AI Engineer",
-      company: "Vanguard Tech Labs",
-      location: "San Francisco, CA",
-      startDate: "2023",
-      endDate: "Present",
-      isCurrent: true,
-      bulletPoints: [
-        "Architected multi-provider AI routing infrastructure utilizing Node.js and modern LLMs with automated provider failover and streaming response handling.",
-        "Spearheaded redesign of real-time workspace engine, improving client-side state latency and optimizing cloud compute resource utilization.",
-        "Mentored a team of 5 frontend developers, establishing automated CI/CD unit and integration testing suites achieving 92% code coverage.",
-      ],
-    },
-    {
-      id: "exp_2",
-      jobTitle: "Full Stack Developer",
-      company: "Nexus Innovations",
-      location: "San Jose, CA",
-      startDate: "2020",
-      endDate: "2023",
-      isCurrent: false,
-      bulletPoints: [
-        "Engineered microservices architecture using React, TypeScript, and Express, increasing API processing throughput by 3x during peak loads.",
-        "Integrated OAuth 2.0 authentication and role-based access control (RBAC) across 12 SaaS micro-applications.",
-        "Optimized PostgreSQL database query execution plans, reducing p99 database response times from 420ms to 65ms.",
-      ],
-    },
-  ],
-  projects: [
-    {
-      id: "proj_1",
-      title: "OmniCanvas AI Studio",
-      role: "Lead Creator & Developer",
-      techStack: ["React", "TypeScript", "Tailwind CSS", "Gemini API", "Vite"],
-      link: "https://github.com/alexrivera-dev/omnicanvas",
-      startDate: "2024",
-      endDate: "2024",
-      bulletPoints: [
-        "Built a multimodal AI studio enabling real-time streaming image generation and interactive prompt expansion.",
-        "Accumulated 1,400+ GitHub stars and featured in Top Open Source AI Tooling roundups.",
-      ],
-    },
-    {
-      id: "proj_2",
-      title: "CloudFlow Performance Monitor",
-      role: "Sole Author",
-      techStack: ["Node.js", "Express", "D3.js", "WebSockets"],
-      link: "https://cloudflow-monitor.io",
-      startDate: "2022",
-      endDate: "2023",
-      bulletPoints: [
-        "Created real-time cloud instance telemetry visualizer rendering live metric streams at 60 FPS.",
-      ],
-    },
-  ],
-  certifications: [
-    {
-      id: "cert_1",
-      name: "AWS Certified Solutions Architect – Professional",
-      issuer: "Amazon Web Services",
-      date: "2023",
-      credentialUrl: "https://aws.amazon.com/verification",
-    },
-    {
-      id: "cert_2",
-      name: "Google Cloud Professional Data Engineer",
-      issuer: "Google Cloud",
-      date: "2022",
-      credentialUrl: "https://cloud.google.com/certification",
-    },
-  ],
-  skills: [
-    {
-      category: "Technical",
-      skills: ["TypeScript", "JavaScript (ES6+)", "Python", "SQL", "HTML5/CSS3", "REST APIs", "GraphQL", "WebSockets"],
-    },
-    {
-      category: "Frameworks & Libraries",
-      skills: ["React 18", "Node.js", "Express", "Vite", "Tailwind CSS", "Next.js", "Redux Toolkit"],
-    },
-    {
-      category: "Tools & Cloud",
-      skills: ["AWS (Lambda, S3, ECS)", "Docker", "Git/GitHub", "PostgreSQL", "Firebase", "Linux/Bash", "CI/CD Pipelines"],
-    },
-    {
-      category: "Soft Skills",
-      skills: ["Technical Leadership", "Agile/Scrum", "System Architecture", "Cross-Functional Collaboration", "Problem Solving"],
-    },
-  ],
-  achievements: [
-    {
-      id: "ach_1",
-      title: "1st Place Winner - Global AI Hackathon 2024",
-      organization: "Tech Innovators Alliance",
-      date: "2024",
-      description: "Developed an AI accessibility browser extension that translates real-time speech into dynamic sign language animations.",
-    },
-  ],
-  languages: [
-    { id: "lang_1", name: "English", proficiency: "Native" },
-    { id: "lang_2", name: "Spanish", proficiency: "Professional" },
-  ],
+  education: [],
+  experience: [],
+  projects: [],
+  certifications: [],
+  skills: [],
+  achievements: [],
+  languages: [],
 };
 
 interface ResumeBuilderProps {
@@ -199,20 +89,29 @@ export default function ResumeBuilder({
       const stored = localStorage.getItem("astramind_resumes_v1");
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) {
+          const realResumes = parsed.filter((resume: ResumeData) =>
+            resume &&
+            resume.id !== "resume_sample_1" &&
+            resume.personalInfo?.fullName !== "Alex Rivera" &&
+            resume.personalInfo?.fullName !== "Alex V. Mercer"
+          );
+          if (realResumes.length !== parsed.length) {
+            localStorage.setItem("astramind_resumes_v1", JSON.stringify(realResumes));
+          }
+          if (realResumes.length > 0) return realResumes;
+        }
       }
     } catch (e) {
       console.warn("Failed to parse saved resumes:", e);
     }
-    return [INITIAL_RESUME];
+    return [{ ...EMPTY_RESUME_TEMPLATE, id: "resume-" + Date.now() }];
   });
 
-  const [activeResumeId, setActiveResumeId] = useState<string>(
-    savedResumes[0]?.id || INITIAL_RESUME.id
-  );
+  const [activeResumeId, setActiveResumeId] = useState<string>(savedResumes[0]?.id || "");
 
-  // Current active resume state
-  const activeResume = savedResumes.find((r) => r.id === activeResumeId) || savedResumes[0] || INITIAL_RESUME;
+  // The initial state always contains either a saved user resume or an empty editable starter.
+  const activeResume = savedResumes.find((resume) => resume.id === activeResumeId) || savedResumes[0];
 
   // Active form tab
   const [activeTab, setActiveTab] = useState<
@@ -268,7 +167,7 @@ export default function ResumeBuilder({
   const handleCreateNewResume = (title = "New Professional Resume") => {
     const newId = `resume_${Date.now()}`;
     const newResume: ResumeData = {
-      ...INITIAL_RESUME,
+      ...EMPTY_RESUME_TEMPLATE,
       id: newId,
       title,
       lastUpdated: Date.now(),
@@ -454,23 +353,23 @@ export default function ResumeBuilder({
           templateId: "modern-executive",
           accentColor: "indigo",
           personalInfo: {
-            fullName: result.personalInfo?.fullName || "Astra Mind Candidate",
+            fullName: result.personalInfo?.fullName || "",
             jobTitle: result.personalInfo?.jobTitle || wizardJobTitle.trim(),
-            email: result.personalInfo?.email || "candidate@astramind.ai",
-            phone: result.personalInfo?.phone || "+1 (555) 234-5678",
-            location: result.personalInfo?.location || "San Francisco, CA",
-            linkedinUrl: result.personalInfo?.linkedinUrl || "https://linkedin.com/in/candidate",
-            githubUrl: result.personalInfo?.githubUrl || "https://github.com/candidate",
-            portfolioUrl: result.personalInfo?.portfolioUrl || "https://candidate.dev",
-            summary: result.personalInfo?.summary || "Accomplished specialist with extensive industry impact.",
+            email: result.personalInfo?.email || "",
+            phone: result.personalInfo?.phone || "",
+            location: result.personalInfo?.location || "",
+            linkedinUrl: result.personalInfo?.linkedinUrl || "",
+            githubUrl: result.personalInfo?.githubUrl || "",
+            portfolioUrl: result.personalInfo?.portfolioUrl || "",
+            summary: result.personalInfo?.summary || "",
           },
-          education: result.education || INITIAL_RESUME.education,
-          experience: result.experience || INITIAL_RESUME.experience,
-          projects: result.projects || INITIAL_RESUME.projects,
-          certifications: result.certifications || INITIAL_RESUME.certifications,
-          skills: result.skills || INITIAL_RESUME.skills,
-          achievements: result.achievements || INITIAL_RESUME.achievements,
-          languages: result.languages || INITIAL_RESUME.languages,
+          education: result.education || [],
+          experience: result.experience || [],
+          projects: result.projects || [],
+          certifications: result.certifications || [],
+          skills: result.skills || [],
+          achievements: result.achievements || [],
+          languages: result.languages || [],
         };
 
         setSavedResumes((prev) => [newResume, ...prev]);

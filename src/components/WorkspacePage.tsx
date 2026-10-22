@@ -37,6 +37,7 @@ export default function WorkspacePage({
   accentColorClass 
 }: WorkspacePageProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Read saved resumes from LocalStorage
@@ -77,7 +78,7 @@ export default function WorkspacePage({
           sessionId: session.id,
           name: msg.attachment.name,
           type: msg.attachment.type || "file",
-          size: typeof msg.attachment.size === "number" ? `${Math.round(msg.attachment.size / 1024)} KB` : "120 KB",
+          size: typeof msg.attachment.size === "number" ? `${Math.max(1, Math.round(msg.attachment.size / 1024))} KB` : "Size unavailable",
           url: msg.attachment.url,
           content: msg.attachment.content,
           base64: msg.attachment.base64,
@@ -135,15 +136,25 @@ export default function WorkspacePage({
   };
 
   const handleDownloadFile = (f: { name: string; url?: string; content?: string; base64?: string }) => {
+    setDownloadError(null);
     try {
-      if (f.url && (f.url.startsWith("data:") || f.url.startsWith("http") || f.url.startsWith("blob:"))) {
+      const downloadableUrl =
+        f.url && /^(data:|https?:|blob:)/i.test(f.url) ? f.url :
+        f.base64 && /^(data:|https?:|blob:)/i.test(f.base64) ? f.base64 :
+        null;
+
+      if (downloadableUrl) {
         const a = document.createElement("a");
-        a.href = f.url;
+        a.href = downloadableUrl;
         a.download = f.name;
+        a.rel = "noopener";
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-      } else if (f.content) {
+        return;
+      }
+
+      if (typeof f.content === "string" && f.content.length > 0) {
         const blob = new Blob([f.content], { type: "text/plain;charset=utf-8" });
         const blobUrl = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -152,28 +163,14 @@ export default function WorkspacePage({
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        URL.revokeObjectURL(blobUrl);
-      } else if (f.base64) {
-        const a = document.createElement("a");
-        a.href = f.base64;
-        a.download = f.name;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } else {
-        // Fallback file generation
-        const blob = new Blob([`Document sample contents for ${f.name}`], { type: "text/plain;charset=utf-8" });
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = blobUrl;
-        a.download = f.name;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(blobUrl);
+        window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        return;
       }
+
+      setDownloadError(`Original data for "${f.name}" is no longer available. Re-upload the file in the original chat to download it.`);
     } catch (err) {
       console.error("Error downloading file:", err);
+      setDownloadError(`Could not download "${f.name}". Please re-upload it in the original chat.`);
     }
   };
 
@@ -185,6 +182,13 @@ export default function WorkspacePage({
   return (
     <div id="workspace-page-wrapper" className="w-full max-w-6xl mx-auto px-4 md:px-8 py-8 space-y-8 animate-in fade-in duration-300">
       
+      {downloadError && (
+        <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-200 text-xs flex items-center justify-between gap-3" role="status">
+          <span>{downloadError}</span>
+          <button onClick={() => setDownloadError(null)} className="text-amber-200 hover:text-white font-bold" aria-label="Dismiss download message">×</button>
+        </div>
+      )}
+
       {/* Hidden File Input for Direct Upload */}
       <input
         type="file"

@@ -2150,8 +2150,8 @@ app.get("/api/pdf-study/document-stream/:fileId", (req, res) => {
 app.post("/api/pdf-study/chat", async (req, res) => {
   try {
     const { pdfTitle, pdfContent, messages, chapterOrScope, pageRange } = req.body || {};
-    if (!pdfTitle || !pdfContent) {
-      res.status(400).json({ error: "pdfTitle and pdfContent are required" });
+    if (!pdfTitle || typeof pdfContent !== "string" || pdfContent.trim().length < 30) {
+      res.status(400).json({ error: "Upload a readable PDF first. PDF Study tools require at least 30 characters of text extracted from the uploaded document." });
       return;
     }
     const response = await chatWithPdf({
@@ -2171,8 +2171,8 @@ app.post("/api/pdf-study/chat", async (req, res) => {
 app.post("/api/pdf-study/summarize", async (req, res) => {
   try {
     const { pdfTitle, pdfContent, summaryType, chapterOrScope } = req.body || {};
-    if (!pdfTitle || !pdfContent) {
-      res.status(400).json({ error: "pdfTitle and pdfContent are required" });
+    if (!pdfTitle || typeof pdfContent !== "string" || pdfContent.trim().length < 30) {
+      res.status(400).json({ error: "Upload a readable PDF first. PDF Study tools require at least 30 characters of text extracted from the uploaded document." });
       return;
     }
     const summary = await summarizePdf({
@@ -2191,8 +2191,8 @@ app.post("/api/pdf-study/summarize", async (req, res) => {
 app.post("/api/pdf-study/generate-notes", async (req, res) => {
   try {
     const { pdfTitle, pdfContent, topic, chapter } = req.body || {};
-    if (!pdfTitle || !pdfContent) {
-      res.status(400).json({ error: "pdfTitle and pdfContent are required" });
+    if (!pdfTitle || typeof pdfContent !== "string" || pdfContent.trim().length < 30) {
+      res.status(400).json({ error: "Upload a readable PDF first. PDF Study tools require at least 30 characters of text extracted from the uploaded document." });
       return;
     }
     const notes = await generatePdfNotes({
@@ -2211,8 +2211,8 @@ app.post("/api/pdf-study/generate-notes", async (req, res) => {
 app.post("/api/pdf-study/generate-flashcards", async (req, res) => {
   try {
     const { pdfTitle, pdfContent, count, scope, scopeDetail, difficulty } = req.body || {};
-    if (!pdfTitle || !pdfContent) {
-      res.status(400).json({ error: "pdfTitle and pdfContent are required" });
+    if (!pdfTitle || typeof pdfContent !== "string" || pdfContent.trim().length < 30) {
+      res.status(400).json({ error: "Upload a readable PDF first. PDF Study tools require at least 30 characters of text extracted from the uploaded document." });
       return;
     }
     const validCount = [5, 10, 20, 30, 50].includes(Number(count)) ? Number(count) : 10;
@@ -2234,8 +2234,8 @@ app.post("/api/pdf-study/generate-flashcards", async (req, res) => {
 app.post("/api/pdf-study/generate-questions", async (req, res) => {
   try {
     const { pdfTitle, pdfContent, questionTypes, count, difficulty, topic } = req.body || {};
-    if (!pdfTitle || !pdfContent) {
-      res.status(400).json({ error: "pdfTitle and pdfContent are required" });
+    if (!pdfTitle || typeof pdfContent !== "string" || pdfContent.trim().length < 30) {
+      res.status(400).json({ error: "Upload a readable PDF first. PDF Study tools require at least 30 characters of text extracted from the uploaded document." });
       return;
     }
     const types = Array.isArray(questionTypes) && questionTypes.length > 0 
@@ -2260,8 +2260,8 @@ app.post("/api/pdf-study/generate-questions", async (req, res) => {
 app.post("/api/pdf-study/explain-topic", async (req, res) => {
   try {
     const { pdfTitle, pdfContent, topic, depth } = req.body || {};
-    if (!pdfTitle || !pdfContent || !topic) {
-      res.status(400).json({ error: "pdfTitle, pdfContent, and topic are required" });
+    if (!pdfTitle || typeof pdfContent !== "string" || pdfContent.trim().length < 30 || !topic) {
+      res.status(400).json({ error: "Upload a readable PDF first, and provide a topic to explain." });
       return;
     }
     const explanation = await explainPdfTopic({
@@ -2280,8 +2280,8 @@ app.post("/api/pdf-study/explain-topic", async (req, res) => {
 app.post("/api/pdf-study/important-topics", async (req, res) => {
   try {
     const { pdfTitle, pdfContent, subject } = req.body || {};
-    if (!pdfTitle || !pdfContent) {
-      res.status(400).json({ error: "pdfTitle and pdfContent are required" });
+    if (!pdfTitle || typeof pdfContent !== "string" || pdfContent.trim().length < 30) {
+      res.status(400).json({ error: "Upload a readable PDF first. PDF Study tools require at least 30 characters of text extracted from the uploaded document." });
       return;
     }
     const topics = await findImportantPdfTopics({

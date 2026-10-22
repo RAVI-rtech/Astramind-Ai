@@ -237,37 +237,25 @@ export default function StudyWorkspaceView({
   }>>([
     {
       sender: "ai",
-      text: `Hello! I am your AstraMind AI Tutor grounded in the **VR25 B.Tech Master Knowledge Base** for **${workspace.subject}** (${workspace.branch}).\n\nI have loaded your curriculum material from the master Google Drive repository. Every explanation will be directly cited from your syllabus documents and lecture notes. What concept would you like to master today?`,
+      text: "Upload a readable PDF, TXT, Markdown, or notes file in Materials first. I will ground explanations in extracted text and will not invent document content or citations.",
     },
   ]);
   const [tutorInput, setTutorInput] = useState("");
   const [isTutorThinking, setIsTutorThinking] = useState(false);
   const tutorMessagesEndRef = useRef<HTMLDivElement>(null);
 
-  // VR25 Knowledge Base & Study Context State
-  const [sourceMode, setSourceMode] = useState<SourceMode>("vr25_knowledge_base");
-  const [studyContext, setStudyContext] = useState<StudyContext>(() => {
-    const sub = workspace.subject.toLowerCase();
-    const mappedSubject = sub.includes("electrical") || sub.includes("bee")
-      ? "Basic Electrical Engineering"
-      : sub.includes("math") || sub.includes("m1") || sub.includes("calculus")
-      ? "Mathematics-I"
-      : sub.includes("drawing") || sub.includes("graphics") || sub.includes("caeg")
-      ? "Engineering Drawing"
-      : sub.includes("english")
-      ? "Communicative English"
-      : "Programming for Problem Solving";
-
-    return {
-      regulation: "VR25",
-      year: "1st Year",
-      semester: "1st Semester",
-      branch: workspace.branch || "CSE",
-      subject: mappedSubject,
-      unit: "All Units",
-      sourceType: "drive_material",
-    };
-  });
+  // Start with source material uploaded by the student, not an assumed master syllabus.
+  const [sourceMode, setSourceMode] = useState<SourceMode>("uploaded_material");
+  const [studyContext, setStudyContext] = useState<StudyContext>(() => ({
+    regulation: "",
+    year: workspace.year ? `${workspace.year} Year` : "",
+    semester: workspace.semester || "",
+    branch: workspace.branch || "",
+    subject: workspace.subject || "",
+    unit: "",
+    sourceType: "uploaded_material",
+    sourceDocumentIds: workspace.materials.map((material) => material.id),
+  }));
 
   const [kbStatus, setKbStatus] = useState<KnowledgeBaseStatus | null>(null);
   const [kbDocuments, setKbDocuments] = useState<KnowledgeDocument[]>([]);
@@ -387,137 +375,125 @@ export default function StudyWorkspaceView({
   }, [tutorMessages]);
 
   // Helper to get all extracted text from uploaded materials as the single source of truth
-  const getExtractedSourceContent = () => {
-    const list = workspace.materials
-      .map((m) => `--- SOURCE DOCUMENT: ${m.name} (${m.type}) ---\n${m.content || ""}`)
-      .filter(Boolean);
-    return list.join("\n\n");
+  const getExtractedSourceContent = () => workspace.materials
+    .filter((material) => typeof material.content === "string" && material.content.trim().length >= 30)
+    .map((material) => `--- USER-SUPPLIED SOURCE DOCUMENT: ${material.name} (${material.type}) ---\n${material.content!.trim()}`)
+    .join("\n\n");
+
+  const requireWorkspaceSource = (toolName: string): boolean => {
+    if (getExtractedSourceContent().trim().length >= 30) return true;
+    setActionError(`Upload a readable PDF, TXT, Markdown, or notes file in Materials before using ${toolName}. Files without extracted text are not used as AI source material.`);
+    setActiveTab("materials");
+    return false;
   };
 
-  // Handlers
+  // Upload only material whose contents can be extracted and used as genuine study context.
   const handleUploadMaterial = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
+
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    const isText = file.type.startsWith("text/") || /\.(txt|md)$/i.test(file.name);
+    if (!isPdf && !isText) {
+      setActionError("Upload a text-based PDF, TXT, or Markdown file. Other formats are not currently extractable as reliable study sources.");
+      return;
+    }
+    if (file.size > 30 * 1024 * 1024) {
+      setActionError("This file is larger than 30 MB. Please upload a smaller document.");
+      return;
+    }
 
     setIsAnalyzingUpload(true);
     setActionError(null);
-    const isText = file.type.startsWith("text/") || file.name.endsWith(".txt") || file.name.endsWith(".md");
+    const addExtractedMaterial = (content: string, profile?: DocumentProfile) => {
+      const newMat = addMaterialToWorkspace(workspace.id, {
+        name: file.name,
+        type: isPdf ? "pdf" : "notes",
+        size: isPdf ? (file.size / (1024 * 1024)).toFixed(2) + " MB" : Math.max(1, Math.round(file.size / 1024)) + " KB",
+        content,
+        profile,
+      });
+      if (onUpdateWorkspace) {
+        onUpdateWorkspace({
+          ...workspace,
+          subject: profile?.detectedDomain && profile.detectedDomain !== "General Academic" && profile.detectedDomain !== "Unknown / General"
+            ? profile.detectedDomain
+            : workspace.subject,
+          documentProfile: profile || workspace.documentProfile,
+          detectedTopics: profile?.topics?.length
+            ? Array.from(new Set([...profile.topics, ...workspace.detectedTopics]))
+            : workspace.detectedTopics,
+          materials: [newMat, ...workspace.materials],
+        });
+      }
+    };
+
     const reader = new FileReader();
+    reader.onerror = () => {
+      setIsAnalyzingUpload(false);
+      setActionError("The file could not be read. Please try again.");
+    };
 
     if (isText) {
       reader.onload = async (event) => {
-        const textContent = (event.target?.result as string) || "";
+        const textContent = String(event.target?.result || "").trim();
+        if (textContent.length < 30) {
+          setIsAnalyzingUpload(false);
+          setActionError("This file does not contain enough readable text to create study material.");
+          return;
+        }
+        let profile: DocumentProfile | undefined;
         try {
           const resp = await fetch("/api/workspace/analyze-document", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              fileName: file.name,
-              fileType: "text",
-              content: textContent,
-            }),
+            body: JSON.stringify({ fileName: file.name, fileType: "text", content: textContent }),
           });
-          const data = await resp.json();
-          const profile: DocumentProfile | undefined = data.profile;
-          const extractedText = data.extractedText || textContent;
-
-          const newMat = addMaterialToWorkspace(workspace.id, {
-            name: file.name,
-            type: "notes",
-            size: `${Math.round(file.size / 1024)} KB`,
-            content: extractedText,
-            profile,
-          });
-
-          if (onUpdateWorkspace) {
-            onUpdateWorkspace({
-              ...workspace,
-              subject: profile?.detectedDomain && profile.detectedDomain !== "General Academic" ? profile.detectedDomain : workspace.subject,
-              documentProfile: profile || workspace.documentProfile,
-              detectedTopics: profile?.topics ? Array.from(new Set([...profile.topics, ...workspace.detectedTopics])) : workspace.detectedTopics,
-              materials: [newMat, ...workspace.materials],
-            });
+          if (resp.ok) {
+            const data = await resp.json();
+            profile = data.profile;
           }
-        } catch (err: any) {
-          console.error("Material upload analysis failed:", err);
-          setActionError("Document content could not be fully analyzed. Fallback extraction used.");
-          const newMat = addMaterialToWorkspace(workspace.id, {
-            name: file.name,
-            type: "notes",
-            size: `${Math.round(file.size / 1024)} KB`,
-            content: textContent,
-          });
-          if (onUpdateWorkspace) {
-            onUpdateWorkspace({
-              ...workspace,
-              materials: [newMat, ...workspace.materials],
-            });
-          }
+        } catch (error) {
+          console.warn("Document classification unavailable; retaining user text:", error);
         } finally {
+          addExtractedMaterial(textContent, profile);
           setIsAnalyzingUpload(false);
         }
       };
       reader.readAsText(file);
-    } else {
-      reader.onload = async (event) => {
-        const base64Data = ((event.target?.result as string) || "").split(",")[1];
-        const fileType = file.name.endsWith(".pdf") ? "pdf" : file.name.endsWith(".ppt") || file.name.endsWith(".pptx") ? "ppt" : "notes";
-        try {
-          const resp = await fetch("/api/workspace/analyze-document", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              fileName: file.name,
-              fileType,
-              base64: base64Data,
-            }),
-          });
-          const data = await resp.json();
-          const profile: DocumentProfile | undefined = data.profile;
-          const extractedText = data.extractedText || "";
-
-          const newMat = addMaterialToWorkspace(workspace.id, {
-            name: file.name,
-            type: fileType,
-            size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-            base64: base64Data,
-            content: extractedText,
-            profile,
-          });
-
-          if (onUpdateWorkspace) {
-            onUpdateWorkspace({
-              ...workspace,
-              subject: profile?.detectedDomain && profile.detectedDomain !== "General Academic" ? profile.detectedDomain : workspace.subject,
-              documentProfile: profile || workspace.documentProfile,
-              detectedTopics: profile?.topics ? Array.from(new Set([...profile.topics, ...workspace.detectedTopics])) : workspace.detectedTopics,
-              materials: [newMat, ...workspace.materials],
-            });
-          }
-        } catch (err: any) {
-          console.error("Material upload analysis failed:", err);
-          setActionError("PDF text could not be fully extracted. Multimodal understanding enabled.");
-          const newMat = addMaterialToWorkspace(workspace.id, {
-            name: file.name,
-            type: fileType,
-            size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-            base64: base64Data,
-          });
-          if (onUpdateWorkspace) {
-            onUpdateWorkspace({
-              ...workspace,
-              materials: [newMat, ...workspace.materials],
-            });
-          }
-        } finally {
-          setIsAnalyzingUpload(false);
-        }
-      };
-      reader.readAsDataURL(file);
+      return;
     }
+
+    reader.onload = async (event) => {
+      try {
+        const dataUrl = String(event.target?.result || "");
+        const base64Data = dataUrl.split(",")[1] || "";
+        if (!base64Data) throw new Error("The PDF could not be read.");
+        const resp = await fetch("/api/workspace/analyze-document", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileName: file.name, fileType: "pdf", base64: base64Data }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || "Could not extract text from this PDF.");
+        const extractedText = typeof data.extractedText === "string" ? data.extractedText.trim() : "";
+        if (extractedText.length < 30) {
+          throw new Error("No readable text could be extracted from this PDF. Use a text-based PDF rather than an image-only scan.");
+        }
+        addExtractedMaterial(extractedText, data.profile);
+      } catch (error: any) {
+        console.error("Material extraction failed:", error);
+        setActionError(error?.message || "Could not extract text from this PDF. It was not added as a study source.");
+      } finally {
+        setIsAnalyzingUpload(false);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleGenerateLesson = async (customTopic?: string) => {
+    if (!requireWorkspaceSource("Guided Lessons")) return;
     const topicToUse = customTopic || workspace.detectedTopics[0] || workspace.subject;
     setIsGeneratingLesson(true);
     setActionError(null);
@@ -572,6 +548,7 @@ export default function StudyWorkspaceView({
   };
 
   const handleGenerateFlashcards = async () => {
+    if (!requireWorkspaceSource("Flashcards")) return;
     setIsGeneratingFlashcards(true);
     setActionError(null);
     try {
@@ -637,6 +614,7 @@ export default function StudyWorkspaceView({
   };
 
   const handleStartQuiz = async () => {
+    if (!requireWorkspaceSource("Quiz")) return;
     setIsGeneratingQuiz(true);
     setActionError(null);
     try {
@@ -716,6 +694,7 @@ export default function StudyWorkspaceView({
   };
 
   const handleStartMockExam = async (durationMinutes: number = 30) => {
+    if (!requireWorkspaceSource("Mock Exam")) return;
     setIsGeneratingExam(true);
     setActionError(null);
     try {
@@ -724,7 +703,7 @@ export default function StudyWorkspaceView({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           subject: workspace.subject,
-          topic: "Full Syllabus Comprehensive Exam",
+          topic: "Assessment based on uploaded material",
           count: 10,
           difficulty: "Hard",
           extractedContent: getExtractedSourceContent().slice(0, 16000),
@@ -742,7 +721,7 @@ export default function StudyWorkspaceView({
           id: "me-" + Date.now().toString(36),
           workspaceId: workspace.id,
           subject: workspace.subject,
-          unitsOrTopics: "Units 1 - 5 Comprehensive",
+          unitsOrTopics: "Uploaded material",
           difficulty: "Hard",
           durationMinutes,
           questions: data.questions,
@@ -795,6 +774,7 @@ export default function StudyWorkspaceView({
   };
 
   const handleGenerateImportantQuestions = async () => {
+    if (!requireWorkspaceSource("Important Questions")) return;
     setIsGeneratingIQ(true);
     setActionError(null);
     try {
@@ -824,6 +804,7 @@ export default function StudyWorkspaceView({
   };
 
   const handleGenerateSummaryNotes = async () => {
+    if (!requireWorkspaceSource("Summary Notes")) return;
     setIsGeneratingSummary(true);
     setActionError(null);
     try {
@@ -847,6 +828,7 @@ export default function StudyWorkspaceView({
   };
 
   const handleGeneratePractice = async () => {
+    if (!requireWorkspaceSource("Practice")) return;
     setIsGeneratingPractice(true);
     setActionError(null);
     try {
@@ -873,9 +855,11 @@ export default function StudyWorkspaceView({
     }
   };
 
-  const handleSendTutorMessage = async (queryText?: string) => {
+  const handleSendTutorMessage = async (queryText?: string, sourceOverride?: string) => {
     const textToSend = queryText || tutorInput.trim();
     if (!textToSend || isTutorThinking) return;
+    const sourceToUse = sourceOverride?.trim() || getExtractedSourceContent();
+    if (sourceToUse.trim().length < 30 && !requireWorkspaceSource("AI Tutor")) return;
 
     setTutorMessages((prev) => [...prev, { sender: "user", text: textToSend }]);
     if (!queryText) setTutorInput("");
@@ -894,7 +878,7 @@ export default function StudyWorkspaceView({
             { sender: "user", text: textToSend },
           ],
           subject: workspace.subject,
-          extractedContent: getExtractedSourceContent().slice(0, 16000),
+          extractedContent: sourceToUse.slice(0, 16000),
           college: workspace.college,
           branch: workspace.branch,
           learningGoal: workspace.learningGoal,
@@ -1571,28 +1555,8 @@ export default function StudyWorkspaceView({
                   RAG Query Understanding & Retrieval Playground
                 </h4>
                 <p className="text-xs text-neutral-400 mt-0.5">
-                  Test how student questions are classified by subject, mapped to academic units, and grounded in master PDF chunks.
+                  Search documents explicitly synced to this knowledge base. For your personal study tools, upload material in the Materials tab.
                 </p>
-              </div>
-
-              {/* Sample Queries */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
-                <span className="text-neutral-500 text-[11px] shrink-0">Try queries:</span>
-                {[
-                  "Explain Kirchhoff's current law",
-                  "Dynamic memory allocation in C using malloc and calloc",
-                  "Find the eigenvalues of a 3x3 matrix",
-                  "What are orthographic projections?",
-                  "Rural BPO and Human Resources in Kizhanur",
-                ].map((sample, sIdx) => (
-                  <button
-                    key={sIdx}
-                    onClick={() => handleSearchKb(sample)}
-                    className="px-2.5 py-1 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white text-[11px] whitespace-nowrap border border-neutral-700/60 transition-colors shrink-0"
-                  >
-                    {sample}
-                  </button>
-                ))}
               </div>
 
               {/* Search Form */}
@@ -1757,96 +1721,7 @@ export default function StudyWorkspaceView({
 
               {/* Master Documents List */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                {(kbDocuments.length > 0 ? kbDocuments : [
-                  {
-                    id: "doc-bee-1",
-                    documentName: "BEE COMPLETE NOTES.pdf",
-                    subject: "Basic Electrical Engineering",
-                    subjectCode: "BEE",
-                    unit: "Units 1 - 5",
-                    pageCount: 184,
-                    chunkCount: 12,
-                    driveFileId: "1iLlJGX5MeoMMdJQ-QLRetx50q-JdnfpV",
-                    status: "indexed"
-                  },
-                  {
-                    id: "doc-pps-u1",
-                    documentName: "c-unit-1.pdf",
-                    subject: "Programming for Problem Solving",
-                    subjectCode: "PPS",
-                    unit: "Unit 1",
-                    pageCount: 48,
-                    chunkCount: 8,
-                    driveFileId: "1Xv4UX2abZuQbLff7ANsXrbJkdNBM6Rvf",
-                    status: "indexed"
-                  },
-                  {
-                    id: "doc-pps-u4",
-                    documentName: "c-unit-4.pdf",
-                    subject: "Programming for Problem Solving",
-                    subjectCode: "PPS",
-                    unit: "Unit 4",
-                    pageCount: 52,
-                    chunkCount: 8,
-                    driveFileId: "1AqQh1W6PqzeXXFAqueq62V4QJQLV5pr2",
-                    status: "indexed"
-                  },
-                  {
-                    id: "doc-pps-u6",
-                    documentName: "c-unit-6.pdf",
-                    subject: "Programming for Problem Solving",
-                    subjectCode: "PPS",
-                    unit: "Unit 6",
-                    pageCount: 36,
-                    chunkCount: 6,
-                    driveFileId: "1yJN1MgsbT8n3tgzPVP6TVVknok5XXFeM",
-                    status: "indexed"
-                  },
-                  {
-                    id: "doc-m1-u1",
-                    documentName: "Unit -1.pdf",
-                    subject: "Mathematics-I",
-                    subjectCode: "M1",
-                    unit: "Unit 1",
-                    pageCount: 37,
-                    chunkCount: 6,
-                    driveFileId: "1qMsI3LbejBYqcaj6x6KpsCl-zvjmb7YQ",
-                    status: "indexed"
-                  },
-                  {
-                    id: "doc-m1-u2",
-                    documentName: "Unit 2.pdf",
-                    subject: "Mathematics-I",
-                    subjectCode: "M1",
-                    unit: "Unit 2",
-                    pageCount: 42,
-                    chunkCount: 6,
-                    driveFileId: "1TXWobOvJ9xYS5almj7fL5AQ_F9UVU6Gd",
-                    status: "indexed"
-                  },
-                  {
-                    id: "doc-ed-u3",
-                    documentName: "textbook-of-engineering-drawing_compressed-3.pdf",
-                    subject: "Engineering Drawing",
-                    subjectCode: "CAEG",
-                    unit: "Unit 3",
-                    pageCount: 54,
-                    chunkCount: 6,
-                    driveFileId: "1D7FjS3mnbsiLNeOwNphLVE8tBjQkXg-l",
-                    status: "indexed"
-                  },
-                  {
-                    id: "doc-eng-1",
-                    documentName: "eng-i-text-main-points.pdf",
-                    subject: "Communicative English",
-                    subjectCode: "ENG",
-                    unit: "Unit 1",
-                    pageCount: 11,
-                    chunkCount: 4,
-                    driveFileId: "1yigbh5xVXGEB8M5WPpOfHOGOWGoBdsQd",
-                    status: "indexed"
-                  }
-                ])
+                {kbDocuments
                   .filter((d: any) =>
                     selectedKbSubject === "All" ||
                     d.subject.toLowerCase().includes(selectedKbSubject.toLowerCase())

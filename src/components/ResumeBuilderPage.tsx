@@ -56,10 +56,8 @@ import {
   saveResume, 
   deleteResume, 
   duplicateResume, 
-  createNewResume, 
-  callAIResumeImprove, 
-  
-  SAMPLE_RESUME 
+  createNewResume,
+  callAIResumeImprove
 } from "../lib/resumeStorage";
 
 import RegularAtsTemplate from "./resumeTemplates/RegularAtsTemplate";
@@ -165,7 +163,7 @@ export default function ResumeBuilderPage({ accentColorClass, isAuthenticated }:
   const [downloadStep, setDownloadStep] = useState<"idle" | "preparing" | "downloading" | "completed">("idle");
   // Saved resumes list & current active resume
   const [resumes, setResumes] = useState<ResumeData[]>([]);
-  const [activeResume, setActiveResume] = useState<ResumeData>(SAMPLE_RESUME);
+  const [activeResume, setActiveResume] = useState<ResumeData>(() => createNewResume("My Resume", "modern-executive"));
   const [activeSection, setActiveSection] = useState<
     "personal" | "headers" | "experience" | "projects" | "skills" | "education" | "certifications" | "achievements" | "languages"
   >("personal");

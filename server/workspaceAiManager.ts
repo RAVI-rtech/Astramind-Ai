@@ -161,6 +161,33 @@ export async function analyzeUploadedDocument(params: {
     }
   }
 
+  // Refuse to invent a document profile when no readable source text was extracted.
+  // Study tools are enabled only for actual extracted text, never for the file name alone.
+  if (extractedText.trim().length < 30) {
+    const profile: DocumentProfile = {
+      fileName,
+      detectedDomain: "Unknown / General",
+      confidence: "Low",
+      confidenceNote: "No readable text could be extracted from this file. Use a text-based PDF or TXT/Markdown document.",
+      title: fileName.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "),
+      topics: [],
+      estimatedSections: 0,
+      pages: pageCount,
+      extractedTextLength: extractedText.length,
+      hasFormulas: false,
+      hasCode: false,
+      hasTables: false,
+      keyTerminology: [],
+      summary: "No readable text was extracted. Upload a text-based document before using source-grounded study tools.",
+      processingStatus: {
+        contentExtracted: false,
+        topicsIdentified: false,
+        studyToolsReady: false,
+      },
+    };
+    return { profile, extractedText };
+  }
+
   const systemInstruction = `You are AstraMind's Academic Document Understanding Engine.
 Your critical mission is to read and understand the uploaded document and identify its REAL academic subject, domain, structure, and topics.
 
@@ -229,11 +256,11 @@ Construct the authoritative document profile following the strict source-groundi
         ? parsed.confidence 
         : "Medium";
 
-    const topics: string[] = Array.isArray(parsed.topics) && parsed.topics.length > 0
-      ? parsed.topics.map((t: any) => String(t).trim())
-      : [`Introduction to ${detectedDomain}`, "Core Concepts & Principles", "Technical Methodologies", "Review & Applications"];
+    const topics: string[] = Array.isArray(parsed.topics)
+      ? parsed.topics.map((t: any) => String(t).trim()).filter((t: string) => t.length > 0)
+      : [];
 
-    const estimatedSections = Number(parsed.estimatedSections) || Math.max(1, Math.min(10, Math.ceil(pageCount / 4)));
+    const estimatedSections = Number(parsed.estimatedSections) || 0;
 
     const profile: DocumentProfile = {
       fileName,
@@ -249,11 +276,11 @@ Construct the authoritative document profile following the strict source-groundi
       hasCode: Boolean(parsed.hasCode),
       hasTables: Boolean(parsed.hasTables),
       keyTerminology: Array.isArray(parsed.keyTerminology) ? parsed.keyTerminology : [],
-      summary: parsed.summary || `Extracted study material covering ${detectedDomain} with ${topics.length} core topics.`,
+      summary: parsed.summary || "Document profile generated from extracted text.",
       processingStatus: {
-        contentExtracted: extractedText.length > 0 || Boolean(base64),
+        contentExtracted: extractedText.trim().length >= 30,
         topicsIdentified: topics.length > 0,
-        studyToolsReady: true,
+        studyToolsReady: extractedText.trim().length >= 30,
       },
     };
 
@@ -261,44 +288,32 @@ Construct the authoritative document profile following the strict source-groundi
   } catch (err: any) {
     console.error("Error analyzing uploaded document:", err);
 
-    // Fallback profile if AI fails completely
-    const fallbackDomain = fileName.toLowerCase().includes("os") || fileName.toLowerCase().includes("operating") 
-      ? "Operating Systems" 
-      : fileName.toLowerCase().includes("dbms") || fileName.toLowerCase().includes("database")
-      ? "Database Management Systems"
-      : fileName.toLowerCase().includes("network")
-      ? "Computer Networks"
-      : fileName.toLowerCase().includes("python") || fileName.toLowerCase().includes("code")
-      ? "Programming"
-      : fileName.toLowerCase().includes("physics")
-      ? "Physics"
-      : fileName.toLowerCase().includes("math")
-      ? "Mathematics"
-      : "General Engineering";
-
     const profile: DocumentProfile = {
       fileName,
-      detectedDomain: fallbackDomain,
+      detectedDomain: "Unknown / General",
       confidence: "Low",
-      confidenceNote: "Some parts of this document could not be confidently classified.",
+      confidenceNote: "Automatic document classification failed. Any available extracted text is retained, but no topics are fabricated.",
       title: fileName.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "),
-      topics: [`Overview of ${fallbackDomain}`, "Key Definitions", "Analytical Concepts", "Exam Preparation"],
-      estimatedSections: Math.max(1, pageCount),
+      topics: [],
+      estimatedSections: 0,
       pages: pageCount,
       extractedTextLength: extractedText.length,
-      hasFormulas: false,
-      hasCode: false,
+      hasFormulas: /[=∑√π≤≥±]/.test(extractedText),
+      hasCode: /(?:function|class|import |#include|def )/.test(extractedText),
       hasTables: false,
       keyTerminology: [],
-      summary: `Document uploaded: ${fileName}. Core topics extracted for targeted revision.`,
+      summary: extractedText.trim().length >= 30
+        ? "The document text was extracted, but AI classification is temporarily unavailable."
+        : "No usable text was extracted. Upload a text-based document before starting study tools.",
       processingStatus: {
-        contentExtracted: extractedText.length > 0,
-        topicsIdentified: true,
-        studyToolsReady: true,
+        contentExtracted: extractedText.trim().length >= 30,
+        topicsIdentified: false,
+        studyToolsReady: extractedText.trim().length >= 30,
       },
     };
 
     return { profile, extractedText };
+
   }
 }
 

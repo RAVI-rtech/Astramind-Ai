@@ -50,7 +50,6 @@ import {
   PDFQuestionSet,
   PDFTopicExplanation,
   PDFImportantTopic,
-  KnowledgeDocument,
   StudyWorkspace
 } from "../types";
 import {
@@ -66,8 +65,7 @@ import {
   saveSummary,
   getSavedQuestionSets,
   saveQuestionSet,
-  getSavedPDFDocuments,
-  INITIAL_VR25_DECKS
+  getSavedPDFDocuments
 } from "../lib/pdfStudyStorage";
 
 interface PDFStudyViewProps {
@@ -85,62 +83,23 @@ export default function PDFStudyView({
 }: PDFStudyViewProps) {
   // Active Selected PDF Document State
   const [activeDoc, setActiveDoc] = useState<PDFStudyDocument | null>(() => {
-    return initialDocument || getActivePDFDocument() || {
-      id: "doc_bee_drive",
-      title: "Basic Electrical Engineering Complete Notes",
-      fileName: "BEE COMPLETE NOTES.pdf",
-      fileSize: "14.2 MB",
-      pageCount: 88,
-      sourceType: "google_drive",
-      driveFileId: "1iLlJGX5MeoMMdJQ-QLRetx50q-JdnfpV",
-      subject: "Basic Electrical Engineering",
-      unit: "Units 1 - 5",
-      uploadedAt: Date.now() - 3600000 * 24,
-      topics: [
-        "Kirchhoff's Laws (KCL & KVL)",
-        "Mesh and Nodal Analysis",
-        "Thevenin & Norton Theorems",
-        "Maximum Power Transfer Theorem",
-        "Single Phase AC Circuits & Resonance",
-        "Three-Phase Star and Delta Systems",
-        "Transformers & Magnetic Circuits",
-        "DC Machines & Induction Motors"
-      ],
-      rawContent: `BASIC ELECTRICAL ENGINEERING (BEE) COMPLETE NOTES - VR25
-UNIT 1: DC CIRCUITS & NETWORK THEOREMS
-Kirchhoff's Current Law (KCL): The algebraic sum of currents entering a junction (node) in an electrical network is zero (Σ I = 0). Based on conservation of charge.
-Kirchhoff's Voltage Law (KVL): The algebraic sum of all voltages around any closed loop in an electrical network equals zero (Σ V = 0). Based on conservation of energy.
-Mesh Analysis: Method based on KVL using loop currents to solve planar networks.
-Nodal Analysis: Method based on KCL using node voltages.
-Thevenin's Theorem: Any linear two-terminal bilateral circuit can be replaced by an equivalent circuit containing a single voltage source (Vth) in series with resistor (Rth).
-Norton's Theorem: Equivalent current source (In) in parallel with resistor (Rn), Rn = Rth.
-Maximum Power Transfer Theorem: Maximum power is delivered when RL = Rth. Maximum efficiency is 50%.
-UNIT 2: AC FUNDAMENTALS & CIRCUITS
-Sinusoidal AC: V(t) = Vm sin(ωt + φ).
-RMS Value: Vrms = Vm / √2 ≈ 0.707 * Vm. Average value: Vavg = 2Vm / π ≈ 0.637 * Vm.
-Form Factor = RMS / Avg = 1.11. Peak Factor = Peak / RMS = 1.414.
-Power Factor = cos(θ) = P / S = R / Z.
-UNIT 3: THREE-PHASE CIRCUITS
-Star Connection: VL = √3 * Vph, IL = Iph.
-Delta Connection: VL = Vph, IL = √3 * Iph.
-Total Power P = √3 * VL * IL * cos(θ) = 3 * Vph * Iph * cos(θ).
-UNIT 4: TRANSFORMERS & MAGNETIC CIRCUITS
-Working Principle: Faraday's law of electromagnetic induction via mutual induction.
-EMF Equation: E1 = 4.44 * f * N1 * Φm, E2 = 4.44 * f * N2 * Φm.
-Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
-    };
+    const candidate = initialDocument || getActivePDFDocument();
+    return candidate && typeof candidate.rawContent === "string" && candidate.rawContent.trim().length >= 30
+      ? candidate
+      : null;
   });
 
   // Active Tool Action (null = viewer only, or specific tool open)
-  const [activeAction, setActiveAction] = useState<PDFStudyAction | null>("chat");
+  const [activeAction, setActiveAction] = useState<PDFStudyAction | null>(() =>
+    initialDocument || getActivePDFDocument() ? "chat" : null
+  );
   const [isStudyToolsExpanded, setIsStudyToolsExpanded] = useState<boolean>(true);
   const [layoutMode, setLayoutMode] = useState<"stacked" | "split">("stacked");
 
   // Selection Modal
   const [isSelectModalOpen, setIsSelectModalOpen] = useState(false);
-  const [selectTab, setSelectTab] = useState<"drive" | "upload" | "saved">("drive");
-  const [driveDocs, setDriveDocs] = useState<KnowledgeDocument[]>([]);
-  const [isLoadingDriveDocs, setIsLoadingDriveDocs] = useState(false);
+  const [selectTab, setSelectTab] = useState<"upload" | "saved">("upload");
+  const [savedPdfDocs, setSavedPdfDocs] = useState<PDFStudyDocument[]>(() => getSavedPDFDocuments());
   const [searchDocQuery, setSearchDocQuery] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -162,22 +121,7 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
   const viewerContainerRef = useRef<HTMLDivElement>(null);
 
   // 1. PDF Chat State
-  const [chatMessages, setChatMessages] = useState<PDFChatMessage[]>([
-    {
-      id: "msg_init",
-      sender: "ai",
-      text: `Hello! I am your **AstraMind PDF Copilot** grounded directly in **${activeDoc?.title || "your study PDF"}**.\n\nAsk me any concept, formula, problem, or page-specific question. Every response is strictly verified and cited from this document.`,
-      timestamp: Date.now(),
-      citations: [
-        {
-          pageNumber: 1,
-          chapter: "Introduction",
-          topic: activeDoc?.subject || "Core Concepts",
-          excerpt: `Authoritative study material for ${activeDoc?.fileName || "PDF"}`,
-        },
-      ],
-    },
-  ]);
+  const [chatMessages, setChatMessages] = useState<PDFChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [isChatThinking, setIsChatThinking] = useState(false);
   const [chatScope, setChatScope] = useState<"entire" | "chapter" | "page">("entire");
@@ -205,10 +149,20 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
   const [flashcardScopeDetail, setFlashcardScopeDetail] = useState("");
   const [flashcardDifficulty, setFlashcardDifficulty] = useState<"Easy" | "Medium" | "Hard">("Medium");
   const [isGeneratingFlashcards, setIsGeneratingFlashcards] = useState(false);
-  const [activeDeck, setActiveDeck] = useState<PDFFlashcardDeck>(() => {
-    const saved = getSavedDecks();
-    return saved[0] || INITIAL_VR25_DECKS[0];
-  });
+  const [activeDeck, setActiveDeck] = useState<PDFFlashcardDeck>(() => getSavedDecks()[0] || ({
+    id: "",
+    documentId: "",
+    documentTitle: "",
+    title: "No flashcard deck yet",
+    scope: "entire",
+    scopeDetail: "",
+    cardCount: 0,
+    knownCardIds: [],
+    reviewCardIds: [],
+    createdAt: Date.now(),
+    lastStudiedAt: Date.now(),
+    cards: [],
+  }));
   const [currentCardIdx, setCurrentCardIdx] = useState(0);
   const [isCardFlipped, setIsCardFlipped] = useState(false);
 
@@ -223,7 +177,7 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
   const [userSelectedOptions, setUserSelectedOptions] = useState<Record<string, string>>({});
 
   // 6. Topic Explainer State
-  const [explainTopicInput, setExplainTopicInput] = useState(activeDoc?.topics?.[0] || "Kirchhoff's Laws");
+  const [explainTopicInput, setExplainTopicInput] = useState(activeDoc?.topics?.[0] || "");
   const [explainDepth, setExplainDepth] = useState<"simple" | "detailed" | "exam-focused">("exam-focused");
   const [isExplainingTopic, setIsExplainingTopic] = useState(false);
   const [activeExplanation, setActiveExplanation] = useState<PDFTopicExplanation | null>(null);
@@ -250,20 +204,9 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
     setPageInputVal(String(currentPage));
   }, [currentPage]);
 
-  // Load drive documents for in-app picker
+  // Saved documents consist only of PDFs uploaded by this user/browser.
   useEffect(() => {
-    if (isSelectModalOpen && driveDocs.length === 0) {
-      setIsLoadingDriveDocs(true);
-      fetch("/api/knowledge-base/documents")
-        .then((res) => res.json())
-        .then((data) => {
-          if (data && Array.isArray(data.documents)) {
-            setDriveDocs(data.documents);
-          }
-        })
-        .catch((err) => console.warn("Failed to load drive docs:", err))
-        .finally(() => setIsLoadingDriveDocs(false));
-    }
+    if (isSelectModalOpen) setSavedPdfDocs(getSavedPDFDocuments());
   }, [isSelectModalOpen]);
 
   // Select document and open inside AstraMind viewer
@@ -274,23 +217,14 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
     setPdfLoadError(false);
     setIsSelectModalOpen(false);
 
-    // Reset chat with new document
-    setChatMessages([
-      {
-        id: `msg_${Date.now()}`,
-        sender: "ai",
-        text: `Loaded **${doc.title}** (${doc.fileName}, ${doc.pageCount} pages) directly inside AstraMind.\n\nAsk me any concept, problem, or derivation. What would you like to master first?`,
-        timestamp: Date.now(),
-        citations: [
-          {
-            pageNumber: 1,
-            chapter: doc.unit || "Core Syllabus",
-            topic: doc.subject || "Coursework",
-            excerpt: `Active authoritative reference: ${doc.title}`,
-          },
-        ],
-      },
-    ]);
+    // Begin a new conversation without inventing page citations or syllabus content.
+    setChatMessages([{
+      id: `msg_${Date.now()}`,
+      sender: "ai",
+      text: `Loaded your PDF **${doc.fileName}**. Ask about its extracted text, or generate study materials from this document.`,
+      timestamp: Date.now(),
+    }]);
+    setActiveAction("chat");
 
     if (doc.topics && doc.topics.length > 0) {
       setExplainTopicInput(doc.topics[0]);
@@ -298,41 +232,82 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
     showToast(`Loaded "${doc.fileName}" inside AstraMind`);
   };
 
-  // Direct PDF Upload Handler
+  // Upload and extract the user's actual PDF. Do not estimate pages or invent fallback content.
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
 
-    const fileName = file.name;
-    const fileSize = `${(file.size / (1024 * 1024)).toFixed(2)} MB`;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      showToast("Please select a PDF file.");
+      return;
+    }
+    if (file.size > 30 * 1024 * 1024) {
+      showToast("This PDF is larger than 30 MB. Please upload a smaller PDF.");
+      return;
+    }
 
-    // Create object URL for native in-app PDF preview
     const blobUrl = URL.createObjectURL(file);
-
     const reader = new FileReader();
+    reader.onerror = () => {
+      URL.revokeObjectURL(blobUrl);
+      showToast("Could not read this PDF file. Please try again.");
+    };
     reader.onload = async (ev) => {
-      const arrayBuf = ev.target?.result as ArrayBuffer;
-      const base64 = btoa(
-        new Uint8Array(arrayBuf.slice(0, 100000)).reduce((data, byte) => data + String.fromCharCode(byte), "")
-      );
-      const estimatedPages = Math.max(1, Math.round(file.size / (50 * 1024)));
+      try {
+        const arrayBuffer = ev.target?.result as ArrayBuffer;
+        if (!arrayBuffer || arrayBuffer.byteLength < 5) {
+          throw new Error("The selected file is empty or unreadable.");
+        }
+        const bytes = new Uint8Array(arrayBuffer);
+        const header = String.fromCharCode(...bytes.subarray(0, 5));
+        if (header !== "%PDF-") {
+          throw new Error("The selected file does not appear to be a valid PDF.");
+        }
 
-      const newDoc: PDFStudyDocument = {
-        id: `doc_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        title: fileName.replace(/\.[^/.]+$/, ""),
-        fileName,
-        fileSize,
-        pageCount: estimatedPages,
-        sourceType: "uploaded",
-        uploadedAt: Date.now(),
-        previewUrl: blobUrl,
-        base64Data: base64,
-        subject: workspace?.subject || "Coursework",
-        rawContent: `Document: ${fileName}. Size: ${fileSize}. Extracted content ready for high-yield AI analysis.`,
-        topics: ["Core Concepts", "Formulas & Equations", "Definitions", "Exam Numerical Problems"],
-      };
+        const chunks: string[] = [];
+        const chunkSize = 0x8000;
+        for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+          chunks.push(String.fromCharCode(...bytes.subarray(offset, Math.min(offset + chunkSize, bytes.length))));
+        }
+        const base64 = btoa(chunks.join(""));
+        showToast("Extracting text from your PDF...");
+        const response = await fetch("/api/workspace/analyze-document", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileName: file.name, fileType: "pdf", base64 }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Could not process this PDF.");
 
-      handleSelectDocument(newDoc);
+        const extractedText = typeof result.extractedText === "string" ? result.extractedText.trim() : "";
+        const profile = result.profile;
+        if (extractedText.length < 30) {
+          URL.revokeObjectURL(blobUrl);
+          throw new Error("No readable text could be extracted from this PDF. Try a text-based PDF instead of an image-only scanned PDF.");
+        }
+
+        const newDoc: PDFStudyDocument = {
+          id: `doc_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+          title: profile?.title || file.name.replace(/\.[^/.]+$/, ""),
+          fileName: file.name,
+          fileSize: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+          pageCount: Number(profile?.pages) || 1,
+          sourceType: "uploaded",
+          uploadedAt: Date.now(),
+          previewUrl: blobUrl,
+          subject: profile?.detectedDomain || workspace?.subject || "Uploaded PDF",
+          unit: "",
+          rawContent: extractedText,
+          topics: Array.isArray(profile?.topics) ? profile.topics.filter((topic: unknown) => typeof topic === "string" && topic.trim()) : [],
+        };
+        handleSelectDocument(newDoc);
+        setSavedPdfDocs(getSavedPDFDocuments());
+        showToast(`Loaded ${file.name} for study.`);
+      } catch (error: any) {
+        URL.revokeObjectURL(blobUrl);
+        showToast(error?.message || "Failed to read this PDF.");
+      }
     };
     reader.readAsArrayBuffer(file);
   };
@@ -341,7 +316,7 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
   const handlePageJump = (e: React.FormEvent) => {
     e.preventDefault();
     const p = parseInt(pageInputVal, 10);
-    const total = activeDoc?.pageCount || 100;
+    const total = activeDoc?.pageCount || 0;
     if (!isNaN(p) && p >= 1 && p <= total) {
       setCurrentPage(p);
     } else {
@@ -350,6 +325,14 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
   };
 
   // In-Document Text Search
+  const requireReadablePdf = (): boolean => {
+    if ((activeDoc?.sourceType === "uploaded" || activeDoc?.sourceType === "workspace") && typeof activeDoc.rawContent === "string" && activeDoc.rawContent.trim().length >= 30) return true;
+    showToast("Upload a readable PDF before using this study tool.");
+    setSelectTab("upload");
+    setIsSelectModalOpen(true);
+    return false;
+  };
+
   const handleDocSearch = (query: string) => {
     setViewerSearchQuery(query);
     if (!query.trim() || !activeDoc?.rawContent) {
@@ -391,7 +374,7 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
   // 1. Send Chat
   const handleSendChat = async (userPrompt?: string) => {
     const textToSend = userPrompt || chatInput;
-    if (!textToSend.trim() || isChatThinking || !activeDoc) return;
+    if (!textToSend.trim() || isChatThinking || !requireReadablePdf() || !activeDoc) return;
 
     const userMsg: PDFChatMessage = {
       id: `msg_u_${Date.now()}`,
@@ -415,7 +398,7 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pdfTitle: activeDoc.title,
-          pdfContent: activeDoc.rawContent || `${activeDoc.title} notes and formulas`,
+          pdfContent: activeDoc.rawContent || "",
           messages: messagesPayload,
           chapterOrScope: chatScope === "chapter" ? chatScopeDetail : undefined,
           pageRange: chatScope === "page" ? chatScopeDetail : undefined,
@@ -430,14 +413,7 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
         sender: "ai",
         text: data.text,
         timestamp: Date.now(),
-        citations: data.citations || [
-          {
-            pageNumber: currentPage,
-            chapter: "Verified Study Section",
-            topic: activeDoc.subject || "Study Subject",
-            excerpt: `Cited from ${activeDoc.fileName}`,
-          },
-        ],
+        citations: Array.isArray(data.citations) ? data.citations : [],
       };
       setChatMessages((prev) => [...prev, aiMsg]);
     } catch (err: any) {
@@ -458,6 +434,7 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
   // 2. Generate Summary
   const handleGenerateSummary = async () => {
     if (!activeDoc || isGeneratingSummary) return;
+    if (!requireReadablePdf()) return;
     setIsGeneratingSummary(true);
 
     try {
@@ -466,7 +443,7 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pdfTitle: activeDoc.title,
-          pdfContent: activeDoc.rawContent || activeDoc.title,
+          pdfContent: activeDoc.rawContent || "",
           summaryType,
           chapterOrScope: summaryScopeInput.trim() || undefined,
         }),
@@ -488,6 +465,7 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
   // 3. Generate Notes
   const handleGenerateNotes = async () => {
     if (!activeDoc || isGeneratingNotes) return;
+    if (!requireReadablePdf()) return;
     setIsGeneratingNotes(true);
 
     try {
@@ -496,7 +474,7 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pdfTitle: activeDoc.title,
-          pdfContent: activeDoc.rawContent || activeDoc.title,
+          pdfContent: activeDoc.rawContent || "",
           topic: noteTopic.trim() || undefined,
         }),
       });
@@ -532,6 +510,7 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
   // 4. Generate Flashcards
   const handleGenerateFlashcards = async () => {
     if (!activeDoc || isGeneratingFlashcards) return;
+    if (!requireReadablePdf()) return;
     setIsGeneratingFlashcards(true);
 
     try {
@@ -540,7 +519,7 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pdfTitle: activeDoc.title,
-          pdfContent: activeDoc.rawContent || activeDoc.title,
+          pdfContent: activeDoc.rawContent || "",
           count: flashcardCount,
           scope: flashcardScope,
           scopeDetail: flashcardScopeDetail.trim() || undefined,
@@ -582,6 +561,7 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
   // 5. Generate Questions
   const handleGenerateQuestions = async () => {
     if (!activeDoc || isGeneratingQuestions) return;
+    if (!requireReadablePdf()) return;
     setIsGeneratingQuestions(true);
 
     try {
@@ -590,7 +570,7 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pdfTitle: activeDoc.title,
-          pdfContent: activeDoc.rawContent || activeDoc.title,
+          pdfContent: activeDoc.rawContent || "",
           questionTypes,
           count: questionCount,
           difficulty: questionDifficulty,
@@ -627,7 +607,7 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
   // 6. Explain Topic
   const handleExplainTopic = async (overrideTopic?: string) => {
     const topicToUse = overrideTopic || explainTopicInput;
-    if (!activeDoc || !topicToUse.trim() || isExplainingTopic) return;
+    if (!topicToUse.trim() || isExplainingTopic || !requireReadablePdf() || !activeDoc) return;
     setIsExplainingTopic(true);
 
     try {
@@ -636,7 +616,7 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pdfTitle: activeDoc.title,
-          pdfContent: activeDoc.rawContent || activeDoc.title,
+          pdfContent: activeDoc.rawContent || "",
           topic: topicToUse.trim(),
           depth: explainDepth,
         }),
@@ -656,6 +636,7 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
   // 7. Find Important Topics
   const handleFindImportantTopics = async () => {
     if (!activeDoc || isFindingTopics) return;
+    if (!requireReadablePdf()) return;
     setIsFindingTopics(true);
 
     try {
@@ -664,7 +645,7 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pdfTitle: activeDoc.title,
-          pdfContent: activeDoc.rawContent || activeDoc.title,
+          pdfContent: activeDoc.rawContent || "",
           subject: activeDoc.subject,
         }),
       });
@@ -747,14 +728,10 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
     ? Math.round((activeDeck.knownCardIds.length / activeDeck.cards.length) * 100)
     : 0;
 
-  const totalPages = activeDoc?.pageCount || 100;
+  const totalPages = activeDoc?.pageCount || 0;
 
-  // Stream URL for in-app PDF rendering without any Google Drive redirects
-  const inAppPdfStreamUrl = activeDoc?.previewUrl
-    ? activeDoc.previewUrl
-    : activeDoc?.driveFileId
-    ? `/api/pdf-study/document-stream/${activeDoc.driveFileId}`
-    : null;
+  // The native PDF preview is available for the current uploaded file. Persisted saved entries retain extracted text only.
+  const inAppPdfStreamUrl = activeDoc?.previewUrl || null;
 
   return (
     <div
@@ -790,7 +767,7 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
             </div>
             <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
               <strong className="text-slate-200 font-semibold truncate max-w-[200px] sm:max-w-md">
-                {activeDoc?.fileName || "Engineering Mathematics-I.pdf"}
+                {activeDoc?.fileName || "No PDF selected"}
               </strong>
               <span className="text-slate-500">•</span>
               <span className="text-slate-400 font-mono text-[11px]">{totalPages} Pages</span>
@@ -976,7 +953,18 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
 
           {/* VIEWER DISPLAY CANVAS (NATIVE & STREAMED EMBED) */}
           <div className="flex-1 bg-slate-900/60 overflow-auto p-4 flex flex-col items-center justify-start relative">
-            {pdfLoadError ? (
+            {!activeDoc ? (
+              <div className="my-auto text-center p-8 max-w-lg space-y-4">
+                <div className="w-16 h-16 rounded-3xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center mx-auto">
+                  <FileText className="w-8 h-8" />
+                </div>
+                <h3 className="text-lg font-bold text-white">Start with your own PDF</h3>
+                <p className="text-sm text-slate-400 leading-relaxed">Upload or share a readable PDF to open it here. AstraMind will extract the document text before generating answers, notes, flashcards, or quiz questions.</p>
+                <button onClick={() => { setSelectTab("upload"); setIsSelectModalOpen(true); }} className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold cursor-pointer">
+                  Upload PDF
+                </button>
+              </div>
+            ) : pdfLoadError ? (
               /* Requirement 6: Specific Error Message (NO DRIVE REDIRECT) */
               <div className="my-auto text-center p-8 bg-slate-900/90 border border-slate-800 rounded-3xl max-w-md shadow-2xl space-y-4">
                 <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
@@ -1039,13 +1027,13 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
                     </p>
                   </div>
                   <span className="text-[10px] font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded">
-                    Verified Syllabus Text
+                    Extracted PDF Text
                   </span>
                 </div>
 
                 <div className="prose prose-invert prose-sm max-w-none text-slate-200 leading-relaxed font-sans">
                   <pre className="text-xs font-mono whitespace-pre-wrap text-slate-300 bg-slate-900/50 p-4 rounded-xl border border-slate-800">
-                    {activeDoc?.rawContent || "Loading curriculum content..."}
+                    {activeDoc?.rawContent || "No extracted text is available for this PDF."}
                   </pre>
                 </div>
               </div>
@@ -1082,11 +1070,13 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
                 return (
                   <button
                     key={tab.id}
+                    disabled={!activeDoc || !activeDoc.rawContent?.trim()}
                     onClick={() => {
+                      if (!requireReadablePdf()) return;
                       setActiveAction(tab.id as PDFStudyAction);
                       setIsStudyToolsExpanded(true);
                     }}
-                    className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                    className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                       isSelected
                         ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
                         : "bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-700/60"
@@ -1652,9 +1642,7 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
         </section>
       </div>
 
-      {/* ========================================================================= */}
-      {/* MODAL: SELECT PDF (GOOGLE DRIVE AS BACKEND SOURCE ONLY - NO REDIRECTS) */}
-      {/* ========================================================================= */}
+      {/* PDF source picker: saved uploads or user-uploaded PDF only. */}
       {isSelectModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
@@ -1662,133 +1650,70 @@ Transformation Ratio K = E2/E1 = N2/N1 = I1/I2.`
               <div>
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
                   <FolderKanban className="w-5 h-5 text-blue-400" />
-                  <span>Select Study Material</span>
+                  <span>Select Study PDF</span>
                 </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Select a syllabus PDF from the integrated curriculum source or upload your own.
-                </p>
+                <p className="text-xs text-slate-400 mt-0.5">Use a PDF you upload here. No sample or master-drive documents are loaded.</p>
               </div>
-              <button
-                onClick={() => setIsSelectModalOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 cursor-pointer"
-              >
+              <button onClick={() => setIsSelectModalOpen(false)} className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
-
             <div className="flex border-b border-slate-800 bg-slate-950/60 px-6 pt-2">
               <button
-                onClick={() => setSelectTab("drive")}
-                className={`py-2.5 px-4 text-xs font-bold border-b-2 cursor-pointer ${
-                  selectTab === "drive"
-                    ? "border-blue-500 text-blue-400"
-                    : "border-transparent text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                Curriculum Documents (VR25)
-              </button>
-              <button
                 onClick={() => setSelectTab("upload")}
-                className={`py-2.5 px-4 text-xs font-bold border-b-2 cursor-pointer ${
-                  selectTab === "upload"
-                    ? "border-blue-500 text-blue-400"
-                    : "border-transparent text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                Direct PDF Upload
-              </button>
+                className={`py-2.5 px-4 text-xs font-bold border-b-2 cursor-pointer ${selectTab === "upload" ? "border-blue-500 text-blue-400" : "border-transparent text-slate-400 hover:text-slate-200"}`}
+              >Upload PDF</button>
+              <button
+                onClick={() => setSelectTab("saved")}
+                className={`py-2.5 px-4 text-xs font-bold border-b-2 cursor-pointer ${selectTab === "saved" ? "border-blue-500 text-blue-400" : "border-transparent text-slate-400 hover:text-slate-200"}`}
+              >My Uploaded PDFs</button>
             </div>
-
             <div className="flex-1 overflow-y-auto p-6 space-y-3 scrollbar-thin">
-              {selectTab === "drive" && (
-                <>
-                  <input
-                    type="text"
-                    placeholder="Search documents (e.g. Mathematics, BEE, C Programming)..."
-                    value={searchDocQuery}
-                    onChange={(e) => setSearchDocQuery(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 mb-3 focus:outline-none focus:border-blue-500"
-                  />
-
-                  {isLoadingDriveDocs ? (
-                    <div className="py-12 text-center text-slate-400 text-xs flex flex-col items-center gap-2">
-                      <RotateCw className="w-5 h-5 animate-spin text-blue-400" />
-                      <span>Loading documents from storage...</span>
-                    </div>
-                  ) : (
-                    driveDocs
-                      .filter((d) =>
-                        searchDocQuery.trim()
-                          ? d.documentName.toLowerCase().includes(searchDocQuery.toLowerCase()) ||
-                            d.subject.toLowerCase().includes(searchDocQuery.toLowerCase())
-                          : true
-                      )
-                      .map((doc) => {
-                        const isCurrent = activeDoc?.fileName === doc.documentName;
-                        return (
-                          <div
-                            key={doc.id}
-                            className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
-                              isCurrent
-                                ? "bg-blue-600/10 border-blue-500"
-                                : "bg-slate-800/40 border-slate-700/60 hover:bg-slate-800"
-                            }`}
-                          >
-                            <div className="flex items-center space-x-3">
-                              <FileText className="w-5 h-5 text-blue-400" />
-                              <div>
-                                <h4 className="text-xs font-bold text-white">{doc.documentName}</h4>
-                                <span className="text-[11px] text-slate-400">
-                                  {doc.subject} • {doc.pageCount || 1} pages
-                                </span>
-                              </div>
-                            </div>
-
-                            <button
-                              onClick={() =>
-                                handleSelectDocument({
-                                  id: doc.id,
-                                  title: doc.documentName.replace(/\.[^/.]+$/, ""),
-                                  fileName: doc.documentName,
-                                  pageCount: doc.pageCount || 1,
-                                  sourceType: "google_drive",
-                                  driveFileId: doc.driveFileId,
-                                  subject: doc.subject,
-                                  unit: doc.unit,
-                                  uploadedAt: Date.now(),
-                                  rawContent: `Document ${doc.documentName} for ${doc.subject}. Authoritative syllabus content.`,
-                                })
-                              }
-                              className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer ${
-                                isCurrent
-                                  ? "bg-emerald-600 text-white"
-                                  : "bg-blue-600 hover:bg-blue-500 text-white"
-                              }`}
-                            >
-                              {isCurrent ? "Opened ✓" : "Open PDF"}
-                            </button>
-                          </div>
-                        );
-                      })
-                  )}
-                </>
-              )}
-
               {selectTab === "upload" && (
                 <div
                   onClick={() => fileInputRef.current?.click()}
                   className="border-2 border-dashed border-slate-700 hover:border-blue-500/60 rounded-3xl p-10 text-center cursor-pointer transition-all bg-slate-950/40 hover:bg-slate-950/80 flex flex-col items-center justify-center space-y-3"
                 >
                   <Upload className="w-8 h-8 text-blue-400" />
-                  <p className="text-sm font-bold text-white">Click to select PDF from your device</p>
-                  <p className="text-xs text-slate-400">Opens immediately in AstraMind</p>
+                  <p className="text-sm font-bold text-white">Choose a PDF from your device</p>
+                  <p className="text-xs text-slate-400">AstraMind extracts text before enabling study tools. Maximum size: 30 MB.</p>
+                  <input ref={fileInputRef} type="file" accept="application/pdf,.pdf" onChange={handleFileUpload} className="hidden" />
+                </div>
+              )}
+              {selectTab === "saved" && (
+                <div className="space-y-3">
                   <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf"
-                    onChange={handleFileUpload}
-                    className="hidden"
+                    type="text"
+                    placeholder="Search your uploaded PDFs..."
+                    value={searchDocQuery}
+                    onChange={(e) => setSearchDocQuery(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 mb-3 focus:outline-none focus:border-blue-500"
                   />
+                  {savedPdfDocs.filter((doc) =>
+                    !searchDocQuery.trim() ||
+                    doc.fileName.toLowerCase().includes(searchDocQuery.toLowerCase()) ||
+                    (doc.subject || "").toLowerCase().includes(searchDocQuery.toLowerCase())
+                  ).map((doc) => {
+                    const isCurrent = activeDoc?.id === doc.id;
+                    return (
+                      <div key={doc.id} className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between ${isCurrent ? "bg-blue-600/10 border-blue-500" : "bg-slate-800/40 border-slate-700/60 hover:bg-slate-800"}`}>
+                        <div className="flex items-center space-x-3 min-w-0">
+                          <FileText className="w-5 h-5 text-blue-400 shrink-0" />
+                          <div className="min-w-0">
+                            <h4 className="text-xs font-bold text-white truncate">{doc.fileName}</h4>
+                            <span className="text-[11px] text-slate-400">{doc.subject || "Uploaded PDF"} • {doc.pageCount} page(s)</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleSelectDocument(doc)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer shrink-0 ${isCurrent ? "bg-emerald-600 text-white" : "bg-blue-600 hover:bg-blue-500 text-white"}`}
+                        >{isCurrent ? "Opened ✓" : "Open extracted text"}</button>
+                      </div>
+                    );
+                  })}
+                  {savedPdfDocs.length === 0 && (
+                    <div className="py-12 text-center text-slate-400 text-xs">No uploaded PDFs yet. Upload a PDF first.</div>
+                  )}
                 </div>
               )}
             </div>
