@@ -905,13 +905,14 @@ app.post("/api/edit-image", async (req, res) => {
         statusHistory: result.statusHistory,
       });
     } catch (routerErr: any) {
+      console.error("[AstraMind Image Edit] Provider error:", routerErr?.message || routerErr);
       return res.status(503).json({
-        error: "Image generation is currently unavailable. Please try again later.",
+        error: routerErr?.message || "Image editing is currently unavailable. Please try again later.",
       });
     }
   } catch (error: any) {
     console.error("[AstraMind Image Edit] Server error:", error);
-    res.status(503).json({ error: "Image generation is currently unavailable. Please try again later." });
+    res.status(503).json({ error: error?.message || "Image editing is currently unavailable. Please try again later." });
   }
 });
 
