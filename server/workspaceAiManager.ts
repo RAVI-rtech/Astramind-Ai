@@ -427,18 +427,27 @@ Do not wrap in markdown. Output valid JSON array only.`;
   try {
     const raw = await runPromptWithAI(systemInstruction, prompt);
     const parsed = extractJSON(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed.map((q: any, idx: number) => ({
-        id: q.id || `q-${Date.now()}-${idx}`,
-        question: q.question,
-        options: Array.isArray(q.options) && q.options.length >= 2 ? q.options : ["True", "False"],
-        correctIndex: typeof q.correctIndex === "number" && q.correctIndex >= 0 ? q.correctIndex : 0,
-        explanation: q.explanation || "Correct answer based on the uploaded material.",
-        topic: q.topic || topic,
-        questionType: q.questionType || "mcq",
-      }));
-    }
-    throw new Error("Invalid MCQ JSON array received");
+    const validQuestions = Array.isArray(parsed)
+      ? parsed.filter((question: any) =>
+          question &&
+          typeof question.question === "string" && question.question.trim() &&
+          Array.isArray(question.options) && question.options.length >= 2 &&
+          question.options.every((option: unknown) => typeof option === "string" && option.trim()) &&
+          Number.isInteger(question.correctIndex) &&
+          question.correctIndex >= 0 && question.correctIndex < question.options.length &&
+          typeof question.explanation === "string" && question.explanation.trim()
+        )
+      : [];
+    if (validQuestions.length === 0) throw new Error("The model returned no questions with a valid answer key.");
+    return validQuestions.map((question: any, idx: number) => ({
+      id: typeof question.id === "string" && question.id.trim() ? question.id : `q-${Date.now()}-${idx}`,
+      question: question.question.trim(),
+      options: question.options.map((option: string) => option.trim()),
+      correctIndex: question.correctIndex,
+      explanation: question.explanation.trim(),
+      topic: typeof question.topic === "string" && question.topic.trim() ? question.topic : topic,
+      questionType: ["mcq", "true_false", "concept", "definition", "application", "numerical", "code"].includes(question.questionType) ? question.questionType : "mcq",
+    }));
   } catch (e: any) {
     console.error("MCQ generation error:", e);
     throw new Error(`Unable to generate quiz questions for "${subject}": ${e.message}`);
