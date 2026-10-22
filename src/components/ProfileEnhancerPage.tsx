@@ -25,7 +25,6 @@ import {
   Search,
   Sliders,
   RotateCcw,
-  Zap,
 } from "lucide-react";
 import {
   CareerGoal,
@@ -51,51 +50,6 @@ const CAREER_GOALS: CareerGoal[] = [
   "Startup / Entrepreneurship",
   "Other",
 ];
-
-const SAMPLE_BTECH_PROFILE: ProfileEnhancerInput = {
-  fullName: "Aarav Sharma",
-  currentRole: "3rd Year B.Tech CSE Student",
-  branchDegree: "B.Tech in Computer Science and Engineering",
-  collegeUniversity: "Vellore Institute of Technology",
-  careerGoal: "Full Stack Developer",
-  linkedinHeadline: "Computer Science Student at VIT | Learning Web Development",
-  linkedinAbout:
-    "I am a 3rd year B.Tech CSE student passionate about coding and software development. Looking for summer internships and entry-level opportunities.",
-  skills:
-    "JavaScript, TypeScript, React, Node.js, Express, Python, MongoDB, PostgreSQL, Git, Tailwind CSS, REST APIs, Docker basics",
-  projects: [
-    {
-      id: "p1",
-      title: "AstraTask - Collaborative Kanban Platform",
-      tech: "React, Node.js, Socket.io, MongoDB, Tailwind CSS",
-      description:
-        "Built a real-time task management board featuring drag-and-drop columns, instant multi-user socket synchronization, and JWT-authenticated member workspaces.",
-    },
-    {
-      id: "p2",
-      title: "DevMetrics - Developer Portfolio Analytics",
-      tech: "TypeScript, Next.js, GitHub REST API, Chart.js",
-      description:
-        "Engineered a web application that visualizes developer commit velocity, top language distributions, and repository statistics using the GitHub REST API.",
-    },
-  ],
-  experience: [
-    {
-      id: "e1",
-      role: "Web Development Intern",
-      company: "TechNova Solutions",
-      duration: "June 2024 – August 2024",
-      description:
-        "Built responsive UI dashboard components using React and styled-components. Assisted the backend team in verifying REST endpoints and webhook triggers.",
-    },
-  ],
-  certifications: "Meta Front-End Developer Professional Certificate (Coursera), Postman API Fundamentals Student Expert",
-  achievements: "Winner at HackSphere 2024 College Hackathon (Campus Resource Finder), Top 10% in LeetCode Weekly Contests",
-  hackathons: "Smart India Hackathon 2024 College Internal Round Finalist",
-  education: "B.Tech in Computer Science and Engineering, Vellore Institute of Technology (2022 – 2026)",
-  githubUrl: "https://github.com/aarav-sharma",
-  portfolioUrl: "https://aaravsharma.dev",
-};
 
 const INITIAL_EMPTY_PROFILE: ProfileEnhancerInput = {
   fullName: "",
@@ -160,12 +114,6 @@ export default function ProfileEnhancerPage({
   const handleGoalSelect = (goal: CareerGoal) => {
     setSelectedGoal(goal);
     setProfile((prev) => ({ ...prev, careerGoal: goal }));
-  };
-
-  const handleLoadSample = () => {
-    setProfile(SAMPLE_BTECH_PROFILE);
-    setSelectedGoal(SAMPLE_BTECH_PROFILE.careerGoal);
-    setAnalysisError(null);
   };
 
   const handleClearForm = () => {
@@ -371,16 +319,6 @@ export default function ProfileEnhancerPage({
 
           {/* Quick Demo and Reset Controls */}
           <div className="flex items-center gap-2.5 shrink-0">
-            <button
-              id="load-sample-profile-btn"
-              type="button"
-              onClick={handleLoadSample}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-[#0d0d0e] hover:bg-slate-200 text-xs sm:text-sm font-semibold transition-all shadow-md hover:scale-[1.02] cursor-pointer"
-              title="Preload a realistic 3rd year B.Tech student profile to test analysis instantly"
-            >
-              <Zap className="w-3.5 h-3.5 text-[#a78bfa]" />
-              <span>Load Sample Profile</span>
-            </button>
             <button
               id="clear-profile-form-btn"
               type="button"
