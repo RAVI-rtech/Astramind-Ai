@@ -820,11 +820,16 @@ export default function AcademicQuizCreator({
                     setRegulation("VR25");
                     setProgramType("B.Tech");
                     setBranch(VITS_BRANCHES[0]);
+                    setYear(VITS_YEARS[1]);
+                    setSemester(VITS_SEMESTERS[0]);
                   } else if (next !== college) {
                     setRegulation("");
                     setBranch("");
+                    setYear("Not specified");
+                    setSemester("Not specified");
                   }
                   setSubject("");
+                  setCustomSubject("");
                   setUnit("All Units (Comprehensive)");
                 }}
                 className="w-full text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
@@ -839,7 +844,18 @@ export default function AcademicQuizCreator({
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Degree / Program</label>
                 <select
                   value={programType}
-                  onChange={(e) => { setProgramType(e.target.value); setSubject(""); }}
+                  onChange={(e) => {
+                    const nextProgram = e.target.value;
+                    setProgramType(nextProgram);
+                    setSubject("");
+                    setCustomSubject("");
+                    setBranch("");
+                    if (nextProgram !== "B.Tech") setRegulation("");
+                    else if (college.trim().toLowerCase() === VITS_COLLEGE_NAME.toLowerCase()) {
+                      setRegulation("VR25");
+                      setBranch(VITS_BRANCHES[0]);
+                    }
+                  }}
                   className="w-full text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 >
                   {["B.Tech", "B.E.", "B.Sc.", "B.A.", "B.Com.", "BBA", "BCA", "M.Tech", "M.E.", "M.Sc.", "M.A.", "MBA", "MCA", "Diploma", "MBBS / Health Sciences", "Law", "School / High School", "Other / Self-directed"].map((program) => (
