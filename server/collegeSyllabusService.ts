@@ -1,6 +1,7 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { load } from "cheerio";
+import { GoogleGenAI } from "@google/genai";
 
 export interface CollegeSyllabusLink {
   title: string;
@@ -309,4 +310,91 @@ export async function downloadOfficialSyllabusPdf(params: {
   let fileName = decodeURIComponent(pathName.split("/").pop() || "official-syllabus.pdf").replace(/[^a-zA-Z0-9._ -]/g, "_");
   if (!fileName.toLowerCase().endsWith(".pdf")) fileName = `${fileName.replace(/\.[^.]+$/, "")}.pdf`;
   return { buffer: resource.body, url: selected.url, fileName, siteDomain: discovery.siteDomain };
+}
+
+
+export interface OfficialCollegeWebsiteDiscovery {
+  college: string;
+  officialWebsiteUrl: string;
+  evidenceUrls: string[];
+  note: string;
+}
+
+/**
+ * Use Gemini's grounded Google Search tool to identify the likely official homepage.
+ * A candidate is accepted only when its host is also present in the returned search-grounding sources,
+ * then verified as a public HTTPS site. The client can show the resulting URL before import.
+ */
+export async function findOfficialCollegeWebsite(collegeName: string): Promise<OfficialCollegeWebsiteDiscovery> {
+  const college = collegeName.trim();
+  if (!college) throw new Error("Enter your college or institution name first.");
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error("Automatic website discovery requires GEMINI_API_KEY. Paste your college's official website in the URL field and try again.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const response: any = await ai.models.generateContent({
+    model: "gemini-3.8-flash",
+    contents: [{
+      role: "user",
+      parts: [{
+        text: `Find the official website homepage for the higher-education institution named "${college}".
+Search the web and use official institutional pages or other reliable results to distinguish it from similarly named institutions, admission aggregators, ranking sites, and third-party directories.
+Return JSON only:
+{
+  "officialWebsiteUrl": "the institution's official HTTPS homepage exactly as present in the search results",
+  "reason": "short reason this is the institution's official domain"
+}
+Do not invent a domain or URL. If you cannot confidently identify it, return {"officialWebsiteUrl":"","reason":"Official site could not be identified confidently."}.`
+      }]
+    }],
+    config: {
+      tools: [{ googleSearch: {} }],
+      temperature: 0.1,
+    },
+  });
+
+  const candidate = response.candidates?.[0];
+  const groundingChunks = Array.isArray(candidate?.groundingMetadata?.groundingChunks)
+    ? candidate.groundingMetadata.groundingChunks
+    : [];
+  const evidenceUrls = groundingChunks
+    .map((chunk: any) => chunk?.web?.uri)
+    .filter((url: unknown): url is string => typeof url === "string" && /^https:\/\//i.test(url))
+    .map((url: string) => {
+      try { return new URL(url).origin + new URL(url).pathname; } catch { return ""; }
+    })
+    .filter(Boolean);
+  const uniqueEvidence = Array.from(new Set<string>(evidenceUrls)).slice(0, 10);
+
+  let parsed: any = null;
+  const rawText = String(candidate?.content?.parts?.map((part: any) => part?.text || "").join("\\n") || response.text || "").trim();
+  const jsonCandidate = rawText.replace(/^\`\`\`(?:json)?\s*/i, "").replace(/\s*\`\`\`$/, "");
+  try { parsed = JSON.parse(jsonCandidate); } catch {
+    const match = jsonCandidate.match(/\{[\\s\\S]*\}/);
+    if (match) {
+      try { parsed = JSON.parse(match[0]); } catch { parsed = null; }
+    }
+  }
+
+  const requestedUrl = typeof parsed?.officialWebsiteUrl === "string" ? parsed.officialWebsiteUrl.trim() : "";
+  if (!requestedUrl || !uniqueEvidence.length) {
+    throw new Error("Search did not produce a verifiable official website. Paste the official college URL in the field and try again.");
+  }
+
+  const candidateUrl = await validateHttpsUrl(requestedUrl);
+  const candidateDomain = getRegistrableSiteDomain(candidateUrl.hostname);
+  const evidenceDomains = uniqueEvidence.map((url) => {
+    try { return getRegistrableSiteDomain(new URL(url).hostname); } catch { return ""; }
+  });
+  if (!evidenceDomains.includes(candidateDomain)) {
+    throw new Error("The suggested website was not present in the verified search results. Paste the official college URL and try again.");
+  }
+
+  return {
+    college,
+    officialWebsiteUrl: candidateUrl.toString(),
+    evidenceUrls: uniqueEvidence,
+    note: "Candidate official site found through Google Search grounding. Verify the domain belongs to your college before using the syllabus links.",
+  };
 }
