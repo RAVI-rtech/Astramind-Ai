@@ -1652,29 +1652,11 @@ export default function StudyWorkspaceView({
                             Topic: <span className="text-neutral-200">{item.chunk.topic}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => {
-                                setActivePDFDocument({
-                                  id: item.chunk.documentId || `doc_${Date.now()}`,
-                                  title: item.chunk.documentName.replace(/\.[^/.]+$/, ""),
-                                  fileName: item.chunk.documentName,
-                                  pageCount: item.chunk.pageNumber ? Math.max(item.chunk.pageNumber, 10) : 50,
-                                  sourceType: "google_drive",
-                                  subject: item.chunk.subject,
-                                  unit: item.chunk.unit,
-                                  uploadedAt: Date.now(),
-                                  rawContent: item.chunk.content,
-                                });
-                                setActiveTab("pdf-study");
-                              }}
-                              className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1 font-semibold cursor-pointer"
-                            >
-                              <FileText className="w-3 h-3 text-blue-400" /> Study PDF
-                            </button>
+                            
                             <button
                               onClick={() => {
                                 setActiveTab("ai-tutor");
-                                handleSendTutorMessage(`Based on ${item.chunk.documentName} (Page ${item.chunk.pageNumber}), explain ${item.chunk.topic}`);
+                                handleSendTutorMessage(`Based on ${item.chunk.documentName} (Page ${item.chunk.pageNumber}), explain ${item.chunk.topic}`, item.chunk.content);
                               }}
                               className="px-2.5 py-1 rounded-lg bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 text-[11px] font-medium transition-colors"
                             >
@@ -1695,10 +1677,10 @@ export default function StudyWorkspaceView({
                 <div>
                   <h4 className="text-sm font-semibold text-white flex items-center gap-2">
                     <Database className="w-4 h-4 text-blue-400" />
-                    VR25 Subject Partitions & Master Documents
+                    Indexed Source Documents
                   </h4>
                   <p className="text-xs text-neutral-400">
-                    Syllabus-aligned repository files from Google Drive
+                    Only documents actually indexed on the server appear here.
                   </p>
                 </div>
 
@@ -1755,27 +1737,7 @@ export default function StudyWorkspaceView({
                       <div className="pt-2 border-t border-neutral-800/80 flex items-center justify-between text-xs text-neutral-400">
                         <span>PDF • {doc.pageCount || 1} Pages</span>
                         <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => {
-                              setActivePDFDocument({
-                                id: doc.id,
-                                title: doc.documentName.replace(/\.[^/.]+$/, ""),
-                                fileName: doc.documentName,
-                                pageCount: doc.pageCount || 1,
-                                sourceType: "google_drive",
-                                driveFileId: doc.driveFileId,
-                                subject: doc.subject,
-                                unit: doc.unit,
-                                uploadedAt: Date.now(),
-                                rawContent: `Document ${doc.documentName} for ${doc.subject}. Authoritative syllabus content.`,
-                              });
-                              setActiveTab("pdf-study");
-                            }}
-                            className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md shadow-blue-600/25 transition-all"
-                          >
-                            <FileText className="w-3.5 h-3.5" />
-                            <span>OPEN PDF</span>
-                          </button>
+                          
                         </div>
                       </div>
                     </div>
@@ -1838,39 +1800,22 @@ export default function StudyWorkspaceView({
                       <div className="mt-3.5 pt-3 border-t border-neutral-800/80 space-y-2">
                         <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-400">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                          <span>Authoritative VR25 Study Source Citations</span>
+                          <span>Source references</span>
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {msg.citations.map((cite, cIdx) => (
-                            <button
+                            <div
                               key={cIdx}
-                              onClick={() => {
-                                const anyCite = cite as any;
-                                setActivePDFDocument({
-                                  id: anyCite.documentId || `doc_${Date.now()}`,
-                                  title: cite.documentName.replace(/\.[^/.]+$/, ""),
-                                  fileName: cite.documentName,
-                                  pageCount: cite.pageNumber ? Math.max(cite.pageNumber, 10) : 50,
-                                  sourceType: "google_drive",
-                                  subject: cite.subject,
-                                  unit: cite.unit,
-                                  uploadedAt: Date.now(),
-                                  rawContent: `Cited content from ${cite.documentName} (Page ${cite.pageNumber}) on ${anyCite.topic || cite.subject}.`,
-                                });
-                                setActiveTab("pdf-study");
-                              }}
-                              className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-neutral-950/80 border border-emerald-500/25 hover:border-emerald-500/50 hover:bg-neutral-800 text-[11px] text-neutral-200 transition-colors group cursor-pointer"
+                              className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-neutral-950/80 border border-emerald-500/25 text-[11px] text-neutral-200"
                             >
                               <FileText className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                               <span className="font-medium text-white truncate max-w-[180px]">{cite.documentName}</span>
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300 font-mono">
-                                p. {cite.pageNumber}
-                              </span>
-                              <span className="text-[10px] text-neutral-400 hidden sm:inline">
-                                ({cite.unit || cite.subject})
-                              </span>
-                              <span className="text-[10px] text-emerald-400 font-semibold group-hover:underline">Open in PDF Study →</span>
-                            </button>
+                              {typeof cite.pageNumber === "number" && cite.pageNumber > 0 && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300 font-mono">p. {cite.pageNumber}</span>
+                              )}
+                              <span className="text-[10px] text-neutral-400 hidden sm:inline">({cite.unit || cite.subject})</span>
+                              <span className="text-[10px] text-emerald-400 font-semibold">Source reference</span>
+                            </div>
                           ))}
                         </div>
                       </div>
