@@ -517,7 +517,7 @@ export default function CreateWorkspaceModal({
           {/* Year & Semester */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-neutral-300 mb-1.5">Year</label>
+              <label className="block text-xs font-medium text-neutral-300 mb-1.5">Year / Level</label>
               <div className="grid grid-cols-4 gap-1.5">
                 {(["1st", "2nd", "3rd", "4th"] as BTechYear[]).map((yr) => (
                   <button
@@ -525,7 +525,7 @@ export default function CreateWorkspaceModal({
                     type="button"
                     onClick={() => {
                       setYear(yr);
-                      if (VITS_SUBJECTS[yr]?.[0]) {
+                      if (isVitsCollege && programType === "B.Tech" && VITS_SUBJECTS[yr]?.[0]) {
                         setSubject(VITS_SUBJECTS[yr][0]);
                       }
                     }}
@@ -542,7 +542,7 @@ export default function CreateWorkspaceModal({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-neutral-300 mb-1.5">Semester</label>
+              <label className="block text-xs font-medium text-neutral-300 mb-1.5">Term / Semester</label>
               <div className="grid grid-cols-2 gap-1.5">
                 {(["I", "II"] as BTechSemester[]).map((sem) => (
                   <button
@@ -562,34 +562,26 @@ export default function CreateWorkspaceModal({
             </div>
           </div>
 
-          {/* Subject Selection */}
+          {/* Subject / course: open text input, with optional VITS suggestions only when appropriate. */}
           <div>
             <label className="block text-xs font-medium text-neutral-300 mb-1.5 flex items-center gap-1.5">
-              <BookOpen className="w-3.5 h-3.5 text-neutral-400" /> Subject
+              <BookOpen className="w-3.5 h-3.5 text-neutral-400" /> Subject / Course
             </label>
-            <select
+            <input
               id="workspace-subject-select"
+              type="text"
+              list={currentSubjectList.length > 0 ? "vits-subject-suggestions" : undefined}
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-950 border border-neutral-800 text-sm text-neutral-200 focus:outline-none focus:border-blue-500/60"
-            >
-              {currentSubjectList.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-              <option value="Custom Subject">+ Enter Custom Subject</option>
-            </select>
-
-            {subject === "Custom Subject" && (
-              <input
-                type="text"
-                value={customSubject}
-                onChange={(e) => setCustomSubject(e.target.value)}
-                placeholder="Enter custom subject name..."
-                className="mt-2 w-full px-3.5 py-2.5 rounded-xl bg-neutral-950/60 border border-neutral-800 text-sm text-white focus:outline-none focus:border-blue-500/60"
-              />
+              placeholder="Enter a subject, course, module, or learning topic"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-950/60 border border-neutral-800 text-sm text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-blue-500/60"
+            />
+            {currentSubjectList.length > 0 && (
+              <datalist id="vits-subject-suggestions">
+                {currentSubjectList.map((item) => <option key={item} value={item} />)}
+              </datalist>
             )}
+            <p className="text-[10px] text-neutral-500 mt-1">Any subject is supported. VITS subjects appear only as optional suggestions for VITS B.Tech students.</p>
           </div>
 
           {/* Learning Goal */}
@@ -619,7 +611,7 @@ export default function CreateWorkspaceModal({
           <div className="pt-2">
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-medium text-neutral-300">
-                Study Material <span className="text-neutral-500">(PDF, PPT, notes, images, or paste text)</span>
+                Study Material <span className="text-neutral-500">(PDF, TXT, Markdown, or paste notes)</span>
               </label>
               <button
                 type="button"
@@ -643,7 +635,7 @@ export default function CreateWorkspaceModal({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf,.ppt,.pptx,.txt,.md,.png,.jpg,.jpeg"
+                  accept=".pdf,.txt,.md"
                   onChange={handleFileChange}
                   className="hidden"
                 />
@@ -656,7 +648,7 @@ export default function CreateWorkspaceModal({
                         <div className="min-w-0">
                           <div className="text-xs font-medium text-white truncate">{uploadedFile.name}</div>
                           <div className="text-[10px] text-neutral-400">
-                            {uploadedFile.size} • {isAnalyzingDoc ? "Analyzing document content..." : "Source of Truth"}
+                            {uploadedFile.size} • {isAnalyzingDoc ? "Extracting text…" : "User-provided source"}
                           </div>
                         </div>
                       </div>
@@ -712,25 +704,25 @@ export default function CreateWorkspaceModal({
                           </div>
                           <div className="grid grid-cols-2 gap-2 pt-1 text-[11px]">
                             <div>
-                              <span className="text-neutral-400">Estimated Sections:</span>{" "}
-                              <span className="text-white font-medium">{docProfile.estimatedSections}</span>
+                              <span className="text-neutral-400">Sections:</span>{" "}
+                              <span className="text-white font-medium">{docProfile.estimatedSections > 0 ? docProfile.estimatedSections : "Not detected"}</span>
                             </div>
                             <div>
                               <span className="text-neutral-400">Pages:</span>{" "}
-                              <span className="text-white font-medium">{docProfile.pages || 1}</span>
+                              <span className="text-white font-medium">{docProfile.pages && docProfile.pages > 0 ? docProfile.pages : "Not detected"}</span>
                             </div>
                           </div>
                         </div>
                         <div className="pt-2.5 font-sans space-y-1 text-[11px]">
-                          <div className="text-neutral-400 font-medium">Processing:</div>
-                          <div className="text-emerald-400 flex items-center gap-1.5">
-                            <Check className="w-3.5 h-3.5" /> Content extracted
+                          <div className="text-neutral-400 font-medium">Processing status:</div>
+                          <div className={docProfile.processingStatus.contentExtracted ? "text-emerald-400 flex items-center gap-1.5" : "text-amber-300 flex items-center gap-1.5"}>
+                            <Check className="w-3.5 h-3.5" /> {docProfile.processingStatus.contentExtracted ? "Readable text extracted" : "No readable text confirmed"}
                           </div>
-                          <div className="text-emerald-400 flex items-center gap-1.5">
-                            <Check className="w-3.5 h-3.5" /> Topics identified
+                          <div className={docProfile.processingStatus.topicsIdentified ? "text-emerald-400 flex items-center gap-1.5" : "text-neutral-400 flex items-center gap-1.5"}>
+                            <Check className="w-3.5 h-3.5" /> {docProfile.processingStatus.topicsIdentified ? "Topics identified" : "Topics not confirmed"}
                           </div>
-                          <div className="text-emerald-400 flex items-center gap-1.5">
-                            <Check className="w-3.5 h-3.5" /> Study tools ready
+                          <div className={docProfile.processingStatus.studyToolsReady ? "text-emerald-400 flex items-center gap-1.5" : "text-amber-300 flex items-center gap-1.5"}>
+                            <Check className="w-3.5 h-3.5" /> {docProfile.processingStatus.studyToolsReady ? "Study tools ready" : "Study tools unavailable until extraction succeeds"}
                           </div>
                           {docProfile.confidence === "Low" && (
                             <div className="text-amber-400/90 text-[11px] pt-1 italic">
@@ -764,7 +756,7 @@ export default function CreateWorkspaceModal({
                   >
                     <Upload className="w-6 h-6 text-neutral-400 mb-1.5" />
                     <p className="text-xs text-neutral-300 font-medium">Click to upload or drag & drop</p>
-                    <p className="text-[11px] text-neutral-500 mt-0.5">PDF, PPTX, lecture notes, or syllabus (optional)</p>
+                    <p className="text-[11px] text-neutral-500 mt-0.5">Text-readable PDF, TXT, or Markdown. Scanned/image-only PDFs are not yet supported.</p>
                   </div>
                 )}
               </div>
@@ -783,7 +775,7 @@ export default function CreateWorkspaceModal({
             <button
               id="submit-create-workspace-btn"
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isAnalyzingDoc}
               className="px-5 py-2.5 text-xs font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-xl shadow-lg shadow-blue-500/25 flex items-center gap-2 transition-all disabled:opacity-50"
             >
               <Sparkles className="w-4 h-4" />
