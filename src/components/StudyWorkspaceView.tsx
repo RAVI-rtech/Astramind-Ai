@@ -324,24 +324,10 @@ export default function StudyWorkspaceView({
   };
 
   const handleSyncKnowledgeBase = async () => {
-    setIsSyncingKb(true);
+    // Drive syncing is not configured here. Route users to the official syllabus/import flow that is supported.
     setSyncSuccessMessage(null);
     setSyncErrorMessage(null);
-    try {
-      const resp = await fetch("/api/knowledge-base/sync", { method: "POST" });
-      const data = await resp.json();
-      if (!resp.ok || data.error) throw new Error(data.error || "The server did not confirm a successful import.");
-      if (!data.status) throw new Error("The server did not confirm an indexed result.");
-      setKbStatus(data.status);
-      setSyncSuccessMessage(`Sync completed: ${data.status.totalDocuments} documents and ${data.status.totalChunks} chunks indexed.`);
-      const docsResp = await fetch("/api/knowledge-base/documents");
-      const docs = await docsResp.json();
-      if (Array.isArray(docs.documents)) setKbDocuments(docs.documents);
-    } catch (error: any) {
-      setSyncErrorMessage(error?.message || "Knowledge-base sync failed.");
-    } finally {
-      setIsSyncingKb(false);
-    }
+    handleOpenCreateModal();
   };
 
   // 9. Materials upload
@@ -1531,8 +1517,8 @@ export default function StudyWorkspaceView({
                     disabled={isSyncingKb}
                     className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-2 shadow-md shadow-blue-600/25 transition-all disabled:opacity-50"
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncingKb ? "animate-spin" : ""}`} />
-                    {isSyncingKb ? "Syncing Drive..." : "Sync Repository"}
+                    <Search className="w-3.5 h-3.5" />
+                    Find / Import Syllabus
                   </button>
                 </div>
               </div>
