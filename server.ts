@@ -774,11 +774,15 @@ async function getAvailableImageModels(ai: GoogleGenAI, requestedCustomModel?: s
 app.get("/api/image-models-status", async (req, res) => {
   try {
     const router = createDefaultImageRouter(getGoogleGenAI);
-    const providers = router.getProviders();
+    const providers = await router.getProviderStatuses();
+    const availableProviders = providers.filter((provider) => provider.available);
     res.json({
-      available: providers.length > 0,
-      models: providers.map((p) => p.name),
-      message: "Modular Image Router operational with multiple configured providers."
+      available: availableProviders.length > 0,
+      models: availableProviders.map((provider) => provider.name),
+      providers,
+      message: availableProviders.length > 0
+        ? "Image providers are available; AstraMind will try configured providers and fall back automatically."
+        : "No image provider is currently available. Check Hugging Face token access and Gemini API configuration."
     });
   } catch (err: any) {
     console.error("[AstraMind Status] Error checking router status:", err);
