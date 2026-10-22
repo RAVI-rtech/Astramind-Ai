@@ -77,8 +77,6 @@ export interface Course {
   colorGradient: string;
   level: SkillLevel;
   estimatedHours: number;
-  rating: number;
-  studentsEnrolled: number;
   tags: string[];
   roadmaps: {
     beginner: RoadmapMilestone[];
