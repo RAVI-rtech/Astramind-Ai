@@ -292,7 +292,7 @@ export default function PDFStudyView({
           title: profile?.title || file.name.replace(/\.[^/.]+$/, ""),
           fileName: file.name,
           fileSize: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-          pageCount: Number(profile?.pages) || 1,
+          pageCount: Number(profile?.pages) || 0,
           sourceType: "uploaded",
           uploadedAt: Date.now(),
           previewUrl: blobUrl,
@@ -770,7 +770,7 @@ export default function PDFStudyView({
                 {activeDoc?.fileName || "No PDF selected"}
               </strong>
               <span className="text-slate-500">•</span>
-              <span className="text-slate-400 font-mono text-[11px]">{totalPages} Pages</span>
+              <span className="text-slate-400 font-mono text-[11px]">{totalPages > 0 ? `${totalPages} Pages` : "Page count unavailable"}</span>
               {activeDoc?.fileSize && (
                 <>
                   <span className="text-slate-500">•</span>
@@ -858,7 +858,7 @@ export default function PDFStudyView({
                   onBlur={handlePageJump}
                   className="w-12 text-center bg-slate-950 border border-slate-700 rounded-md py-0.5 px-1 font-mono font-bold text-xs text-white focus:outline-none focus:border-blue-500"
                 />
-                <span className="text-slate-400 font-mono">/ {totalPages}</span>
+                <span className="text-slate-400 font-mono">{totalPages > 0 ? `/ ${totalPages}` : "/ ?"}</span>
               </form>
 
               <button
@@ -1150,7 +1150,7 @@ export default function PDFStudyView({
                                   key={i}
                                   className="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-300 font-mono"
                                 >
-                                  Ref: Page {cite.pageNumber || currentPage}
+                                  {cite.pageNumber ? `Ref: Page ${cite.pageNumber}` : "Source excerpt verified"}
                                 </span>
                               ))}
                             </div>

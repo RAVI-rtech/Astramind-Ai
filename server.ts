@@ -61,6 +61,7 @@ import {
   findImportantPdfTopics
 } from "./server/pdfStudyManager";
 import { fetchCollegeAttendanceReport } from "./server/attendanceService";
+import { discoverCollegeSyllabus, downloadOfficialSyllabusPdf, findOfficialCollegeWebsite } from "./server/collegeSyllabusService";
 
 dotenv.config();
 
@@ -1675,6 +1676,8 @@ app.post("/api/academic-quiz/generate", async (req, res) => {
   try {
     const {
       college = "Vignan Institute of Technology and Science",
+      programType = "B.Tech",
+      regulation = "",
       branch = "Computer Science and Engineering (CSE)",
       year = "2nd Year",
       semester = "Semester II",
@@ -1690,25 +1693,27 @@ app.post("/api/academic-quiz/generate", async (req, res) => {
 
     const count = Math.min(Math.max(Number(numQuestions) || 10, 5), 20);
 
-    const systemPrompt = `You are a distinguished Senior Academic Professor and Examination Board Member at ${college} (VITS).
-Your role is to formulate high-standard, technically rigorous Multiple Choice Questions (MCQs) for B.Tech engineering assessments.
+    const systemPrompt = `You are an academic assessment author creating multiple-choice questions for the institution and program the user selected.
+Do not claim alignment with a college's official syllabus or a named regulation unless actual syllabus content is included in the request.
 
 ACADEMIC CONTEXT:
 - Institution: ${college}
-- Branch: ${branch}
+- Degree / Program: ${programType}
+- Regulation / Curriculum: ${regulation || "Not specified"}
+- Branch / Major: ${branch}
 - Academic Level: ${year}, ${semester}
 - Subject: ${subject}
 - Target Difficulty: ${difficulty}
 - Total Questions Required: ${count}
 
-PEDAGOGICAL & SYLLABUS ACCURACY RULES:
-1. Every question must be genuinely relevant to the undergraduate syllabus for "${subject}" at the ${year}, ${semester} level.
-2. DO NOT ask questions belonging to different subjects or branches.
-3. DO NOT ask advanced post-graduate or 4th-year topics for a 1st or 2nd-year foundational course.
-4. Each question must have 4 distinct options labeled "A", "B", "C", "D".
-5. Exactly ONE option must be undeniably correct.
-6. The "explanation" must clearly explain why the correct option is right and the underlying principle or calculation.
-7. Include a "topic" field for each question denoting the specific sub-topic (e.g. "Recursion", "Virtual Memory", "Deadlocks", "Eigenvalues", "K-Maps", etc.) so that student weak areas can be tracked adaptively.
+QUESTION QUALITY RULES:
+1. Keep questions relevant to the selected subject and academic level.
+2. Do not mix unrelated subjects or use topics that exceed the selected level without request.
+3. Use four distinct, non-empty answer options labeled "A", "B", "C", and "D".
+4. Exactly one option must be correct.
+5. Explain why the answer is correct with sound academic reasoning.
+6. Include a specific sub-topic so weak areas can be tracked.
+7. Never invent citations, college policies, syllabus claims, or exam-frequency statistics.
 
 OUTPUT FORMAT:
 Return strictly a valid JSON object matching this schema:
@@ -1732,9 +1737,11 @@ Return strictly a valid JSON object matching this schema:
 
     let userPrompt = `Generate exactly ${count} Multiple Choice Questions for:
 Institution: ${college}
-Branch: ${branch}
-Year: ${year}
-Semester: ${semester}
+Degree / Program: ${programType}
+Regulation / Curriculum: ${regulation || "Not specified"}
+Branch / Major: ${branch}
+Year / Level: ${year}
+Term / Semester: ${semester}
 Subject: ${subject}
 Difficulty: ${difficulty}`;
 
@@ -1750,6 +1757,57 @@ Difficulty: ${difficulty}`;
       throw new Error("Invalid question format received from AI.");
     }
 
+    const labels = ["A", "B", "C", "D"];
+    const validQuestions = parsed.questions.map((rawQuestion: any, index: number) => {
+      if (!rawQuestion || typeof rawQuestion.question !== "string" || !rawQuestion.question.trim()) return null;
+
+      // Accept both the documented A/B/C/D object and a four-item array, but never invent options.
+      const rawOptions = rawQuestion.options;
+      const options: Record<string, string> | null = Array.isArray(rawOptions)
+        ? rawOptions.length === 4 && rawOptions.every((option: unknown) => typeof option === "string" && option.trim())
+          ? { A: rawOptions[0].trim(), B: rawOptions[1].trim(), C: rawOptions[2].trim(), D: rawOptions[3].trim() }
+          : null
+        : rawOptions && typeof rawOptions === "object" &&
+          labels.every((label) => typeof rawOptions[label] === "string" && rawOptions[label].trim())
+          ? { A: rawOptions.A.trim(), B: rawOptions.B.trim(), C: rawOptions.C.trim(), D: rawOptions.D.trim() }
+          : null;
+
+      if (!options) return null;
+
+      const answerText = String(rawQuestion.correctAnswer ?? "").trim();
+      const answerMatch = answerText.match(/^(?:OPTION\s*)?([ABCD])(?:\b|[).:\s-])/i);
+      let correctAnswer: "A" | "B" | "C" | "D" | null = answerMatch
+        ? answerMatch[1].toUpperCase() as "A" | "B" | "C" | "D"
+        : null;
+      if (!correctAnswer) {
+        const normalized = (value: string) => value.replace(/^[ABCD][).:\s-]+/i, "").trim().toLowerCase();
+        const matchingLabel = labels.find((label) =>
+          normalized(options[label]) === normalized(answerText) && answerText.length > 0
+        );
+        if (matchingLabel) correctAnswer = matchingLabel as "A" | "B" | "C" | "D";
+      }
+
+      if (!correctAnswer ||
+          typeof rawQuestion.explanation !== "string" || rawQuestion.explanation.trim().length < 8) {
+        return null;
+      }
+
+      return {
+        id: Number.isFinite(Number(rawQuestion.id)) ? Number(rawQuestion.id) : index + 1,
+        question: rawQuestion.question.trim(),
+        options,
+        correctAnswer,
+        explanation: rawQuestion.explanation.trim(),
+        topic: typeof rawQuestion.topic === "string" && rawQuestion.topic.trim()
+          ? rawQuestion.topic.trim()
+          : subject,
+      };
+    }).filter(Boolean);
+
+    if (validQuestions.length === 0) {
+      throw new Error("The AI returned no valid questions with four options, a correct answer key, and an explanation. Please retry.");
+    }
+
     return res.json({
       success: true,
       college,
@@ -1757,7 +1815,7 @@ Difficulty: ${difficulty}`;
       year,
       semester,
       subject,
-      questions: parsed.questions,
+      questions: validQuestions,
     });
   } catch (error: any) {
     console.error("[Academic Quiz API] Generation error:", error);
@@ -1773,8 +1831,12 @@ app.post("/api/academic-quiz/explain", async (req, res) => {
   try {
     const {
       college = "Vignan Institute of Technology and Science",
+      programType = "B.Tech",
+      regulation = "",
       branch = "Computer Science and Engineering (CSE)",
-      subject = "Engineering Subject",
+      year = "Not specified",
+      semester = "Not specified",
+      subject = "Academic Subject",
       question,
       options,
       correctAnswer,
@@ -1786,15 +1848,21 @@ app.post("/api/academic-quiz/explain", async (req, res) => {
       return res.status(400).json({ error: "Question and correct answer are required." });
     }
 
-    const systemPrompt = `You are an encouraging, expert Engineering Professor and Personal AI Tutor at ${college} (VITS).
-A B.Tech engineering student in ${branch} studying ${subject} is asking for guidance on an MCQ.
-Explain clearly, pedagogically, and concisely:
-1. Why Option ${correctAnswer} is the correct answer and the fundamental concept behind it.
-2. If the student selected Option ${studentAnswer || "another option"}, explain why that choice is incorrect or a common misconception.
-3. Provide a quick tip or mnemonic to remember this concept for VITS university exams.
-Keep the tone supportive, academic, and direct without robotic greetings.`;
+    const systemPrompt = `You are an encouraging academic tutor helping a student at ${college}.
+The student's program is ${programType}, branch/major is ${branch}, level is ${year}, ${semester}, and subject is ${subject}. Regulation/curriculum: ${regulation || "not specified"}.
+Explain clearly and concisely:
+1. Why option ${correctAnswer} is correct and the underlying concept.
+2. If the student selected ${studentAnswer || "another option"}, explain the misconception, if relevant.
+3. Offer a useful memory tip or next study step when appropriate.
+Do not invent a college-specific rule, syllabus citation, or exam trend. Keep a supportive, direct teaching tone.`;
 
-    const userPrompt = `Subject: ${subject}
+    const userPrompt = `Institution: ${college}
+Program: ${programType}
+Regulation: ${regulation || "Not specified"}
+Branch / Major: ${branch}
+Year / Level: ${year}
+Term / Semester: ${semester}
+Subject: ${subject}
 Question: ${question}
 Options:
 A) ${options?.A || ""}
@@ -1875,6 +1943,100 @@ app.post('/api/export-pdf', async (req, res) => {
 // WORKSPACE AI ENDPOINTS (FULLY SOURCE-DRIVEN)
 // ==========================================
 
+function hasReadableStudySource(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length >= 30;
+}
+
+const MISSING_STUDY_SOURCE_MESSAGE = "Upload a readable PDF, TXT, or Markdown document first. AI study tools require extracted text from user-provided material.";
+
+// Find a likely official college homepage with live Google Search grounding, then verify it before crawling it.
+app.post("/api/college-syllabus/find-official-site", async (req, res) => {
+  try {
+    const { college } = req.body || {};
+    if (typeof college !== "string" || !college.trim()) {
+      res.status(400).json({ error: "Enter the college or institution name." });
+      return;
+    }
+    const result = await findOfficialCollegeWebsite(college);
+    res.json(result);
+  } catch (err: any) {
+    console.error("Official college website lookup failed:", err);
+    res.status(400).json({ error: err?.message || "Could not find a verified official college website." });
+  }
+});
+
+// Public official-college syllabus discovery. The service blocks private hosts and cross-site redirects.
+app.post("/api/college-syllabus/discover", async (req, res) => {
+  try {
+    const { college, officialWebsiteUrl, programType, branch, year, semester } = req.body || {};
+    if (typeof college !== "string" || !college.trim()) {
+      res.status(400).json({ error: "Enter the college or institution name." });
+      return;
+    }
+    if (typeof officialWebsiteUrl !== "string" || !officialWebsiteUrl.trim()) {
+      res.status(400).json({ error: "Enter the official HTTPS college website or syllabus page." });
+      return;
+    }
+    const discovery = await discoverCollegeSyllabus({
+      college,
+      officialWebsiteUrl,
+      programType,
+      branch,
+      year,
+      semester,
+    });
+    res.json(discovery);
+  } catch (err: any) {
+    console.error("Official college syllabus discovery failed:", err);
+    res.status(400).json({ error: err?.message || "Could not inspect that official college website." });
+  }
+});
+
+app.post("/api/college-syllabus/import", async (req, res) => {
+  try {
+    const { college, officialWebsiteUrl, syllabusUrl, programType, branch, year, semester } = req.body || {};
+    if (typeof college !== "string" || !college.trim() ||
+        typeof officialWebsiteUrl !== "string" || !officialWebsiteUrl.trim() ||
+        typeof syllabusUrl !== "string" || !syllabusUrl.trim()) {
+      res.status(400).json({ error: "College name, official website, and a discovered syllabus PDF are required." });
+      return;
+    }
+
+    const downloaded = await downloadOfficialSyllabusPdf({
+      college,
+      officialWebsiteUrl,
+      syllabusUrl,
+      programType,
+      branch,
+      year,
+      semester,
+    });
+    const analyzed = await analyzeUploadedDocument({
+      fileName: downloaded.fileName,
+      fileType: "pdf",
+      base64: downloaded.buffer.toString("base64"),
+    });
+    if (!hasReadableStudySource(analyzed.extractedText)) {
+      res.status(422).json({
+        error: "The official PDF was downloaded, but readable text could not be extracted. Open the official source, download the PDF, and upload a text-readable copy. Scanned/image-only PDFs are not yet supported for syllabus import.",
+      });
+      return;
+    }
+    res.json({
+      success: true,
+      college,
+      officialWebsiteUrl,
+      syllabusUrl: downloaded.url,
+      fileName: downloaded.fileName,
+      extractedText: analyzed.extractedText,
+      profile: analyzed.profile,
+    });
+  } catch (err: any) {
+    console.error("Official college syllabus import failed:", err);
+    res.status(400).json({ error: err?.message || "Could not import the official syllabus PDF." });
+  }
+});
+
 app.post("/api/workspace/analyze-document", async (req, res) => {
   try {
     const { fileName, fileType, base64, content } = req.body || {};
@@ -1902,6 +2064,10 @@ app.post("/api/workspace/generate-lesson", async (req, res) => {
       res.status(400).json({ error: "Subject is required" });
       return;
     }
+    if (!hasReadableStudySource(extractedContent)) {
+      res.status(400).json({ error: MISSING_STUDY_SOURCE_MESSAGE });
+      return;
+    }
     const lesson = await generateGuidedLesson({
       subject,
       topic: topic || "Core Principles",
@@ -1920,6 +2086,10 @@ app.post("/api/workspace/generate-mcq", async (req, res) => {
     const { subject, topic, count, difficulty, questionType, extractedContent, materialsContext, hasCode, hasFormulas } = req.body || {};
     if (!subject) {
       res.status(400).json({ error: "Subject is required" });
+      return;
+    }
+    if (!hasReadableStudySource(extractedContent)) {
+      res.status(400).json({ error: MISSING_STUDY_SOURCE_MESSAGE });
       return;
     }
     const questions = await generateMCQQuiz({
@@ -1947,6 +2117,10 @@ app.post("/api/workspace/generate-flashcards", async (req, res) => {
       res.status(400).json({ error: "Subject is required" });
       return;
     }
+    if (!hasReadableStudySource(extractedContent)) {
+      res.status(400).json({ error: MISSING_STUDY_SOURCE_MESSAGE });
+      return;
+    }
     const flashcards = await generateFlashcards({
       subject,
       topic,
@@ -1969,6 +2143,10 @@ app.post("/api/workspace/generate-important-questions", async (req, res) => {
       res.status(400).json({ error: "Subject is required" });
       return;
     }
+    if (!hasReadableStudySource(extractedContent)) {
+      res.status(400).json({ error: MISSING_STUDY_SOURCE_MESSAGE });
+      return;
+    }
     const questions = await generateImportantQuestions({
       subject,
       branch: branch || "Computer Science and Engineering (CSE)",
@@ -1989,6 +2167,10 @@ app.post("/api/workspace/generate-summary-notes", async (req, res) => {
       res.status(400).json({ error: "Subject is required" });
       return;
     }
+    if (!hasReadableStudySource(extractedContent)) {
+      res.status(400).json({ error: MISSING_STUDY_SOURCE_MESSAGE });
+      return;
+    }
     const notes = await generateSummaryNotes({
       subject,
       extractedContent,
@@ -2005,6 +2187,10 @@ app.post("/api/workspace/generate-practice", async (req, res) => {
     const { subject, topic, difficulty, extractedContent } = req.body || {};
     if (!subject) {
       res.status(400).json({ error: "Subject is required" });
+      return;
+    }
+    if (!hasReadableStudySource(extractedContent)) {
+      res.status(400).json({ error: MISSING_STUDY_SOURCE_MESSAGE });
       return;
     }
     const exercises = await generatePracticeExercises({
@@ -2025,6 +2211,10 @@ app.post("/api/workspace/ai-tutor-chat", async (req, res) => {
     const { messages, subject, extractedContent, college, branch, learningGoal, studyContext } = req.body || {};
     if (!subject) {
       res.status(400).json({ error: "Subject is required" });
+      return;
+    }
+    if (!hasReadableStudySource(extractedContent)) {
+      res.status(400).json({ error: MISSING_STUDY_SOURCE_MESSAGE });
       return;
     }
     const response = await chatWithAITutor({
@@ -2467,18 +2657,20 @@ app.get("/api/admin/students", async (req, res) => {
             if (!exists) {
               students.unshift({
                 id: p.id,
-                full_name: p.full_name || "Student",
-                email: p.email || `${p.roll_number?.toLowerCase() || 'student'}@vits.ac.in`,
+                full_name: p.full_name || "",
+                email: p.email || "",
                 roll_number: p.roll_number || "",
-                branch: p.branch || "CSE",
-                section: p.section || "A",
+                branch: p.branch || "",
+                section: p.section || "",
                 hall_ticket_number: p.hall_ticket_number || "",
                 avatar_url: p.avatar_url || "",
-                status: "Active",
-                attendance_percentage: 85,
-                cgpa: "8.0",
-                year: "3rd Year",
-                created_at: p.created_at || new Date().toISOString(),
+                status: p.status || "Active",
+                attendance_percentage: typeof p.attendance_percentage === "number" && Number.isFinite(p.attendance_percentage)
+                  ? p.attendance_percentage
+                  : null,
+                cgpa: p.cgpa === undefined || p.cgpa === null ? "" : String(p.cgpa),
+                year: p.year || "",
+                created_at: p.created_at || "",
               });
             }
           }
@@ -2566,18 +2758,24 @@ app.post("/api/admin/students", async (req, res) => {
       return;
     }
 
+    const attendanceValue =
+      attendance_percentage === "" || attendance_percentage === null || attendance_percentage === undefined
+        ? null
+        : Number(attendance_percentage);
     const newStudent = {
       id: "std-" + Date.now().toString(36) + "-" + Math.random().toString(36).substring(2, 7),
       full_name: full_name.trim(),
       email: email.trim().toLowerCase(),
       roll_number: cleanRoll,
-      branch: branch || "CSE",
-      section: section || "A",
+      branch: typeof branch === "string" ? branch.trim() : "",
+      section: typeof section === "string" ? section.trim() : "",
       hall_ticket_number: (hall_ticket_number || "").trim().toUpperCase(),
       status: status || "Active",
-      attendance_percentage: Number(attendance_percentage) || 85,
-      cgpa: cgpa || "8.0",
-      year: year || "3rd Year",
+      attendance_percentage: typeof attendanceValue === "number" && Number.isFinite(attendanceValue) && attendanceValue >= 0 && attendanceValue <= 100
+        ? attendanceValue
+        : null,
+      cgpa: typeof cgpa === "string" ? cgpa.trim() : "",
+      year: typeof year === "string" ? year.trim() : "",
       created_at: new Date().toISOString(),
     };
 
@@ -2676,13 +2874,20 @@ app.get("/api/admin/stats", async (req, res) => {
     const pending = students.filter((s) => s.status === "Pending").length;
     const branches: Record<string, number> = {};
 
-    let totalAttendance = 0;
-    for (const s of students) {
-      branches[s.branch] = (branches[s.branch] || 0) + 1;
-      totalAttendance += Number(s.attendance_percentage) || 0;
+    const knownAttendance: number[] = [];
+    for (const student of students) {
+      if (typeof student.branch === "string" && student.branch.trim()) {
+        branches[student.branch] = (branches[student.branch] || 0) + 1;
+      }
+      const attendance = student.attendance_percentage;
+      if (attendance !== null && attendance !== undefined && attendance !== "" && Number.isFinite(Number(attendance))) {
+        knownAttendance.push(Number(attendance));
+      }
     }
 
-    const avgAttendance = total > 0 ? Math.round(totalAttendance / total) : 0;
+    const avgAttendance = knownAttendance.length > 0
+      ? Math.round(knownAttendance.reduce((sum, value) => sum + value, 0) / knownAttendance.length)
+      : null;
 
     res.json({
       success: true,
@@ -2880,6 +3085,7 @@ app.post("/api/live-quiz/create", async (req, res) => {
       title,
       college,
       regulation,
+      programType,
       branch,
       year,
       semester,
@@ -2907,11 +3113,12 @@ app.post("/api/live-quiz/create", async (req, res) => {
     const room = createLiveQuizRoom({
       quizId,
       title: title || `${subject} Live Assessment`,
-      college: college || "Vignan Institute of Science and Technology",
-      regulation: regulation || "VR25",
-      branch: branch || "Computer Science and Engineering (CSE)",
-      year: year || "1st Year",
-      semester: semester || "Semester I",
+      college: college || "Vignan Institute of Technology and Science",
+      regulation: regulation || "",
+      programType: programType || "",
+      branch: branch || "Not specified",
+      year: year || "Not specified",
+      semester: semester || "Not specified",
       subject,
       unit: unit || "",
       topic: topic || "",
@@ -2936,7 +3143,7 @@ app.post("/api/live-quiz/create", async (req, res) => {
     });
   } catch (err: any) {
     console.error("Create live quiz error:", err);
-    res.status(500).json({ success: false, error: "Unable to join this quiz right now. Please try again." });
+    res.status(400).json({ success: false, error: err?.message || "Could not create this live assessment. Check the questions and try again." });
   }
 });
 
@@ -3210,14 +3417,29 @@ app.post("/api/live-quiz/remove-student", async (req, res) => {
 
 app.post("/api/live-quiz/generate-questions", async (req, res) => {
   try {
-    const { subject, branch, count, difficulty, topic } = req.body || {};
+    const { college, regulation, programType, subject, branch, year, semester, count, difficulty, topic, unit, sourceText } = req.body || {};
+    if (typeof subject !== "string" || subject.trim().length < 2) {
+      res.status(400).json({ error: "Enter a subject before generating quiz questions." });
+      return;
+    }
     const questions = await generateAIQuestions({
-      subject: subject || "Engineering Core",
-      branch: branch || "CSE",
+      college: typeof college === "string" ? college.trim() : undefined,
+      regulation: typeof regulation === "string" ? regulation.trim() : undefined,
+      programType: typeof programType === "string" ? programType.trim() : undefined,
+      subject: subject.trim(),
+      branch: typeof branch === "string" && branch.trim() ? branch.trim() : "Not specified",
+      year: typeof year === "string" ? year.trim() : undefined,
+      semester: typeof semester === "string" ? semester.trim() : undefined,
+      unit: typeof unit === "string" ? unit.trim() : undefined,
+      sourceText: typeof sourceText === "string" ? sourceText.slice(0, 28000) : undefined,
       count: Number(count) || 5,
       difficulty: difficulty || "Medium",
       topic,
     });
+    if (!Array.isArray(questions) || questions.length === 0) {
+      res.status(502).json({ error: "The AI service returned no valid quiz questions. Please retry." });
+      return;
+    }
     res.json({ questions });
   } catch (err: any) {
     res.status(500).json({ error: err?.message || "Failed to generate questions" });

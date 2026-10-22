@@ -36,7 +36,6 @@ import {
   UserProfile
 } from "../types";
 import { AcademicQuizDraft } from "../types/academicLiveQuiz";
-import { VITS_BRANCHES } from "../lib/studyWorkspaceStorage";
 import { getSupabaseAuthHeaders } from "../lib/supabase";
 import AcademicQuizCreator from "./livequiz/AcademicQuizCreator";
 import AcademicQuizHistory from "./livequiz/AcademicQuizHistory";
@@ -262,6 +261,9 @@ export default function LiveQuizPage({ userProfile, onBackToDashboard, onOpenAut
         },
         body: JSON.stringify({
           title: draft.title,
+          college: draft.college,
+          regulation: draft.regulation,
+          programType: draft.programType,
           subject: draft.subject,
           branch: draft.branch,
           year: draft.year,
@@ -763,13 +765,13 @@ export default function LiveQuizPage({ userProfile, onBackToDashboard, onOpenAut
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono-studio tracking-wider bg-[#a78bfa]/10 border border-[#a78bfa]/25 text-[#a78bfa] mb-2.5">
             <GraduationCap className="w-3.5 h-3.5" />
-            <span>VITS Real-Time Assessment • VR25</span>
+            <span>Live Academic Assessment</span>
           </div>
           <h1 className="font-serif-studio text-4xl sm:text-5xl font-medium text-white tracking-tight leading-tight">
             Live Assessment
           </h1>
           <p className="text-sm text-white/50 mt-1 font-normal tracking-wide">
-            Vignan Institute of Technology &amp; Science • Real-Time Synchronized Academic Assessments
+            Real-time synchronized assessments for schools, colleges, universities, and independent learners
           </p>
         </div>
 
@@ -974,13 +976,13 @@ export default function LiveQuizPage({ userProfile, onBackToDashboard, onOpenAut
                   </span>
                 </div>
                 <p className="text-xs text-neutral-400 mt-2 leading-relaxed">
-                  Build custom assessments mapped to the VITS VR25 curriculum (All 4 Years & Branches). Create manual questions or draft comprehensive unit tests with persistent drafts.
+                  Build assessments for your selected college, program, branch, and subject. Create questions manually or use AI assistance, then host a synchronized live session.
                 </p>
 
                 <div className="mt-4 space-y-2 text-xs text-neutral-400">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>VR25 Syllabus mapping (Year, Sem, Subject, Unit)</span>
+                    <span>Academic context (Year, Term, Subject, Unit)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
@@ -1050,7 +1052,7 @@ export default function LiveQuizPage({ userProfile, onBackToDashboard, onOpenAut
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300">
-                  VR25 • {activeRoom.branch} ({activeRoom.year} Year)
+                  {activeRoom.college || "Academic Assessment"}{activeRoom.regulation ? ` · ${activeRoom.regulation}` : ""}
                 </span>
                 <span className="text-xs text-neutral-400">
                   {activeRoom.subject} {activeRoom.unit ? `• Unit ${activeRoom.unit}` : ""}

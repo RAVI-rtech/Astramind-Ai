@@ -163,7 +163,7 @@ export default function ResumeBuilderPage({ accentColorClass, isAuthenticated }:
   const [downloadStep, setDownloadStep] = useState<"idle" | "preparing" | "downloading" | "completed">("idle");
   // Saved resumes list & current active resume
   const [resumes, setResumes] = useState<ResumeData[]>([]);
-  const [activeResume, setActiveResume] = useState<ResumeData>(() => createNewResume("My Resume", "modern-executive"));
+  const [activeResume, setActiveResume] = useState<ResumeData>(() => createNewResume("My Resume", "modern-executive", false));
   const [activeSection, setActiveSection] = useState<
     "personal" | "headers" | "experience" | "projects" | "skills" | "education" | "certifications" | "achievements" | "languages"
   >("personal");

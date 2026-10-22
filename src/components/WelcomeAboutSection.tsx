@@ -16,7 +16,7 @@ export default function WelcomeAboutSection() {
   const keyFeatures = [
     {
       icon: GraduationCap,
-      text: "Personal AI Mentor for B.Tech Students",
+      text: "Personal AI Mentor for Every Learner",
       color: "text-blue-400 bg-blue-500/10 border-blue-500/20",
     },
     {
@@ -53,10 +53,10 @@ export default function WelcomeAboutSection() {
           <span>🚀 Welcome to AstraMind AI</span>
         </h1>
         <p className="text-sm sm:text-base font-semibold text-blue-300">
-          Your Personal AI Mentor for B.Tech Students
+          Your Personal AI Mentor for Students Across Disciplines
         </p>
         <p className="text-xs sm:text-sm text-slate-300 leading-relaxed pt-1">
-          AstraMind AI is designed to support engineering students throughout their learning journey by providing personalized guidance and AI-powered assistance.
+          AstraMind AI supports learners across schools, colleges, universities, and disciplines with personalized guidance and AI-powered study tools.
         </p>
       </div>
 

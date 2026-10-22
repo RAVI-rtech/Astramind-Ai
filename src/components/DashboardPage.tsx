@@ -43,7 +43,7 @@ export default function DashboardPage({
 }: DashboardPageProps) {
   const [workspaces, setWorkspaces] = useState<StudyWorkspace[]>([]);
   const [activeWs, setActiveWs] = useState<StudyWorkspace | null>(null);
-  const [streakData, setStreakData] = useState({ currentStreak: 1, longestStreak: 3 });
+  const [streakData, setStreakData] = useState({ currentStreak: 0, longestStreak: 0 });
   const [searchQuery, setSearchQuery] = useState("");
 
   const studentName = userProfile?.name
@@ -67,8 +67,8 @@ export default function DashboardPage({
 
     const streak = getLearningStreak();
     setStreakData({
-      currentStreak: Math.max(1, streak.currentStreak),
-      longestStreak: Math.max(3, streak.longestStreak),
+      currentStreak: Math.max(0, streak.currentStreak),
+      longestStreak: Math.max(0, streak.longestStreak),
     });
   }, []);
 
@@ -92,7 +92,7 @@ export default function DashboardPage({
 
   const academicTag = userProfile?.branch
     ? `Vignan • ${userProfile.branch}${userProfile?.section ? ` • Sec-${userProfile.section}` : ""}`
-    : "Vignan • CSE (AI&ML) • Sec-A";
+    : "Your Study Dashboard";
 
   return (
     <div className="relative min-h-full w-full bg-[#0d0d0e] text-[#fcfcfc] py-8 px-4 sm:px-6 lg:px-8 overflow-hidden font-sans">
@@ -138,13 +138,13 @@ export default function DashboardPage({
           <div className="md:col-span-8 p-8 rounded-[32px] bg-[#151517] border border-white/[0.06] shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 transition-transform hover:-translate-y-1 duration-300">
             <div className="max-w-md space-y-3">
               <div className="text-[10px] uppercase tracking-[0.15em] text-white/40 font-semibold">
-                Multiplayer Active
+                Live Quiz
               </div>
               <h2 className="font-serif-studio text-2xl sm:text-3xl text-white font-medium leading-snug">
                 Host synchronized classroom battles.
               </h2>
               <p className="text-xs text-white/50 leading-relaxed">
-                Challenge up to 100 engineering peers in real time with AI-generated live quiz questions and dynamic scoring.
+                Host or join a live quiz room, answer questions in real time, and review results after the session.
               </p>
               <div className="pt-2">
                 <button
@@ -156,8 +156,8 @@ export default function DashboardPage({
               </div>
             </div>
 
-            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 border-[#a78bfa] flex items-center justify-center font-serif-studio text-3xl sm:text-4xl text-[#a78bfa] shrink-0 self-center sm:self-end">
-              100
+            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 border-[#a78bfa] flex items-center justify-center font-serif-studio text-xl sm:text-2xl text-[#a78bfa] shrink-0 self-center sm:self-end">
+              QUIZ
             </div>
           </div>
 
@@ -171,7 +171,9 @@ export default function DashboardPage({
                 {streakData.currentStreak} {streakData.currentStreak === 1 ? "Day" : "Days"}
               </div>
               <p className="text-xs text-white/50 leading-relaxed">
-                Your personal best is {streakData.longestStreak} days. Keep the momentum going!
+                {streakData.currentStreak === 0
+                  ? "Your streak will start when real learning activity is recorded."
+                  : `Your personal best is ${streakData.longestStreak} days. Keep the momentum going!`}
               </p>
             </div>
 
@@ -193,16 +195,16 @@ export default function DashboardPage({
                 Current Module
               </div>
               <h3 className="font-serif-studio text-2xl font-medium text-white mt-2 mb-1 truncate">
-                {activeWs ? activeWs.name : "Engineering Core"}
+                {activeWs?.name || "No workspace selected"}
               </h3>
               <p className="text-xs text-white/50 mb-6 truncate">
-                {activeWs?.detectedTopics?.[0] || "Unit 1: Applied Physics & Engineering Concepts"}
+                {activeWs?.detectedTopics?.[0] || (activeWs?.materials?.length ? activeWs.subject : "Upload study material to begin.")}
               </p>
 
               <div className="h-1 w-full bg-white/[0.06] rounded-full relative mb-6 overflow-hidden">
                 <div
                   className="absolute left-0 top-0 h-full bg-[#a78bfa] rounded-full transition-all duration-500"
-                  style={{ width: `${activeWs ? Math.max(5, activeWs.progressPercent) : 35}%` }}
+                  style={{ width: `${activeWs ? Math.max(0, Math.min(100, activeWs.progressPercent)) : 0}%` }}
                 />
               </div>
             </div>
@@ -230,31 +232,36 @@ export default function DashboardPage({
                 Recent Assets
               </div>
 
-              <div className="divide-y divide-white/[0.06]">
-                <div className="flex items-center justify-between py-3.5">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <FileText className="w-4 h-4 text-[#a78bfa] shrink-0" />
-                    <span className="text-xs sm:text-sm text-white/90 truncate">
-                      {activeWs?.materials?.[0]?.name || "AEP-notes for MID-1-2026-27.pdf"}
-                    </span>
+              {(() => {
+                const recentMaterials = (activeWs?.materials || [])
+                  .filter((material) => typeof material.content === "string" && material.content.trim().length >= 30)
+                  .slice(0, 2);
+                if (recentMaterials.length === 0) {
+                  return (
+                    <div className="py-8 text-center border border-dashed border-white/[0.1] rounded-2xl">
+                      <FileText className="w-6 h-6 text-white/30 mx-auto mb-2" />
+                      <p className="text-xs text-white/60">No uploaded study files yet.</p>
+                      <p className="text-[10px] text-white/35 mt-1">Readable files appear here after you upload material to a workspace.</p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="divide-y divide-white/[0.06]">
+                    {recentMaterials.map((material) => (
+                      <div key={material.id} className="flex items-center justify-between py-3.5 gap-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <FileText className="w-4 h-4 text-[#a78bfa] shrink-0" />
+                          <span className="text-xs sm:text-sm text-white/90 truncate">{material.name}</span>
+                        </div>
+                        <span className="text-[10px] font-mono-studio text-white/40 uppercase tracking-wider shrink-0 ml-4">
+                          {material.size || "Size unavailable"}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                  <span className="text-[10px] font-mono-studio text-white/40 uppercase tracking-wider shrink-0 ml-4">
-                    3.4 MB
-                  </span>
-                </div>
+                );
+              })()}
 
-                <div className="flex items-center justify-between py-3.5">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <FileText className="w-4 h-4 text-[#a78bfa] shrink-0" />
-                    <span className="text-xs sm:text-sm text-white/90 truncate">
-                      {activeWs?.materials?.[1]?.name || "Unit_2_Non_Linear_Trees_Graphs.pptx"}
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-mono-studio text-white/40 uppercase tracking-wider shrink-0 ml-4">
-                    4.1 MB
-                  </span>
-                </div>
-              </div>
             </div>
 
             <div className="pt-4 flex flex-wrap gap-3">

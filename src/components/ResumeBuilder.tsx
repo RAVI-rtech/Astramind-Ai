@@ -172,25 +172,23 @@ export default function ResumeBuilder({
       title,
       lastUpdated: Date.now(),
       personalInfo: {
-        fullName: "Your Full Name",
-        jobTitle: "Software Engineer / Specialist",
-        email: "you@example.com",
-        phone: "+1 (555) 000-0000",
-        location: "City, State / Country",
-        linkedinUrl: "https://linkedin.com/in/yourprofile",
-        githubUrl: "https://github.com/yourusername",
-        portfolioUrl: "https://yourwebsite.com",
-        summary: "Passionate professional with expertise in technical strategy and project delivery.",
+        fullName: "",
+        jobTitle: "",
+        email: "",
+        phone: "",
+        location: "",
+        linkedinUrl: "",
+        githubUrl: "",
+        portfolioUrl: "",
+        summary: "",
       },
       education: [],
       experience: [],
       projects: [],
       certifications: [],
-      skills: [
-        { category: "Technical", skills: ["JavaScript", "TypeScript", "Problem Solving"] },
-      ],
+      skills: [],
       achievements: [],
-      languages: [{ id: `lang_${Date.now()}`, name: "English", proficiency: "Native" }],
+      languages: [],
     };
 
     setSavedResumes((prev) => [newResume, ...prev]);
@@ -944,13 +942,13 @@ export default function ResumeBuilder({
                             ...prev.experience,
                             {
                               id: `exp_${Date.now()}`,
-                              jobTitle: "Software Engineer",
-                              company: "Company Name",
-                              location: "City, State",
-                              startDate: "2022",
-                              endDate: "Present",
-                              isCurrent: true,
-                              bulletPoints: ["Engineered scalable features driving team objectives."],
+                              jobTitle: "",
+                              company: "",
+                              location: "",
+                              startDate: "",
+                              endDate: "",
+                              isCurrent: false,
+                              bulletPoints: [],
                             },
                           ],
                         }))
@@ -1180,13 +1178,13 @@ export default function ResumeBuilder({
                             ...prev.education,
                             {
                               id: `edu_${Date.now()}`,
-                              degree: "Degree Name",
-                              school: "University / Institution",
-                              location: "City, State",
-                              startDate: "2018",
-                              endDate: "2022",
-                              gpa: "3.8",
-                              highlights: "Honors, Dean's List, Relevant Coursework",
+                              degree: "",
+                              school: "",
+                              location: "",
+                              startDate: "",
+                              endDate: "",
+                              gpa: "",
+                              highlights: "",
                             },
                           ],
                         }))
@@ -1322,13 +1320,13 @@ export default function ResumeBuilder({
                             ...prev.projects,
                             {
                               id: `proj_${Date.now()}`,
-                              title: "Project Name",
-                              role: "Lead Developer",
-                              techStack: ["React", "TypeScript", "Node.js"],
-                              link: "https://github.com/project",
-                              startDate: "2024",
-                              endDate: "2024",
-                              bulletPoints: ["Built real-time web interface with cloud syncing."],
+                              title: "",
+                              role: "",
+                              techStack: [],
+                              link: "",
+                              startDate: "",
+                              endDate: "",
+                              bulletPoints: [],
                             },
                           ],
                         }))
@@ -1552,9 +1550,9 @@ export default function ResumeBuilder({
                             ...prev.certifications,
                             {
                               id: `cert_${Date.now()}`,
-                              name: "Certification Name",
-                              issuer: "Issuing Body (AWS / Google / Cisco)",
-                              date: "2023",
+                              name: "",
+                              issuer: "",
+                              date: "",
                               credentialUrl: "",
                             },
                           ],
@@ -1648,10 +1646,10 @@ export default function ResumeBuilder({
                             ...prev.achievements,
                             {
                               id: `ach_${Date.now()}`,
-                              title: "Award Title",
-                              organization: "Organization",
-                              date: "2024",
-                              description: "Brief details on competitive honor or hackathon win...",
+                              title: "",
+                              organization: "",
+                              date: "",
+                              description: "",
                             },
                           ],
                         }))
@@ -1814,10 +1812,10 @@ export default function ResumeBuilder({
                     >
                       <div>
                         <h1 className="text-2xl font-black uppercase tracking-tight">
-                          {activeResume.personalInfo.fullName || "Your Full Name"}
+                          {activeResume.personalInfo.fullName}
                         </h1>
                         <p className="text-sm opacity-90 font-medium mt-0.5">
-                          {activeResume.personalInfo.jobTitle || "Professional Title"}
+                          {activeResume.personalInfo.jobTitle}
                         </p>
                       </div>
 

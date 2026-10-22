@@ -14,8 +14,6 @@ export const COURSES_CATALOG: Course[] = [
     colorGradient: "from-amber-500 to-yellow-600",
     level: "Beginner",
     estimatedHours: 24,
-    rating: 4.9,
-    studentsEnrolled: 42800,
     tags: ["Python", "Automation", "OOP", "Data Structures", "Backend"],
     roadmaps: {
       beginner: [
@@ -164,8 +162,6 @@ print(squares_comp) # [0, 4, 16, 36, 64]
     colorGradient: "from-blue-600 to-indigo-700",
     level: "Beginner",
     estimatedHours: 20,
-    rating: 4.8,
-    studentsEnrolled: 29500,
     tags: ["C", "Pointers", "Memory", "Low-Level", "Embedded"],
     roadmaps: {
       beginner: [
@@ -236,8 +232,6 @@ int main() {
     colorGradient: "from-sky-600 to-blue-800",
     level: "Intermediate",
     estimatedHours: 28,
-    rating: 4.9,
-    studentsEnrolled: 38100,
     tags: ["C++", "STL", "OOP", "Smart Pointers", "Algorithms"],
     roadmaps: {
       beginner: [
@@ -299,8 +293,6 @@ int main() {
     colorGradient: "from-orange-600 to-amber-700",
     level: "Beginner",
     estimatedHours: 30,
-    rating: 4.8,
-    studentsEnrolled: 51200,
     tags: ["Java", "OOP", "JVM", "Multithreading", "Spring"],
     roadmaps: {
       beginner: [
@@ -358,8 +350,6 @@ public class StripeService implements PaymentGateway {
     colorGradient: "from-yellow-500 to-amber-600",
     level: "Beginner",
     estimatedHours: 22,
-    rating: 4.9,
-    studentsEnrolled: 64100,
     tags: ["JavaScript", "ES6+", "Async", "Event Loop", "Web"],
     roadmaps: {
       beginner: [
@@ -418,8 +408,6 @@ console.log(counter.getCount());  // 11
     colorGradient: "from-orange-500 to-rose-600",
     level: "Beginner",
     estimatedHours: 16,
-    rating: 4.8,
-    studentsEnrolled: 48900,
     tags: ["HTML", "CSS", "Flexbox", "Grid", "Responsive"],
     roadmaps: {
       beginner: [
@@ -471,8 +459,6 @@ Create ultra-responsive grid cards without writing media queries!
     colorGradient: "from-cyan-500 to-blue-600",
     level: "Intermediate",
     estimatedHours: 25,
-    rating: 4.9,
-    studentsEnrolled: 58200,
     tags: ["React", "Hooks", "JSX", "State", "Frontend"],
     roadmaps: {
       beginner: [
@@ -537,8 +523,6 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
     colorGradient: "from-teal-500 to-emerald-700",
     level: "Beginner",
     estimatedHours: 18,
-    rating: 4.8,
-    studentsEnrolled: 39400,
     tags: ["SQL", "PostgreSQL", "Database", "Joins", "Queries"],
     roadmaps: {
       beginner: [
@@ -595,8 +579,6 @@ ORDER BY avg_progress DESC;
     colorGradient: "from-purple-600 to-indigo-800",
     level: "Intermediate",
     estimatedHours: 35,
-    rating: 4.95,
-    studentsEnrolled: 72000,
     tags: ["DSA", "Algorithms", "Interview", "Big-O", "LeetCode"],
     roadmaps: {
       beginner: [
@@ -663,8 +645,6 @@ print(max_sub_array_of_size_k(3, [2, 1, 5, 1, 3, 2])) # Output: 9
     colorGradient: "from-emerald-500 to-teal-700",
     level: "Beginner",
     estimatedHours: 12,
-    rating: 4.9,
-    studentsEnrolled: 54300,
     tags: ["AI", "Prompt Engineering", "LLM", "GPT", "Gemini"],
     roadmaps: {
       beginner: [
@@ -718,8 +698,6 @@ When solving a problem:
     colorGradient: "from-purple-500 to-pink-600",
     level: "Intermediate",
     estimatedHours: 26,
-    rating: 4.85,
-    studentsEnrolled: 41200,
     tags: ["Machine Learning", "Scikit-Learn", "Python", "Data Science"],
     roadmaps: {
       beginner: [
@@ -779,8 +757,6 @@ print("Intercept:", model.intercept_)
     colorGradient: "from-indigo-600 to-purple-700",
     level: "Advanced",
     estimatedHours: 32,
-    rating: 4.9,
-    studentsEnrolled: 31000,
     tags: ["Deep Learning", "PyTorch", "Neural Networks", "CNN", "Transformers"],
     roadmaps: {
       beginner: [
@@ -843,8 +819,6 @@ print(model)
     colorGradient: "from-cyan-500 to-indigo-600",
     level: "Advanced",
     estimatedHours: 28,
-    rating: 4.95,
-    studentsEnrolled: 47800,
     tags: ["Generative AI", "LLM", "Embeddings", "Vector DB", "Fine-Tuning"],
     roadmaps: {
       beginner: [
@@ -905,8 +879,6 @@ print("Semantic Similarity:", cosine_similarity(v1, v2))
     colorGradient: "from-emerald-600 to-teal-800",
     level: "Intermediate",
     estimatedHours: 30,
-    rating: 4.85,
-    studentsEnrolled: 52400,
     tags: ["Node.js", "Express", "Full Stack", "REST API", "Auth"],
     roadmaps: {
       beginner: [
@@ -973,8 +945,6 @@ app.get('/api/protected', requireAuth, (req, res) => {
     colorGradient: "from-blue-600 to-indigo-700",
     level: "Beginner",
     estimatedHours: 15,
-    rating: 4.95,
-    studentsEnrolled: 68000,
     tags: ["Career", "Interview", "Resume", "Behavioral", "System Design"],
     roadmaps: {
       beginner: [
@@ -1027,8 +997,6 @@ app.get('/api/protected', requireAuth, (req, res) => {
     colorGradient: "from-emerald-500 to-cyan-600",
     level: "Beginner",
     estimatedHours: 10,
-    rating: 4.95,
-    studentsEnrolled: 89000,
     tags: ["Study Assistant", "PDF Summarizer", "Flashcards", "Quiz", "Notes"],
     roadmaps: {
       beginner: [
@@ -1077,8 +1045,6 @@ Hermann Ebbinghaus discovered that memory retention drops exponentially over tim
     colorGradient: "from-blue-600 to-indigo-800",
     level: "Intermediate",
     estimatedHours: 25,
-    rating: 4.9,
-    studentsEnrolled: 45000,
     tags: ["OS", "Kernel", "Processes", "Memory", "Concurrency"],
     roadmaps: {
       beginner: [
@@ -1138,8 +1104,6 @@ int main() {
     colorGradient: "from-amber-600 to-orange-700",
     level: "Intermediate",
     estimatedHours: 24,
-    rating: 4.9,
-    studentsEnrolled: 49800,
     tags: ["DBMS", "SQL", "ACID", "Normalization", "Indexing"],
     roadmaps: {
       beginner: [
@@ -1186,8 +1150,6 @@ int main() {
     colorGradient: "from-cyan-600 to-blue-700",
     level: "Intermediate",
     estimatedHours: 22,
-    rating: 4.85,
-    studentsEnrolled: 41000,
     tags: ["Networking", "TCP/IP", "DNS", "HTTP", "Sockets"],
     roadmaps: {
       beginner: [
@@ -1233,8 +1195,6 @@ int main() {
     colorGradient: "from-yellow-600 to-amber-700",
     level: "Beginner",
     estimatedHours: 28,
-    rating: 4.8,
-    studentsEnrolled: 32000,
     tags: ["Physics", "Mechanics", "Energy", "Electromagnetism", "Science"],
     roadmaps: {
       beginner: [
@@ -1281,8 +1241,6 @@ int main() {
     colorGradient: "from-rose-600 to-pink-700",
     level: "Beginner",
     estimatedHours: 26,
-    rating: 4.8,
-    studentsEnrolled: 28000,
     tags: ["Chemistry", "Organic", "Reactions", "Molecules", "Science"],
     roadmaps: {
       beginner: [
@@ -1327,8 +1285,6 @@ int main() {
     colorGradient: "from-emerald-600 to-teal-800",
     level: "Beginner",
     estimatedHours: 32,
-    rating: 4.95,
-    studentsEnrolled: 58000,
     tags: ["Math", "Calculus", "Linear Algebra", "Matrices", "Vectors"],
     roadmaps: {
       beginner: [

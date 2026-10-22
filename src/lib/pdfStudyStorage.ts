@@ -118,7 +118,7 @@ export function getSavedPDFDocuments(): PDFStudyDocument[] {
       doc &&
       doc.id !== "doc_bee_drive" &&
       doc.fileName !== "BEE COMPLETE NOTES.pdf" &&
-      doc.sourceType === "uploaded" &&
+      (doc.sourceType === "uploaded" || doc.sourceType === "workspace") &&
       typeof doc.rawContent === "string" &&
       doc.rawContent.trim().length >= 30
     );

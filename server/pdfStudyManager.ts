@@ -143,7 +143,7 @@ CRITICAL GROUNDING RULES:
 1. Ground your response primarily and authoritatively in the provided document content.
 2. DO NOT invent facts, formulas, or claims not supported by the document.
 3. If the user asks about something outside the document, politely state that it is not covered in "${pdfTitle}", but provide the closest related concept from the text.
-4. Always provide specific page numbers or section references where the concept appears in "${pdfTitle}".
+4. Cite a page or section only if it is explicitly preserved in the supplied text; otherwise cite by exact quote without a page number.
 5. Structure answers with clear headings, bullet points, and exact formulas.
 6. When answering math/electrical/engineering questions, show step-by-step reasoning.
 7. Return citations at the bottom or in citation fields.`;
@@ -166,10 +166,11 @@ ${pdfContent.slice(0, 36000)}
 CONVERSATION:
 ${conversationHistory}
 
-Task: Respond to the student's latest message based on "${pdfTitle}". Provide page citations and step-by-step clarity.
+Task: Respond to the student's latest message based on the supplied text. Provide clear, step-by-step explanations when useful.
+The extracted text may not preserve PDF page boundaries. Do not invent page numbers, chapter names or section references. Return a citation only if its excerpt is an exact quote copied from the supplied document text. Omit pageNumber unless the supplied text explicitly marks the page.
 
-Also format the last line of your response as JSON citations:
-CITATIONS_JSON: [{"pageNumber": 12, "chapter": "Unit 2", "topic": "Concept", "excerpt": "brief text quote"}]`;
+If exact source excerpts are available, append:
+CITATIONS_JSON: [{"pageNumber": null, "chapter": null, "topic": "topic wording found in source text", "excerpt": "an exact short quote from the supplied text"}]`;
 
   try {
     const responseText = await callGeminiOrFallback(systemInstruction, prompt, 0.2, false);
@@ -188,36 +189,36 @@ CITATIONS_JSON: [{"pageNumber": 12, "chapter": "Unit 2", "topic": "Concept", "ex
       }
     }
 
-    if (!citations || citations.length === 0) {
-      const pageMatch = text.match(/(?:page|p\.)\s*(\d+)/i);
-      citations = [
-        {
-          pageNumber: pageMatch ? parseInt(pageMatch[1], 10) : 1,
-          chapter: chapterOrScope || "Core Content",
-          topic: pdfTitle,
-          excerpt: `Authoritative reference from ${pdfTitle}`,
-        },
-      ];
-    }
+    // Keep only citations whose excerpts exactly occur in the uploaded text. Extracted text
+    // generally loses page boundaries, so do not trust a page number supplied by the model.
+    const sourceText = pdfContent.toLowerCase();
+    citations = Array.isArray(citations)
+      ? citations
+          .filter((citation) =>
+            citation &&
+            typeof citation.excerpt === "string" &&
+            citation.excerpt.trim().length >= 8 &&
+            sourceText.includes(citation.excerpt.trim().toLowerCase())
+          )
+          .map((citation) => ({
+            chapter: typeof citation.chapter === "string" && citation.chapter.trim() &&
+              sourceText.includes(citation.chapter.trim().toLowerCase())
+                ? citation.chapter.trim()
+                : undefined,
+            topic: typeof citation.topic === "string" && citation.topic.trim() &&
+              sourceText.includes(citation.topic.trim().toLowerCase())
+                ? citation.topic.trim()
+                : undefined,
+            excerpt: citation.excerpt.trim(),
+          }))
+      : [];
 
     return { text, citations };
   } catch (err: any) {
-    // Extractive fallback from PDF text
-    return {
-      text: `### Verified Reference from ${pdfTitle}\n\nBased on the curriculum notes in **${pdfTitle}**:\n\n${pdfContent.slice(0, 800)}\n\n*Review full lecture notes for derivations and worked examples.*`,
-      citations: [
-        {
-          pageNumber: 1,
-          chapter: chapterOrScope || "Syllabus Core",
-          topic: pdfTitle,
-          excerpt: pdfContent.slice(0, 150),
-        },
-      ],
-    };
+    throw new Error("PDF chat could not be generated from the uploaded PDF. Please retry or check your AI provider configuration.");
   }
 }
 
-// ==========================================
 // 2. PDF SUMMARIZATION (5 VARIANTS)
 // ==========================================
 
@@ -247,13 +248,13 @@ Return a JSON object:
   "overviewText": "A 2-3 paragraph crisp overview of the material.",
   "keyConcepts": ["Concept 1 with concise explanation", "Concept 2 with concise explanation"],
   "importantDefinitions": [
-    {"term": "Term Name", "definition": "Exact definition according to notes", "page": 1}
+    {"term": "Term Name", "definition": "Exact definition according to notes", "page": null}
   ],
   "formulas": [
-    {"formula": "Mathematical / Electrical formula", "description": "What each variable represents", "page": 1}
+    {"formula": "Mathematical / Electrical formula", "description": "What each variable represents", "page": null}
   ],
   "examples": [
-    {"title": "Example Problem / Scenario", "explanation": "Step-by-step solution from text", "page": 1}
+    {"title": "Example Problem / Scenario", "explanation": "Step-by-step solution from text", "page": null}
   ],
   "importantPoints": ["Key takeaway point 1", "Key takeaway point 2"],
   "examFocusedPoints": ["High-yield exam tip 1", "Common university exam pitfall 2"]
@@ -262,6 +263,9 @@ Return a JSON object:
   try {
     const rawJson = await callGeminiOrFallback(systemInstruction, prompt, 0.2, true);
     const data = extractJSON(rawJson);
+    if (typeof data.overviewText !== "string" || data.overviewText.trim().length < 20) {
+      throw new Error("The model returned an incomplete summary.");
+    }
 
     return {
       id: `sum_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -269,41 +273,35 @@ Return a JSON object:
       documentTitle: pdfTitle,
       summaryType,
       chapterOrScope,
-      overviewText: data.overviewText || "Comprehensive summary of the selected study document.",
+      overviewText: data.overviewText.trim(),
       keyConcepts: Array.isArray(data.keyConcepts) ? data.keyConcepts : [],
-      importantDefinitions: Array.isArray(data.importantDefinitions) ? data.importantDefinitions : [],
-      formulas: Array.isArray(data.formulas) ? data.formulas : [],
-      examples: Array.isArray(data.examples) ? data.examples : [],
+      importantDefinitions: Array.isArray(data.importantDefinitions)
+        ? data.importantDefinitions
+            .filter((item: any) => item && typeof item.term === "string" && item.term.trim() && typeof item.definition === "string" && item.definition.trim())
+            .map((item: any) => ({ term: item.term.trim(), definition: item.definition.trim() }))
+        : [],
+      formulas: Array.isArray(data.formulas)
+        ? data.formulas
+            .filter((item: any) => item && typeof item.formula === "string" && item.formula.trim())
+            .map((item: any) => ({
+              formula: item.formula.trim(),
+              description: typeof item.description === "string" ? item.description : "",
+            }))
+        : [],
+      examples: Array.isArray(data.examples)
+        ? data.examples
+            .filter((item: any) => item && typeof item.title === "string" && item.title.trim() && typeof item.explanation === "string" && item.explanation.trim())
+            .map((item: any) => ({ title: item.title.trim(), explanation: item.explanation.trim() }))
+        : [],
       importantPoints: Array.isArray(data.importantPoints) ? data.importantPoints : [],
       examFocusedPoints: Array.isArray(data.examFocusedPoints) ? data.examFocusedPoints : [],
       createdAt: Date.now(),
     };
   } catch (err) {
-    // Extractive fallback
-    const lines = pdfContent.split("\n").filter((l) => l.trim().length > 15);
-    return {
-      id: `sum_${Date.now()}`,
-      documentId: pdfTitle,
-      documentTitle: pdfTitle,
-      summaryType,
-      chapterOrScope,
-      overviewText: `Structured summary synthesized from ${pdfTitle}. Covers core curriculum units and examination requirements.`,
-      keyConcepts: lines.slice(0, 5),
-      importantDefinitions: [
-        { term: "Core Principle", definition: lines[0] || "Foundational theorem from syllabus", page: 1 },
-      ],
-      formulas: [
-        { formula: "Standard Equation", description: "Governing relation from notes", page: 1 },
-      ],
-      examples: [],
-      importantPoints: lines.slice(1, 4),
-      examFocusedPoints: ["Review standard university numericals and step-by-step derivations."],
-      createdAt: Date.now(),
-    };
+    throw new Error("Summary generation failed. No substitute or placeholder summary was created.");
   }
 }
 
-// ==========================================
 // 3. AI NOTES (STUDENT-FRIENDLY & STRUCTURED)
 // ==========================================
 
@@ -345,7 +343,7 @@ ${pdfContent.slice(0, 36000)}
 Return a JSON object:
 {
   "title": "Clean Title for Notes",
-  "topic": "${topic || "Core Principles"}",
+  "topic": "${topic || "A topic identified in the uploaded document"}",
   "markdownContent": "Full formatted markdown notes with headers, bullet points, tables where helpful, bold terms, and code/formulas.",
   "definitions": [
     {"term": "Term", "meaning": "Definition"}
@@ -362,30 +360,24 @@ Return a JSON object:
   try {
     const rawJson = await callGeminiOrFallback(systemInstruction, prompt, 0.2, true);
     const data = extractJSON(rawJson);
+    if (typeof data.markdownContent !== "string" || data.markdownContent.trim().length < 30) {
+      throw new Error("The model returned incomplete notes.");
+    }
 
     return {
-      title: data.title || `${pdfTitle} - Revision Notes`,
-      topic: data.topic || topic || "General Concepts",
-      markdownContent: data.markdownContent || "## Core Notes\n\nNotes generated successfully from study material.",
+      title: typeof data.title === "string" && data.title.trim() ? data.title : `${pdfTitle} - Notes`,
+      topic: data.topic || topic || pdfTitle,
+      markdownContent: data.markdownContent.trim(),
       definitions: Array.isArray(data.definitions) ? data.definitions : [],
       formulas: Array.isArray(data.formulas) ? data.formulas : [],
       examples: Array.isArray(data.examples) ? data.examples : [],
       examTips: Array.isArray(data.examTips) ? data.examTips : [],
     };
   } catch (err) {
-    return {
-      title: `${pdfTitle} - Quick Notes`,
-      topic: topic || "Core Principles",
-      markdownContent: `## Revision Notes: ${pdfTitle}\n\n### Key Concepts\n\n${pdfContent.slice(0, 1000)}\n\n### Exam Takeaways\n- Focus on definition, formula, and step-by-step derivation.`,
-      definitions: [{ term: "Key Concept", meaning: "Fundamental syllabus definition" }],
-      formulas: [{ name: "Governing Formula", formula: "Derived from notes" }],
-      examples: [],
-      examTips: ["Practice previous end-semester exam questions."],
-    };
+    throw new Error("Notes generation failed. No substitute or placeholder notes were created.");
   }
 }
 
-// ==========================================
 // 4. FLASHCARD INTELLIGENCE (5, 10, 20, 30, 50 CARDS)
 // ==========================================
 
@@ -417,66 +409,39 @@ DOCUMENT TEXT:
 ${pdfContent.slice(0, 36000)}
 """
 
-Return a JSON array of objects:
+Return a JSON array of objects using this schema. The field values are instructions, not content to copy:
 [
   {
-    "id": "card_1",
-    "front": "What is Kirchhoff's Current Law (KCL)?",
-    "back": "The algebraic sum of currents entering a node or junction in any electrical network equals zero (Σ I = 0). It is based on the law of conservation of charge.",
-    "topic": "Electrical Networks",
-    "pageNumber": 14,
-    "category": "Law/Principle"
+    "id": "unique identifier",
+    "front": "Question based on a real concept in the uploaded document",
+    "back": "Answer supported by the uploaded document",
+    "topic": "Topic found in the uploaded document",
+    "pageNumber": null,
+    "category": "Definition"
   }
 ]
-Categories can be: "Definition", "Formula", "Law/Principle", "Comparison", "Core Concept", "Exam Concept".`;
+Do not copy facts from unrelated domains. If the source does not specify a page, use null. Categories may be "Definition", "Formula", "Law/Principle", "Comparison", "Core Concept", or "Exam Concept".`;
 
   try {
     const rawJson = await callGeminiOrFallback(systemInstruction, prompt, 0.25, true);
     const cards = extractJSON(rawJson);
-
-    if (Array.isArray(cards) && cards.length > 0) {
-      return cards.map((c, idx) => ({
-        id: c.id || `card_${Date.now()}_${idx}`,
-        front: c.front || "Concept Question",
-        back: c.back || "Answer explanation from study material.",
-        topic: c.topic || "Core Material",
-        pageNumber: typeof c.pageNumber === "number" ? c.pageNumber : 1,
-        category: c.category || "Core Concept",
-      }));
-    }
+    const validCards = Array.isArray(cards)
+      ? cards.filter((card) => card && typeof card.front === "string" && card.front.trim() && typeof card.back === "string" && card.back.trim())
+      : [];
+    if (validCards.length === 0) throw new Error("The model returned no usable flashcards.");
+    return validCards.map((card, idx) => ({
+      id: typeof card.id === "string" && card.id.trim() ? card.id : `card_${Date.now()}_${idx}`,
+      front: card.front.trim(),
+      back: card.back.trim(),
+      topic: typeof card.topic === "string" && card.topic.trim() ? card.topic : pdfTitle,
+      pageNumber: undefined,
+      category: ["Definition", "Formula", "Law/Principle", "Comparison", "Core Concept", "Exam Concept"].includes(card.category) ? card.category : "Core Concept",
+    }));
   } catch (err) {
-    console.warn("AI flashcard generation error, falling back to extractive synthesis:", err);
+    throw new Error("Flashcard generation failed. No sample flashcards were created.");
   }
-
-  // Heuristic extractive fallback
-  const lines = pdfContent.split("\n").filter((l) => l.trim().length > 20);
-  const fallbackCards: PDFFlashcardItem[] = [];
-
-  for (let i = 0; i < Math.min(count, Math.max(lines.length, 5)); i++) {
-    const line = lines[i] || `Core principle from ${pdfTitle}`;
-    const colonIdx = line.indexOf(":");
-    let front = `What is the key principle of ${pdfTitle}?`;
-    let back = line;
-
-    if (colonIdx > 5 && colonIdx < 50) {
-      front = `What is ${line.slice(0, colonIdx).trim()}?`;
-      back = line.slice(colonIdx + 1).trim();
-    }
-
-    fallbackCards.push({
-      id: `fc_ext_${Date.now()}_${i}`,
-      front,
-      back,
-      topic: pdfTitle.replace(/\.[^/.]+$/, ""),
-      pageNumber: i + 1,
-      category: i % 2 === 0 ? "Definition" : "Core Concept",
-    });
-  }
-
-  return fallbackCards;
 }
 
-// ==========================================
 // 5. QUESTION GENERATOR
 // ==========================================
 
@@ -509,83 +474,47 @@ DOCUMENT CONTENT:
 ${pdfContent.slice(0, 36000)}
 """
 
-Return a JSON array of question objects:
+Return a JSON array of question objects using this schema. The field values are instructions, not example answers:
 [
   {
-    "id": "q_1",
-    "type": "mcq",
-    "question": "What is the condition for maximum power transfer in a DC circuit?",
-    "options": [
-      "A) Load resistance equals source internal resistance (RL = Rth)",
-      "B) Load resistance is infinite",
-      "C) Load resistance is zero",
-      "D) Source voltage equals load voltage"
-    ],
-    "correctAnswer": "A) Load resistance equals source internal resistance (RL = Rth)",
-    "explanation": "According to the Maximum Power Transfer Theorem, maximum power is delivered to the load when RL equals Thevenin equivalent resistance Rth.",
-    "pageReference": 22,
-    "marks": 2,
+    "id": "unique identifier",
+    "type": "mcq, short, long, fill-blanks, true-false, or exam-style",
+    "question": "Question answerable from the uploaded text",
+    "options": null,
+    "correctAnswer": "Answer grounded in the uploaded text",
+    "explanation": "Explanation grounded in that text",
+    "pageReference": null,
+    "marks": null,
     "difficulty": "${difficulty}",
-    "topic": "Network Theorems"
+    "topic": "Topic from the uploaded text"
   }
-]`;
+]
+For MCQs, use four plausible options and make the correct answer match one option exactly. Do not invent page numbers or marks; use null when unknown.`;
 
   try {
     const rawJson = await callGeminiOrFallback(systemInstruction, prompt, 0.25, true);
     const questions = extractJSON(rawJson);
-
-    if (Array.isArray(questions) && questions.length > 0) {
-      return questions.map((q, idx) => ({
-        id: q.id || `q_${Date.now()}_${idx}`,
-        type: q.type || "short",
-        question: q.question || "Study Question",
-        options: Array.isArray(q.options) ? q.options : undefined,
-        correctAnswer: q.correctAnswer || "Answer derived from study material.",
-        explanation: q.explanation || "Detailed solution and concept breakdown.",
-        pageReference: typeof q.pageReference === "number" ? q.pageReference : 1,
-        marks: typeof q.marks === "number" ? q.marks : q.type === "long" ? 10 : q.type === "short" ? 5 : 2,
-        difficulty: q.difficulty || difficulty,
-        topic: q.topic || topic || "General Units",
-      }));
-    }
+    const validQuestions = Array.isArray(questions)
+      ? questions.filter((question) => question && typeof question.question === "string" && question.question.trim() && typeof question.correctAnswer === "string" && question.correctAnswer.trim())
+      : [];
+    if (validQuestions.length === 0) throw new Error("The model returned no usable questions.");
+    return validQuestions.map((question, idx) => ({
+      id: typeof question.id === "string" && question.id.trim() ? question.id : `q_${Date.now()}_${idx}`,
+      type: ["mcq", "short", "long", "fill-blanks", "true-false", "exam-style"].includes(question.type) ? question.type : "short",
+      question: question.question.trim(),
+      options: Array.isArray(question.options) ? question.options : undefined,
+      correctAnswer: question.correctAnswer.trim(),
+      explanation: typeof question.explanation === "string" ? question.explanation : "",
+      pageReference: undefined,
+      marks: typeof question.marks === "number" && question.marks > 0 ? question.marks : undefined,
+      difficulty: ["Easy", "Medium", "Hard", "Exam Preparation"].includes(question.difficulty) ? question.difficulty : difficulty,
+      topic: typeof question.topic === "string" && question.topic.trim() ? question.topic : topic || pdfTitle,
+    }));
   } catch (err) {
-    console.warn("AI question generation error, falling back to extractive synthesis:", err);
+    throw new Error("Question generation failed. No sample questions were created.");
   }
-
-  // Heuristic extractive questions
-  return [
-    {
-      id: `q_fallback_1`,
-      type: "mcq",
-      question: `Which fundamental principle is demonstrated in ${pdfTitle}?`,
-      options: [
-        "A) Conservation of energy and charge in networks",
-        "B) Random thermal expansion",
-        "C) Fluid viscosity dynamics",
-        "D) Quantum entanglement"
-      ],
-      correctAnswer: "A) Conservation of energy and charge in networks",
-      explanation: `Core principle derived directly from ${pdfTitle}.`,
-      pageReference: 1,
-      marks: 2,
-      difficulty,
-      topic: "Core Concept",
-    },
-    {
-      id: `q_fallback_2`,
-      type: "short",
-      question: `State the primary theorem discussed in ${pdfTitle} and write its governing equation.`,
-      correctAnswer: "The theorem states that linear systems obey superposition and conservation principles.",
-      explanation: "Students must write the formal definition and equation.",
-      pageReference: 5,
-      marks: 5,
-      difficulty,
-      topic: "Fundamental Theorem",
-    },
-  ];
 }
 
-// ==========================================
 // 6. TOPIC EXPLAINER
 // ==========================================
 
@@ -613,20 +542,12 @@ Return JSON:
 {
   "topic": "${topic}",
   "documentTitle": "${pdfTitle}",
-  "analogy": "An intuitive everyday real-world analogy to help the student visualize the concept immediately.",
-  "coreDefinition": "Precise academic definition from the curriculum notes.",
-  "stepByStepBreakdown": [
-    "Step 1: Foundational condition",
-    "Step 2: Operating mechanism",
-    "Step 3: Output / Resolution"
-  ],
-  "keyFormulas": [
-    "Formula 1: V = IR"
-  ],
-  "examTakeaways": [
-    "Key marks-awarding keywords that evaluators check for"
-  ],
-  "pageReference": 5
+  "analogy": "Relevant analogy grounded in the uploaded topic, or an empty string",
+  "coreDefinition": "Definition grounded in uploaded document text",
+  "stepByStepBreakdown": ["Steps grounded in the uploaded source"],
+  "keyFormulas": [],
+  "examTakeaways": [],
+  "pageReference": null
 }`;
 
   try {
@@ -636,34 +557,18 @@ Return JSON:
     return {
       topic: data.topic || topic,
       documentTitle: pdfTitle,
-      analogy: data.analogy || "Think of this like water flowing through connected pipes where pressure equals voltage and flow rate equals current.",
-      coreDefinition: data.coreDefinition || `Definition of ${topic} based on curriculum notes.`,
-      stepByStepBreakdown: Array.isArray(data.stepByStepBreakdown) 
-        ? data.stepByStepBreakdown 
-        : ["State conditions", "Apply governing equation", "Compute final result"],
-      keyFormulas: Array.isArray(data.keyFormulas) ? data.keyFormulas : [],
-      examTakeaways: Array.isArray(data.examTakeaways) ? data.examTakeaways : ["Always include diagrams and formula derivations."],
-      pageReference: typeof data.pageReference === "number" ? data.pageReference : 1,
+      analogy: typeof data.analogy === "string" ? data.analogy : "",
+      coreDefinition: typeof data.coreDefinition === "string" ? data.coreDefinition : "",
+      stepByStepBreakdown: Array.isArray(data.stepByStepBreakdown) ? data.stepByStepBreakdown.filter((step: unknown) => typeof step === "string" && step.trim()) : [],
+      keyFormulas: Array.isArray(data.keyFormulas) ? data.keyFormulas.filter((formula: unknown) => typeof formula === "string" && formula.trim()) : [],
+      examTakeaways: Array.isArray(data.examTakeaways) ? data.examTakeaways.filter((takeaway: unknown) => typeof takeaway === "string" && takeaway.trim()) : [],
+      pageReference: undefined,
     };
   } catch (err) {
-    return {
-      topic,
-      documentTitle: pdfTitle,
-      analogy: `Imagine ${topic} like a water distribution network where what goes in must equal what comes out.`,
-      coreDefinition: `The foundational theorem of ${topic} establishes linear relationships between system variables.`,
-      stepByStepBreakdown: [
-        "Identify system nodes and boundary values.",
-        "Formulate characteristic equations.",
-        "Solve matrix or algebraic relations."
-      ],
-      keyFormulas: ["Governing Relation: Ax = b"],
-      examTakeaways: ["High-probability end-semester question. State assumptions clearly."],
-      pageReference: 1,
-    };
+    throw new Error("Topic explanation failed. No unrelated explanation was substituted.");
   }
 }
 
-// ==========================================
 // 7. FIND IMPORTANT TOPICS
 // ==========================================
 
@@ -673,13 +578,14 @@ export async function findImportantPdfTopics(params: {
   subject?: string;
 }): Promise<PDFImportantTopic[]> {
   const { pdfTitle, pdfContent, subject } = params;
+  const sourceTextLower = pdfContent.toLowerCase();
 
-  const systemInstruction = `You are a senior university engineering examiner.
-Scan the provided syllabus/lecture document "${pdfTitle}" and identify the top 5 to 15 high-yield exam topics.
-For each topic, provide the real university examination probability, expected marks, key concepts to master, and page references.
+  const systemInstruction = `You are an academic study assistant.
+Identify important topics solely from the provided document. Use emphasis, repeated concepts, headings and stated learning objectives as evidence.
+Do not invent external university exam frequencies, marks allocation, or statistical probabilities unless they are explicitly stated in the provided text.
 Return strictly a JSON array.`;
 
-  const prompt = `Scan "${pdfTitle}" (${subject || "Engineering Core"}) and extract the top high-yield exam topics.
+  const prompt = `Scan "${pdfTitle}" (${subject || "the uploaded document's subject"}) and identify topics emphasized by the source.
 
 DOCUMENT CONTENT:
 """
@@ -690,57 +596,41 @@ Return a JSON array of objects:
 [
   {
     "rank": 1,
-    "topic": "Kirchhoff's Laws & Mesh Analysis",
-    "importance": "Critical",
-    "examFrequency": "Asked in 95% of semester exams / Compulsory Part-B question",
-    "keyConcepts": ["KCL statement & equation", "KVL loop formulation", "Mesh matrix equation"],
-    "expectedMarks": "10-14 Marks",
-    "pageReference": 14,
-    "whyImportant": "Directly tested in Unit-I every year as a compulsory numerical and theory question."
+    "topic": "Topic discussed in the uploaded document",
+    "importance": "Medium",
+    "examFrequency": "Not stated in the uploaded document",
+    "keyConcepts": ["Concepts from the supplied text"],
+    "expectedMarks": null,
+    "pageReference": null,
+    "whyImportant": "Explain importance from the document itself, not invented exam history."
   }
 ]`;
 
   try {
     const rawJson = await callGeminiOrFallback(systemInstruction, prompt, 0.2, true);
     const topics = extractJSON(rawJson);
-
-    if (Array.isArray(topics) && topics.length > 0) {
-      return topics.map((t, idx) => ({
-        rank: typeof t.rank === "number" ? t.rank : idx + 1,
-        topic: t.topic || `Important Concept ${idx + 1}`,
-        importance: t.importance || (idx < 3 ? "Critical" : idx < 7 ? "High" : "Medium"),
-        examFrequency: t.examFrequency || "High probability in semester examinations",
-        keyConcepts: Array.isArray(t.keyConcepts) ? t.keyConcepts : ["Core principles", "Numerical methods"],
-        expectedMarks: t.expectedMarks || "8-12 Marks",
-        pageReference: typeof t.pageReference === "number" ? t.pageReference : idx + 1,
-        whyImportant: t.whyImportant || "Key curriculum competency tested in end-semester exams.",
-      }));
-    }
+    const validTopics = Array.isArray(topics)
+      ? topics.filter((item) => item && typeof item.topic === "string" && item.topic.trim())
+      : [];
+    if (validTopics.length === 0) throw new Error("The model returned no usable topics.");
+    return validTopics.map((item, idx) => ({
+      rank: typeof item.rank === "number" && item.rank > 0 ? item.rank : idx + 1,
+      topic: item.topic.trim(),
+      importance: ["Critical", "High", "Medium"].includes(item.importance) ? item.importance : "Medium",
+      examFrequency: typeof item.examFrequency === "string" && item.examFrequency.trim() &&
+        sourceTextLower.includes(item.examFrequency.trim().toLowerCase())
+          ? item.examFrequency.trim()
+          : "Not stated in the uploaded document.",
+      keyConcepts: Array.isArray(item.keyConcepts) ? item.keyConcepts.filter((concept: unknown) => typeof concept === "string" && concept.trim()) : [],
+      expectedMarks: typeof item.expectedMarks === "string" && item.expectedMarks.trim() &&
+        sourceTextLower.includes(item.expectedMarks.trim().toLowerCase())
+          ? item.expectedMarks.trim()
+          : undefined,
+      pageReference: undefined,
+      whyImportant: typeof item.whyImportant === "string" && item.whyImportant.trim() ? item.whyImportant : "No explanation of importance was returned.",
+    }));
   } catch (err) {
-    console.warn("AI important topics error, falling back to extractive syllabus list:", err);
+    throw new Error("Important-topic analysis failed. No invented exam frequency or marks were returned.");
   }
-
-  // Extractive topics list
-  return [
-    {
-      rank: 1,
-      topic: `${pdfTitle.replace(/\.[^/.]+$/, "")} - Core Laws & Theorems`,
-      importance: "Critical",
-      examFrequency: "Tested in ~90% of semester exams as compulsory 10-mark question",
-      keyConcepts: ["Fundamental statements", "Governing equations", "Standard numericals"],
-      expectedMarks: "10-14 Marks",
-      pageReference: 1,
-      whyImportant: "Foundational theory tested directly in Part-A and Part-B.",
-    },
-    {
-      rank: 2,
-      topic: "Step-by-Step Derivations and Equivalents",
-      importance: "High",
-      examFrequency: "Appears regularly in internal tests and final exams",
-      keyConcepts: ["System parameters", "Circuit / Matrix transformations"],
-      expectedMarks: "8-10 Marks",
-      pageReference: 15,
-      whyImportant: "Evaluates procedural understanding and mathematical accuracy.",
-    },
-  ];
 }
+

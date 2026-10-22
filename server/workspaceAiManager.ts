@@ -140,7 +140,7 @@ export async function analyzeUploadedDocument(params: {
 }): Promise<{ profile: DocumentProfile; extractedText: string }> {
   const { fileName, fileType, base64, content } = params;
   let extractedText = content || "";
-  let pageCount = 1;
+  let pageCount = 0;
 
   // Handle PDF text extraction via PDFParse if base64 is present
   if (base64 && (fileType === "pdf" || fileName.toLowerCase().endsWith(".pdf"))) {
@@ -155,7 +155,7 @@ export async function analyzeUploadedDocument(params: {
       if (text && text.trim()) {
         extractedText = text.trim();
       }
-      pageCount = parser.doc?.numPages || res?.total || res?.numpages || 1;
+      pageCount = parser.doc?.numPages || res?.total || res?.numpages || 0;
     } catch (err) {
       console.warn("PDFParse extraction had error, will use multimodal Gemini:", err);
     }
@@ -328,7 +328,10 @@ export async function generateGuidedLesson(params: {
   materialSummary?: string;
   previousConcepts?: string[];
 }) {
-  const { subject, topic, extractedContent, materialSummary } = params;
+  const { subject, topic, extractedContent } = params;
+  if (typeof extractedContent !== "string" || extractedContent.trim().length < 30) {
+    throw new Error("Upload a readable study document before generating a lesson.");
+  }
 
   const systemInstruction = `You are a master academic educator and tutor.
 Your lesson MUST BE AUTHORITATIVELY ROOTED in the provided source material.
@@ -340,7 +343,7 @@ Subject / Domain: "${subject}"
 Topic: "${topic}"
 
 SOURCE MATERIAL CONTEXT:
-${(extractedContent || materialSummary || "").slice(0, 14000)}
+${extractedContent.slice(0, 14000)}
 
 RETURN STRICT JSON ONLY:
 {
@@ -385,7 +388,10 @@ export async function generateMCQQuiz(params: {
   hasFormulas?: boolean;
 }): Promise<QuizQuestion[]> {
   const count = Math.min(25, Math.max(3, params.count || 5));
-  const { subject, topic, difficulty, questionType, extractedContent, materialsContext } = params;
+  const { subject, topic, difficulty, questionType, extractedContent } = params;
+  if (typeof extractedContent !== "string" || extractedContent.trim().length < 30) {
+    throw new Error("Upload a readable study document before generating quiz questions.");
+  }
 
   const typeConstraint = questionType && questionType !== "All Types"
     ? `- Focus specifically on question format: "${questionType}".`
@@ -393,12 +399,13 @@ export async function generateMCQQuiz(params: {
 
   const systemInstruction = `You are an expert university examiner.
 CRITICAL MANDATE:
-Create high-quality exam questions STRICTLY DERIVED from the uploaded study material.
-- If the material is about Operating Systems: questions must be about OS concepts (processes, threads, scheduling, deadlocks, memory, I/O).
-- If the material is about DBMS: questions must be about databases (SQL, relational algebra, normal forms, transactions).
-- If the material is about Programming / Python: questions must be about code, algorithms, data structures, and syntax.
-- If the material contains formulas or numericals: include calculation/numerical questions.
-- If the material does NOT contain Mathematics, DO NOT GENERATE MATHEMATICS QUESTIONS!
+Create high-quality exam questions strictly from the uploaded source excerpt.
+- Infer the subject domain from the supplied text itself; do not import concepts from other domains.
+- If the text contains formulas or numerical procedures, include relevant calculation questions.
+- If mathematics is not present in the source, do not invent mathematical questions.
+- Do not invent page numbers, syllabus coverage, past-exam frequency, or facts absent from the source.
+- Every MCQ answer key must point to the option that is actually correct according to the source.
+- Vary correct option positions naturally; never default all answer keys to the same index.
 ${typeConstraint}`;
 
   const prompt = `Generate ${count} interactive quiz questions for:
@@ -408,37 +415,45 @@ Difficulty Level: "${difficulty}"
 Question Format Style: "${questionType || "Mixed (MCQs, True/False, Concepts, Applications)"}"
 
 AUTHORITATIVE SOURCE MATERIAL:
-${(extractedContent || materialsContext || "").slice(0, 16000)}
+${extractedContent.slice(0, 16000)}
 
-RETURN STRICT JSON ARRAY ONLY:
-[
-  {
-    "id": "q1",
-    "question": "Question text...",
-    "options": ["Option A", "Option B", "Option C", "Option D"],
-    "correctIndex": 0,
-    "explanation": "Clear, educational explanation of the correct answer referencing the source material.",
-    "topic": "${topic}",
-    "questionType": "mcq" | "true_false" | "concept" | "definition" | "application" | "code" | "numerical"
-  }
-]
+RETURN STRICT JSON ARRAY ONLY.
+Each item must be an object with the following fields:
+- id: unique string identifier
+- question: question derived from the source excerpt
+- options: array of four distinct, non-empty option strings
+- correctIndex: zero-based integer index pointing to the correct option
+- explanation: explanation supported by the source excerpt
+- topic: topic explicitly discussed in the source excerpt
+- questionType: one of "mcq", "true_false", "concept", "definition", "application", "code", or "numerical"
+
+Do not copy these field descriptions as answers. Do not invent content if the uploaded material does not support the question. The correctIndex must match the correct option.
 Do not wrap in markdown. Output valid JSON array only.`;
 
   try {
     const raw = await runPromptWithAI(systemInstruction, prompt);
     const parsed = extractJSON(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed.map((q: any, idx: number) => ({
-        id: q.id || `q-${Date.now()}-${idx}`,
-        question: q.question,
-        options: Array.isArray(q.options) && q.options.length >= 2 ? q.options : ["True", "False"],
-        correctIndex: typeof q.correctIndex === "number" && q.correctIndex >= 0 ? q.correctIndex : 0,
-        explanation: q.explanation || "Correct answer based on the uploaded material.",
-        topic: q.topic || topic,
-        questionType: q.questionType || "mcq",
-      }));
-    }
-    throw new Error("Invalid MCQ JSON array received");
+    const validQuestions = Array.isArray(parsed)
+      ? parsed.filter((question: any) =>
+          question &&
+          typeof question.question === "string" && question.question.trim() &&
+          Array.isArray(question.options) && question.options.length >= 2 &&
+          question.options.every((option: unknown) => typeof option === "string" && option.trim()) &&
+          Number.isInteger(question.correctIndex) &&
+          question.correctIndex >= 0 && question.correctIndex < question.options.length &&
+          typeof question.explanation === "string" && question.explanation.trim()
+        )
+      : [];
+    if (validQuestions.length === 0) throw new Error("The model returned no questions with a valid answer key.");
+    return validQuestions.map((question: any, idx: number) => ({
+      id: typeof question.id === "string" && question.id.trim() ? question.id : `q-${Date.now()}-${idx}`,
+      question: question.question.trim(),
+      options: question.options.map((option: string) => option.trim()),
+      correctIndex: question.correctIndex,
+      explanation: question.explanation.trim(),
+      topic: typeof question.topic === "string" && question.topic.trim() ? question.topic : topic,
+      questionType: ["mcq", "true_false", "concept", "definition", "application", "numerical", "code"].includes(question.questionType) ? question.questionType : "mcq",
+    }));
   } catch (e: any) {
     console.error("MCQ generation error:", e);
     throw new Error(`Unable to generate quiz questions for "${subject}": ${e.message}`);
@@ -458,17 +473,14 @@ export async function generateFlashcards(params: {
   materialsContext?: string;
 }): Promise<Flashcard[]> {
   const count = Math.min(50, Math.max(5, params.count || 10));
-  const { subject, topic, difficulty = "Medium", extractedContent, materialsContext } = params;
+  const { subject, topic, difficulty = "Medium", extractedContent } = params;
+  if (typeof extractedContent !== "string" || extractedContent.trim().length < 30) {
+    throw new Error("Upload a readable study document before generating flashcards.");
+  }
 
   const systemInstruction = `You are a specialized active-recall flashcard creator.
-CRITICAL MANDATE:
-Generate flashcards FROM THE UPLOADED MATERIAL ONLY.
-Example:
-If document is "Operating Systems":
-Front: "What is a Process Control Block (PCB)?"
-Back: "A data structure maintained by the OS for every process containing PID, state, program counter, CPU registers, and scheduling info."
-Preserve the document's original terminology, formulas, and definitions.
-DO NOT invent unrelated general facts. DO NOT force Mathematics unless the document is Mathematics.`;
+Create every flashcard strictly from the provided source excerpt. Preserve its terminology, formulas, and definitions.
+Do not introduce concepts or facts absent from the document.`;
 
   const prompt = `Generate ${count} active recall flashcards for:
 Subject / Domain: "${subject}"
@@ -476,7 +488,7 @@ Topic / Scope: "${topic || 'All Document Topics'}"
 Difficulty: "${difficulty}"
 
 AUTHORITATIVE SOURCE MATERIAL:
-${(extractedContent || materialsContext || "").slice(0, 16000)}
+${extractedContent.slice(0, 16000)}
 
 RETURN STRICT JSON ARRAY ONLY:
 [
@@ -493,18 +505,23 @@ Do not wrap in markdown. Output valid JSON array only.`;
   try {
     const raw = await runPromptWithAI(systemInstruction, prompt);
     const parsed = extractJSON(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed.map((item: any, idx: number) => ({
-        id: item.id || `fc-${Date.now()}-${idx}`,
-        workspaceId: "",
-        front: item.front,
-        back: item.back,
-        topic: item.topic || topic || subject,
-        status: "unreviewed",
-        difficulty: item.difficulty || difficulty,
-      }));
-    }
-    throw new Error("Invalid flashcard JSON array received");
+    const validCards = Array.isArray(parsed)
+      ? parsed.filter((item: any) =>
+          item &&
+          typeof item.front === "string" && item.front.trim() &&
+          typeof item.back === "string" && item.back.trim()
+        )
+      : [];
+    if (validCards.length === 0) throw new Error("The model returned no usable source-grounded flashcards.");
+    return validCards.map((item: any, idx: number) => ({
+      id: typeof item.id === "string" && item.id.trim() ? item.id : `fc-${Date.now()}-${idx}`,
+      workspaceId: "",
+      front: item.front.trim(),
+      back: item.back.trim(),
+      topic: typeof item.topic === "string" && item.topic.trim() ? item.topic : topic || subject,
+      status: "unreviewed",
+      difficulty: ["Easy", "Medium", "Hard"].includes(item.difficulty) ? item.difficulty : difficulty,
+    }));
   } catch (e: any) {
     console.error("Flashcards generation error:", e);
     throw new Error(`Unable to generate revision flashcards for "${subject}": ${e.message}`);
@@ -521,18 +538,20 @@ export async function generateImportantQuestions(params: {
   extractedContent?: string;
   materialsContext?: string;
 }): Promise<ImportantQuestion[]> {
-  const { subject, branch, extractedContent, materialsContext } = params;
+  const { subject, branch, extractedContent } = params;
+  if (typeof extractedContent !== "string" || extractedContent.trim().length < 30) {
+    throw new Error("Upload a readable study document before generating important questions.");
+  }
 
-  const systemInstruction = `You are a senior university engineering professor who sets semester exam question banks.
-Generate 6 to 8 crucial university examination questions across the sections/units present in the provided source material.
-Ground every question strictly in the uploaded document's curriculum.`;
+  const systemInstruction = `You are an academic question writer.
+Generate exam-style practice questions strictly from the uploaded source. Do not claim that questions were historically repeated or likely to appear unless the supplied source explicitly includes evidence such as past papers.`;
 
   const prompt = `Generate 6 essential university examination questions for:
 Subject / Domain: "${subject}"
 Branch / Specialization: "${branch}"
 
 AUTHORITATIVE SOURCE MATERIAL:
-${(extractedContent || materialsContext || "").slice(0, 16000)}
+${extractedContent.slice(0, 16000)}
 
 RETURN STRICT JSON ARRAY ONLY:
 [
@@ -542,30 +561,32 @@ RETURN STRICT JSON ARRAY ONLY:
     "topic": "Specific Topic",
     "question": "Full exam question text...",
     "difficulty": "Medium",
-    "frequency": "Repeated",
+    "frequency": "Not stated in source",
     "answerSummary": "Structured 3-4 sentence key answer outline detailing essential points required to score full marks."
   }
 ]
 Valid difficulty values: "Low", "Medium", "High".
-Valid frequency values: "Repeated", "High Probability", "Conceptual Must-Know".
+Use "Not stated in source" for frequency unless the supplied source explicitly includes past-question statistics; do not label questions repeated/high probability based on a syllabus alone.
+For frequency, use "Not stated in source" unless the text explicitly contains historical repetition evidence. Never infer frequency from a syllabus alone.
 Do not wrap in markdown. Output valid JSON only.`;
 
   try {
     const raw = await runPromptWithAI(systemInstruction, prompt);
     const parsed = extractJSON(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed.map((q: any, idx: number) => ({
-        id: q.id || `iq-${Date.now()}-${idx}`,
-        workspaceId: "",
-        unit: q.unit || `Unit ${idx + 1}`,
-        topic: q.topic || subject,
-        question: q.question,
-        difficulty: q.difficulty || "Medium",
-        frequency: q.frequency || "High Probability",
-        answerSummary: q.answerSummary || "Key concept outline from the syllabus.",
-      }));
-    }
-    throw new Error("Invalid questions JSON array received");
+    const validQuestions = Array.isArray(parsed)
+      ? parsed.filter((question: any) => question && typeof question.question === "string" && question.question.trim())
+      : [];
+    if (validQuestions.length === 0) throw new Error("The model returned no valid important questions.");
+    return validQuestions.map((question: any, idx: number) => ({
+      id: typeof question.id === "string" && question.id.trim() ? question.id : `iq-${Date.now()}-${idx}`,
+      workspaceId: "",
+      unit: typeof question.unit === "string" && question.unit.trim() ? question.unit : "Unit not specified in source",
+      topic: typeof question.topic === "string" && question.topic.trim() ? question.topic : subject,
+      question: question.question.trim(),
+      difficulty: ["Low", "Medium", "High"].includes(question.difficulty) ? question.difficulty : "Medium",
+      frequency: typeof question.frequency === "string" && question.frequency.trim() ? question.frequency : "Not stated in source",
+      answerSummary: typeof question.answerSummary === "string" ? question.answerSummary : "",
+    }));
   } catch (e: any) {
     console.error("Important questions generation error:", e);
     throw new Error(`Unable to generate exam questions for "${subject}": ${e.message}`);
@@ -581,6 +602,9 @@ export async function generateSummaryNotes(params: {
   extractedContent?: string;
 }): Promise<SummaryNotesData> {
   const { subject, extractedContent } = params;
+  if (typeof extractedContent !== "string" || extractedContent.trim().length < 30) {
+    throw new Error("Upload a readable study document before generating summary notes.");
+  }
 
   const systemInstruction = `You are an academic synthesis expert.
 Your job is to generate a comprehensive, structured study guide and summary notes directly from the uploaded material.
@@ -615,9 +639,9 @@ RETURN STRICT JSON ONLY:
     }
   ],
   "examTakeaways": [
-    "High-probability exam tip 1",
-    "Crucial distinction or pitfall to avoid in the exam",
-    "Key theorem or algorithm frequently asked"
+    "A revision takeaway supported by the document",
+    "A key distinction explicitly present in the source",
+    "A theorem, formula, or method that the source emphasizes"
   ]
 }
 Do not wrap in markdown. Output valid JSON only.`;
@@ -625,10 +649,13 @@ Do not wrap in markdown. Output valid JSON only.`;
   try {
     const raw = await runPromptWithAI(systemInstruction, prompt);
     const parsed = extractJSON(raw);
+    if (typeof parsed.overview !== "string" || parsed.overview.trim().length < 30) {
+      throw new Error("The model returned incomplete summary notes.");
+    }
     return {
-      title: parsed.title || `${subject} Revision Notes`,
-      domain: parsed.domain || subject,
-      overview: parsed.overview || "Overview of uploaded material.",
+      title: typeof parsed.title === "string" && parsed.title.trim() ? parsed.title : `${subject} Summary Notes`,
+      domain: typeof parsed.domain === "string" && parsed.domain.trim() ? parsed.domain : subject,
+      overview: parsed.overview.trim(),
       unitSummaries: Array.isArray(parsed.unitSummaries) ? parsed.unitSummaries : [],
       keyTerminologyAndFormulas: Array.isArray(parsed.keyTerminologyAndFormulas) ? parsed.keyTerminologyAndFormulas : [],
       examTakeaways: Array.isArray(parsed.examTakeaways) ? parsed.examTakeaways : [],
@@ -650,6 +677,9 @@ export async function generatePracticeExercises(params: {
   extractedContent?: string;
 }): Promise<PracticeExercise[]> {
   const { subject, topic, difficulty = "Medium", extractedContent } = params;
+  if (typeof extractedContent !== "string" || extractedContent.trim().length < 30) {
+    throw new Error("Upload a readable study document before generating practice exercises.");
+  }
 
   const systemInstruction = `You are an engineering practical exam and lab coach.
 Generate interactive practice challenges based on the uploaded document.
@@ -684,20 +714,26 @@ Do not wrap in markdown. Output valid JSON only.`;
   try {
     const raw = await runPromptWithAI(systemInstruction, prompt);
     const parsed = extractJSON(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed.map((p: any, idx: number) => ({
-        id: p.id || `prac-${Date.now()}-${idx}`,
-        title: p.title || `Exercise ${idx + 1}`,
-        topic: p.topic || topic || subject,
-        type: p.type || "problem",
-        difficulty: p.difficulty || difficulty,
-        problemStatement: p.problemStatement,
-        hint: p.hint,
-        solution: p.solution,
-        explanation: p.explanation || "Step-by-step solution from the curriculum.",
-      }));
-    }
-    throw new Error("Invalid practice exercises received");
+    const validExercises = Array.isArray(parsed)
+      ? parsed.filter((exercise: any) =>
+          exercise &&
+          typeof exercise.title === "string" && exercise.title.trim() &&
+          typeof exercise.problemStatement === "string" && exercise.problemStatement.trim() &&
+          typeof exercise.solution === "string" && exercise.solution.trim()
+        )
+      : [];
+    if (validExercises.length === 0) throw new Error("The model returned no usable practice exercises.");
+    return validExercises.map((exercise: any, idx: number) => ({
+      id: typeof exercise.id === "string" && exercise.id.trim() ? exercise.id : `prac-${Date.now()}-${idx}`,
+      title: exercise.title.trim(),
+      topic: typeof exercise.topic === "string" && exercise.topic.trim() ? exercise.topic : topic || subject,
+      type: ["code", "problem", "concept", "scenario"].includes(exercise.type) ? exercise.type : "concept",
+      difficulty: ["Easy", "Medium", "Hard"].includes(exercise.difficulty) ? exercise.difficulty : difficulty,
+      problemStatement: exercise.problemStatement.trim(),
+      hint: typeof exercise.hint === "string" ? exercise.hint : "",
+      solution: exercise.solution.trim(),
+      explanation: typeof exercise.explanation === "string" ? exercise.explanation : "",
+    }));
   } catch (e: any) {
     console.error("Practice generation error:", e);
     throw new Error(`Unable to generate practice for "${subject}": ${e.message}`);
@@ -734,7 +770,9 @@ export async function chatWithAITutor(params: {
   }> = [];
 
   try {
-    if (lastUserMsg) {
+    // Only search the shared index when the caller explicitly selects an indexed library source.
+    // Uploaded-material tutoring must not accidentally blend another college's documents into this answer.
+    if (lastUserMsg && studyContext?.sourceType === "drive_material") {
       const ragResults = await searchKnowledgeBase(lastUserMsg, studyContext, { topK: 3 });
       if (ragResults.chunks.length > 0) {
         retrievedChunksContext = ragResults.chunks
@@ -756,21 +794,15 @@ export async function chatWithAITutor(params: {
     console.warn("Knowledge base retrieval failed during tutor chat:", err);
   }
 
-  const systemInstruction = `You are AstraMind AI Tutor, a master university tutor for a student studying "${subject}" (${branch || 'Engineering'}) at ${college || 'University'}.
-The student's learning goal is: "${learningGoal || 'Master the subject'}".
-
-AUTHORITATIVE SOURCE-GROUNDING MANDATE:
-1. You have direct access to authoritative study material from the student's VR25 curriculum and uploaded notes.
-2. Ground your explanations, formulas, definitions, and code primarily on the retrieved source material.
-3. Explicitly cite your sources when explaining concepts (e.g. "According to your ${citations[0]?.documentName || 'study notes'} (Page ${citations[0]?.pageNumber || '1'})...").
-4. If a concept is not mentioned in the source excerpts, provide a helpful pedagogical explanation while clearly stating: "Note: This extension is general engineering knowledge and goes beyond your current notes excerpt."
-5. Format your responses with clean Markdown, clear headings, bullet points, and code/math blocks.
-6. Never assume Mathematics unless the topic is genuinely Mathematics.`;
+  const systemInstruction = `You are AstraMind AI Tutor helping a student with the uploaded source material for "${subject}" (${branch || "branch not specified"}).
+Ground explanations and citations only in the source excerpts supplied in this request. Never invent document names, citations, page numbers, or unsupported quotations.
+If the source does not contain enough information, say so clearly. If adding general knowledge, label it explicitly as outside the uploaded source.
+Use concise Markdown, headings, bullets, and code/math blocks where helpful.`;
 
   const combinedReference = [
-    retrievedChunksContext ? `VERIFIED VR25 STUDY MATERIAL (HIGH PRIORITY):\n${retrievedChunksContext}` : "",
+    retrievedChunksContext ? `INDEXED SOURCE EXCERPTS (HIGH PRIORITY):\n${retrievedChunksContext}` : "",
     extractedContent ? `WORKSPACE UPLOADED NOTES:\n${extractedContent.slice(0, 10000)}` : "",
-  ].filter(Boolean).join("\n\n") || "General university curriculum";
+  ].filter(Boolean).join("\n\n");
 
   const conversationHistory = messages
     .map((m) => `${m.sender === "user" ? "Student" : "AstraMind Tutor"}: ${m.text}`)

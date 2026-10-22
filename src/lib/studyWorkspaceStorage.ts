@@ -88,10 +88,10 @@ export const DEFAULT_INITIAL_WORKSPACE: StudyWorkspace = {
   id: "workspace-empty",
   name: "My Study Workspace",
   college: "",
-  branch: "Computer Science and Engineering (CSE)",
-  year: "1st",
-  semester: "I",
-  subject: "General Study",
+  branch: "",
+  year: "",
+  semester: "",
+  subject: "",
   learningGoal: "Understand concepts",
   materials: [],
   detectedTopics: [],
@@ -185,9 +185,12 @@ export function getActiveWorkspace(): StudyWorkspace {
 export function createWorkspace(data: {
   name: string;
   college?: string;
+  programType?: string;
+  officialWebsiteUrl?: string;
+  syllabusSourceUrl?: string;
   branch: string;
-  year: BTechYear;
-  semester: BTechSemester;
+  year: string;
+  semester: string;
   subject: string;
   learningGoal: LearningGoal;
   documentProfile?: DocumentProfile;
@@ -197,6 +200,8 @@ export function createWorkspace(data: {
     content?: string;
     base64?: string;
     size?: string;
+    url?: string;
+    officialSourceUrl?: string;
     profile?: DocumentProfile;
   };
 }): StudyWorkspace {
@@ -212,7 +217,9 @@ export function createWorkspace(data: {
       type: data.initialMaterial.type || "pdf",
       size: data.initialMaterial.size || "1.2 MB",
       content: data.initialMaterial.content,
-      base64: data.initialMaterial.base64,
+      base64: undefined,
+      url: data.initialMaterial.url,
+      officialSourceUrl: data.initialMaterial.officialSourceUrl,
       uploadedAt: Date.now(),
       profile: docProfile,
     });
@@ -230,7 +237,10 @@ export function createWorkspace(data: {
   const newWorkspace: StudyWorkspace = {
     id,
     name: data.name.trim() || `${finalSubject} Study Workspace`,
-    college: data.college || "Vignan Institute of Technology and Science",
+    college: data.college?.trim() || "Vignan Institute of Technology and Science",
+    programType: data.programType?.trim() || "B.Tech",
+    officialWebsiteUrl: data.officialWebsiteUrl?.trim() || undefined,
+    syllabusSourceUrl: data.syllabusSourceUrl?.trim() || undefined,
     branch: data.branch,
     year: data.year,
     semester: data.semester,

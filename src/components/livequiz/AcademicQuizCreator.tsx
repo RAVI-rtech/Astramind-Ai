@@ -24,7 +24,12 @@ import {
   Bookmark,
   Copy,
   FolderPlus,
-  X
+  X,
+  Search,
+  ExternalLink,
+  Loader2,
+  Download,
+  Globe
 } from "lucide-react";
 import {
   AcademicQuizDraft,
@@ -38,12 +43,14 @@ import {
   VITS_BRANCHES,
   VITS_YEARS,
   VITS_SEMESTERS,
+  VITS_SYLLABUS_URL,
   getVitsSubjects
 } from "../../data/vitsAcademics";
 import { VitsBranch, AcademicYear, AcademicSemester } from "../../types/academicQuiz";
 import { getSupabaseAuthHeaders } from "../../lib/supabase";
 
-const LOCAL_STORAGE_DRAFT_KEY = "vits_academic_live_quiz_draft_v1";
+const LOCAL_STORAGE_DRAFT_KEY = "astramind_academic_live_quiz_draft_v2";
+const LEGACY_VITS_DRAFT_KEY = "vits_academic_live_quiz_draft_v1";
 
 interface AcademicQuizCreatorProps {
   initialDraft?: AcademicQuizDraft | null;
@@ -79,12 +86,23 @@ export default function AcademicQuizCreator({
 }: AcademicQuizCreatorProps) {
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
 
-  // Step 1: Academic Details
-  const [college] = useState(VITS_COLLEGE_NAME);
-  const [regulation] = useState("VR25");
-  const [branch, setBranch] = useState<VitsBranch>(VITS_BRANCHES[0]);
-  const [year, setYear] = useState<AcademicYear>(VITS_YEARS[1]); // Default 2nd Year
-  const [semester, setSemester] = useState<AcademicSemester>(VITS_SEMESTERS[0]);
+  // Step 1: Academic Details. VITS is the default profile, not a restriction.
+  const [college, setCollege] = useState<string>(VITS_COLLEGE_NAME);
+  const [regulation, setRegulation] = useState<string>("VR25");
+  const [programType, setProgramType] = useState<string>("B.Tech");
+  const [branch, setBranch] = useState<string>(VITS_BRANCHES[0]);
+  const [year, setYear] = useState<string>(VITS_YEARS[1]);
+  const [semester, setSemester] = useState<string>(VITS_SEMESTERS[0]);
+  const [officialWebsiteUrl, setOfficialWebsiteUrl] = useState<string>(VITS_SYLLABUS_URL);
+  const [syllabusSourceUrl, setSyllabusSourceUrl] = useState<string>("");
+  const [sourceMaterialText, setSourceMaterialText] = useState<string>("");
+  const [syllabusLinks, setSyllabusLinks] = useState<Array<{
+    title: string; url: string; sourcePageUrl: string; host: string; kind: "pdf" | "page";
+  }>>([]);
+  const [syllabusNote, setSyllabusNote] = useState<string | null>(null);
+  const [syllabusError, setSyllabusError] = useState<string | null>(null);
+  const [isDiscoveringSyllabus, setIsDiscoveringSyllabus] = useState(false);
+  const [isImportingSyllabusUrl, setIsImportingSyllabusUrl] = useState("");
   const [subject, setSubject] = useState<string>("");
   const [customSubject, setCustomSubject] = useState<string>("");
   const [unit, setUnit] = useState<string>("All Units (Comprehensive)");
@@ -111,7 +129,7 @@ export default function AcademicQuizCreator({
       questionType: "single_mcq",
       questionText: "",
       options: ["", "", "", ""],
-      correctAnswers: [0],
+      correctAnswers: [],
       explanation: "",
       marks: 1,
       negativeMarks: 0,
@@ -170,25 +188,53 @@ export default function AcademicQuizCreator({
 
   const handleImportSelectedQuestions = (selectedList: any[]) => {
     if (selectedList.length === 0) return;
-    const newDraftQuestions: AcademicQuestionDraft[] = selectedList.map((q, idx) => ({
-      id: `q_reused_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
-      questionNumber: questions.length + idx + 1,
-      questionType: q.questionType || (q.blanksExpected ? "fill_blank" : q.shortAnswerGrading ? "short_answer" : "single_mcq"),
-      questionText: q.questionText || q.question || "",
-      options: Array.isArray(q.options) && q.options.length > 0 ? [...q.options] : ["Option A", "Option B", "Option C", "Option D"],
-      correctAnswers: Array.isArray(q.correctAnswers) ? [...q.correctAnswers] : (q.correctIndex !== undefined ? [q.correctIndex] : [0]),
-      explanation: q.explanation || "",
-      marks: q.marks || marksPerCorrect,
-      negativeMarks: q.negativeMarks || negativeMarks,
-      isComplete: true,
-      blanksExpected: q.blanksExpected ? [...q.blanksExpected] : undefined,
-      acceptedAlternatives: q.acceptedAlternatives ? [...q.acceptedAlternatives] : undefined,
-      caseSensitive: q.caseSensitive,
-      trimWhitespace: q.trimWhitespace,
-      shortAnswerGrading: q.shortAnswerGrading,
-      keywords: q.keywords ? [...q.keywords] : undefined,
-      sampleAnswer: q.sampleAnswer,
-    }));
+    const newDraftQuestions: AcademicQuestionDraft[] = selectedList.map((q, idx) => {
+      const questionType: AcademicQuestionDraft["questionType"] =
+        q.questionType || (q.blanksExpected ? "fill_blank" : q.shortAnswerGrading ? "short_answer" : "single_mcq");
+      const options = Array.isArray(q.options) ? [...q.options] : [];
+      const correctAnswers = Array.isArray(q.correctAnswers)
+        ? [...q.correctAnswers]
+        : q.correctIndex !== undefined && q.correctIndex !== null
+        ? [q.correctIndex]
+        : [];
+      const questionText = typeof (q.questionText || q.question) === "string" ? String(q.questionText || q.question).trim() : "";
+      const blanksExpected = Array.isArray(q.blanksExpected) ? [...q.blanksExpected] : [];
+      const acceptedAlternatives = Array.isArray(q.acceptedAlternatives) ? [...q.acceptedAlternatives] : [];
+      const keywords = Array.isArray(q.keywords) ? [...q.keywords] : [];
+      const validCorrectAnswers = correctAnswers.filter((answer) =>
+        Number.isInteger(answer) && answer >= 0 && answer < options.length && Boolean(options[answer]?.trim())
+      );
+      const isComplete =
+        Boolean(questionText) &&
+        (questionType === "fill_blank"
+          ? blanksExpected.some((answer) => typeof answer === "string" && answer.trim())
+          : questionType === "short_answer"
+          ? q.shortAnswerGrading === "manual" || keywords.some((keyword) => typeof keyword === "string" && keyword.trim()) || Boolean(q.sampleAnswer?.trim())
+          : questionType === "true_false"
+          ? options.length === 2 && options.every((option) => typeof option === "string" && option.trim()) && validCorrectAnswers.length === 1
+          : options.length === 4 && options.every((option) => typeof option === "string" && option.trim()) &&
+            (questionType === "single_mcq" ? validCorrectAnswers.length === 1 : validCorrectAnswers.length > 0));
+
+      return {
+        id: `q_reused_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
+        questionNumber: questions.length + idx + 1,
+        questionType,
+        questionText,
+        options,
+        correctAnswers: validCorrectAnswers,
+        explanation: typeof q.explanation === "string" ? q.explanation : "",
+        marks: typeof q.marks === "number" && q.marks > 0 ? q.marks : marksPerCorrect,
+        negativeMarks: typeof q.negativeMarks === "number" && q.negativeMarks >= 0 ? q.negativeMarks : negativeMarks,
+        isComplete,
+        blanksExpected,
+        acceptedAlternatives,
+        caseSensitive: q.caseSensitive,
+        trimWhitespace: q.trimWhitespace,
+        shortAnswerGrading: q.shortAnswerGrading,
+        keywords,
+        sampleAnswer: q.sampleAnswer,
+      };
+    });
 
     setQuestions((prev) => {
       // If only one empty initial question exists, replace it
@@ -237,8 +283,119 @@ export default function AcademicQuizCreator({
     }
   };
 
-  // Available subjects for chosen Branch, Year, Semester
-  const availableSubjects = getVitsSubjects(branch, year, semester);
+  // Local VITS curriculum data provides optional suggestions; other schools and programs use custom subjects.
+  const isVitsBTech = college.trim().toLowerCase() === VITS_COLLEGE_NAME.toLowerCase() &&
+    programType === "B.Tech" &&
+    VITS_BRANCHES.includes(branch as VitsBranch) &&
+    VITS_YEARS.includes(year as AcademicYear) &&
+    VITS_SEMESTERS.includes(semester as AcademicSemester);
+  const availableSubjects = isVitsBTech
+    ? getVitsSubjects(branch as VitsBranch, year as AcademicYear, semester as AcademicSemester)
+    : [];
+
+  const clearImportedSyllabus = () => {
+    setSourceMaterialText("");
+    setSyllabusSourceUrl("");
+    setSyllabusLinks([]);
+    setSyllabusNote(null);
+    setSyllabusError(null);
+  };
+
+  const handleDiscoverOfficialSyllabus = async () => {
+    if (!college.trim()) {
+      setSyllabusError("Enter the college or university name first.");
+      return;
+    }
+    setIsDiscoveringSyllabus(true);
+    setSyllabusError(null);
+    setSyllabusNote(null);
+    setSyllabusLinks([]);
+    try {
+      let sourceUrl = officialWebsiteUrl.trim();
+      let sourceNote = "";
+      if (!sourceUrl) {
+        const lookupResponse = await fetch("/api/college-syllabus/find-official-site", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ college: college.trim() }),
+        });
+        const lookup = await lookupResponse.json();
+        if (!lookupResponse.ok || lookup.error) throw new Error(lookup.error || "Could not find the official college website.");
+        sourceUrl = typeof lookup.officialWebsiteUrl === "string" ? lookup.officialWebsiteUrl.trim() : "";
+        if (!sourceUrl) throw new Error("No official website was identified. Paste the college's official URL and try again.");
+        sourceNote = lookup.note || "A candidate official website was found.";
+        setOfficialWebsiteUrl(sourceUrl);
+      }
+      const response = await fetch("/api/college-syllabus/discover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          college: college.trim(),
+          officialWebsiteUrl: sourceUrl,
+          programType,
+          branch,
+          year,
+          semester,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.error) throw new Error(result.error || "Could not inspect the official syllabus page.");
+      const links = Array.isArray(result.links) ? result.links : [];
+      setSyllabusLinks(links);
+      setSyllabusNote([sourceNote, result.note].filter(Boolean).join(" "));
+      if (links.length === 0) setSyllabusError("No syllabus links were found. Paste the official academics/syllabus page URL or open the official site and select a syllabus PDF.");
+    } catch (error: any) {
+      setSyllabusError(error?.message || "Official syllabus discovery failed.");
+    } finally {
+      setIsDiscoveringSyllabus(false);
+    }
+  };
+
+  const handleImportSyllabusPdf = async (link: { title: string; url: string; kind: "pdf" | "page" }) => {
+    if (link.kind !== "pdf") {
+      setSyllabusError("This result is an academic page, not a direct PDF. Open it and choose a syllabus PDF listed there.");
+      return;
+    }
+    const sourceUrl = officialWebsiteUrl.trim();
+    if (!sourceUrl) {
+      setSyllabusError("The official college page is missing. Find the official site first.");
+      return;
+    }
+    setIsImportingSyllabusUrl(link.url);
+    setSyllabusError(null);
+    try {
+      const response = await fetch("/api/college-syllabus/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          college: college.trim(),
+          officialWebsiteUrl: sourceUrl,
+          syllabusUrl: link.url,
+          programType,
+          branch,
+          year,
+          semester,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.error) throw new Error(result.error || "Could not import the official syllabus PDF.");
+      const extractedText = typeof result.extractedText === "string" ? result.extractedText.trim() : "";
+      if (extractedText.length < 30) {
+        throw new Error("This PDF has no usable text. Download a text-readable PDF or scan-free source and try again.");
+      }
+      setSourceMaterialText(extractedText.slice(0, 30000));
+      setSyllabusSourceUrl(result.syllabusUrl || link.url);
+      setSyllabusNote(`Imported ${result.fileName || link.title}. AI questions will use the extracted syllabus text. Confirm or enter your exact course/subject below.`);
+      if (!subject.trim()) {
+        setSubject(result.profile?.detectedDomain || link.title.replace(/\.pdf$/i, "").replace(/[_-]+/g, " ").trim());
+      }
+      setUnit("All Units (Comprehensive)");
+    } catch (error: any) {
+      setSyllabusError(error?.message || "Could not import this syllabus PDF.");
+    } finally {
+      setIsImportingSyllabusUrl("");
+    }
+  };
 
   // Initialize subject when branch/year/sem change
   useEffect(() => {
@@ -265,7 +422,7 @@ export default function AcademicQuizCreator({
     }
 
     try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_DRAFT_KEY);
+      const saved = localStorage.getItem(LOCAL_STORAGE_DRAFT_KEY) || localStorage.getItem(LEGACY_VITS_DRAFT_KEY);
       if (saved) {
         const parsed: AcademicQuizDraft = JSON.parse(saved);
         if (parsed && (parsed.subject || parsed.questions?.length > 0)) {
@@ -279,9 +436,15 @@ export default function AcademicQuizCreator({
   }, [initialDraft]);
 
   const loadDraftIntoState = (d: AcademicQuizDraft) => {
-    if (d.branch && VITS_BRANCHES.includes(d.branch as any)) setBranch(d.branch as VitsBranch);
-    if (d.year && VITS_YEARS.includes(d.year as any)) setYear(d.year as AcademicYear);
-    if (d.semester && VITS_SEMESTERS.includes(d.semester as any)) setSemester(d.semester as AcademicSemester);
+    if (d.college) setCollege(d.college);
+    if (d.regulation !== undefined) setRegulation(d.regulation);
+    if (d.programType) setProgramType(d.programType);
+    if (d.officialWebsiteUrl !== undefined) setOfficialWebsiteUrl(d.officialWebsiteUrl);
+    if (d.syllabusSourceUrl) setSyllabusSourceUrl(d.syllabusSourceUrl);
+    if (d.sourceMaterialText) setSourceMaterialText(d.sourceMaterialText.slice(0, 30000));
+    if (d.branch) setBranch(d.branch);
+    if (d.year) setYear(d.year);
+    if (d.semester) setSemester(d.semester);
     if (d.subject) setSubject(d.subject);
     if (d.unit) setUnit(d.unit);
     if (d.topic) setTopic(d.topic);
@@ -310,6 +473,12 @@ export default function AcademicQuizCreator({
       // ignore storage quota errors
     }
   }, [
+    college,
+    regulation,
+    programType,
+    officialWebsiteUrl,
+    syllabusSourceUrl,
+    sourceMaterialText,
     branch,
     year,
     semester,
@@ -331,15 +500,19 @@ export default function AcademicQuizCreator({
   ]);
 
   const buildDraftObject = (): AcademicQuizDraft => {
-    const effectiveSubject = subject === "OTHER" ? (customSubject.trim() || "Custom Engineering Subject") : subject;
+    const effectiveSubject = subject === "OTHER" ? customSubject.trim() : subject.trim();
     const totalMarks = questions.reduce((sum, q) => sum + (q.marks || marksPerCorrect || 1), 0);
 
     return {
-      college,
-      regulation,
-      branch,
-      year,
-      semester,
+      college: college.trim() || VITS_COLLEGE_NAME,
+      regulation: regulation.trim(),
+      programType,
+      officialWebsiteUrl: officialWebsiteUrl.trim() || undefined,
+      syllabusSourceUrl: syllabusSourceUrl || undefined,
+      sourceMaterialText: sourceMaterialText.trim().slice(0, 30000) || undefined,
+      branch: branch.trim() || "Not specified",
+      year: year.trim() || "Not specified",
+      semester: semester.trim() || "Not specified",
       subject: effectiveSubject,
       unit,
       topic,
@@ -366,6 +539,8 @@ export default function AcademicQuizCreator({
     if (confirm("Are you sure you want to discard this draft and reset all fields?")) {
       localStorage.removeItem(LOCAL_STORAGE_DRAFT_KEY);
       setShowDraftRestored(false);
+      clearImportedSyllabus();
+      setOfficialWebsiteUrl(college.trim().toLowerCase() === VITS_COLLEGE_NAME.toLowerCase() ? VITS_SYLLABUS_URL : "");
       setQuestions([
         {
           id: "q_init_1",
@@ -373,7 +548,7 @@ export default function AcademicQuizCreator({
           questionType: "single_mcq",
           questionText: "",
           options: ["", "", "", ""],
-          correctAnswers: [0],
+          correctAnswers: [],
           explanation: "",
           marks: 1,
           negativeMarks: 0,
@@ -424,9 +599,10 @@ export default function AcademicQuizCreator({
     const errs: string[] = [];
     const effectiveSubject = subject === "OTHER" ? customSubject.trim() : subject.trim();
     if (!effectiveSubject) errs.push("Subject is required. Please select or enter a valid course subject.");
-    if (!branch) errs.push("Branch is required.");
-    if (!year) errs.push("Academic Year is required.");
-    if (!semester) errs.push("Semester is required.");
+    if (!college.trim()) errs.push("College / university is required.");
+    if (!branch.trim()) errs.push("Branch / major / department is required.");
+    if (!year.trim()) errs.push("Academic year / level is required. Choose Not applicable if your program does not use years.");
+    if (!semester.trim()) errs.push("Term / semester is required. Choose Not applicable if your program does not use terms.");
     if (!title.trim()) errs.push("Assessment Title is required.");
     setValidationErrors(errs);
     return errs.length === 0;
@@ -474,20 +650,28 @@ export default function AcademicQuizCreator({
           }
         }
       } else if (q.questionType === "true_false") {
-        const filledOptions = q.options.filter((o) => o.trim().length > 0);
-        if (filledOptions.length < 2) {
-          errs.push(`Question #${idx + 1}: True/False options must both be provided.`);
+        const filledOptions = q.options.filter((option) => option.trim().length > 0);
+        if (q.options.length !== 2 || filledOptions.length !== 2) {
+          errs.push(`Question #${idx + 1}: True/False questions must have exactly two non-empty options.`);
         }
-        if (!q.correctAnswers || q.correctAnswers.length === 0) {
-          errs.push(`Question #${idx + 1}: Please select the correct answer.`);
+        const validCorrectIndexes = (q.correctAnswers || []).filter((index) =>
+          Number.isInteger(index) && index >= 0 && index < q.options.length && Boolean(q.options[index]?.trim())
+        );
+        if (validCorrectIndexes.length !== 1) {
+          errs.push(`Question #${idx + 1}: Please select exactly one valid True/False answer.`);
         }
       } else {
-        const filledOptions = q.options.filter((o) => o.trim().length > 0);
-        if (filledOptions.length < 2) {
-          errs.push(`Question #${idx + 1}: At least 2 non-empty options are required.`);
+        const filledOptions = q.options.filter((option) => option.trim().length > 0);
+        if (q.options.length !== 4 || filledOptions.length !== 4) {
+          errs.push(`Question #${idx + 1}: MCQs must have all four non-empty options.`);
         }
-        if (!q.correctAnswers || q.correctAnswers.length === 0) {
-          errs.push(`Question #${idx + 1}: Please select at least one correct answer.`);
+        const validCorrectIndexes = (q.correctAnswers || []).filter((index) =>
+          Number.isInteger(index) && index >= 0 && index < q.options.length && Boolean(q.options[index]?.trim())
+        );
+        if (validCorrectIndexes.length === 0) {
+          errs.push(`Question #${idx + 1}: Please select a valid correct answer.`);
+        } else if (q.questionType === "single_mcq" && validCorrectIndexes.length !== 1) {
+          errs.push(`Question #${idx + 1}: A single-answer MCQ must have exactly one correct option.`);
         }
       }
     });
@@ -507,10 +691,21 @@ export default function AcademicQuizCreator({
         hasValidAnswer = (target.blanksExpected || []).some((b) => b.trim().length > 0);
       } else if (target.questionType === "short_answer") {
         hasValidAnswer = target.shortAnswerGrading === "manual" || (target.keywords && target.keywords.length > 0) || !!target.sampleAnswer?.trim();
+      } else if (target.questionType === "true_false") {
+        const hasTwoOptions = target.options.length === 2 && target.options.every((option) => option.trim().length > 0);
+        const validAnswers = (target.correctAnswers || []).filter((index) =>
+          Number.isInteger(index) && index >= 0 && index < target.options.length && Boolean(target.options[index]?.trim())
+        );
+        hasValidAnswer = hasTwoOptions && validAnswers.length === 1;
       } else {
-        const hasOptions = target.options.filter((o) => o.trim().length > 0).length >= 2;
-        const hasCorrect = target.correctAnswers && target.correctAnswers.length > 0;
-        hasValidAnswer = hasOptions && !!hasCorrect;
+        const hasFourOptions = target.options.length === 4 && target.options.every((option) => option.trim().length > 0);
+        const validAnswers = (target.correctAnswers || []).filter((index) =>
+          Number.isInteger(index) && index >= 0 && index < target.options.length && Boolean(target.options[index]?.trim())
+        );
+        const validAnswerCount = target.questionType === "single_mcq"
+          ? validAnswers.length === 1
+          : validAnswers.length > 0;
+        hasValidAnswer = hasFourOptions && validAnswerCount;
       }
 
       target.isComplete = hasText && hasValidAnswer;
@@ -526,7 +721,7 @@ export default function AcademicQuizCreator({
       questionType: "single_mcq",
       questionText: "",
       options: ["", "", "", ""],
-      correctAnswers: [0],
+      correctAnswers: [],
       explanation: "",
       marks: marksPerCorrect,
       negativeMarks: negativeMarks,
@@ -560,8 +755,14 @@ export default function AcademicQuizCreator({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          college: college.trim() || VITS_COLLEGE_NAME,
+          regulation: regulation.trim(),
+          programType,
           subject: effectiveSubject,
-          branch,
+          branch: branch.trim() || "Not specified",
+          year,
+          semester,
+          sourceText: sourceMaterialText.slice(0, 28000),
           count: aiCount,
           difficulty,
           topic: unit ? `${unit}: ${topic}` : topic,
@@ -572,23 +773,32 @@ export default function AcademicQuizCreator({
         onOpenAuth?.("Please sign in to use the AI Question Assistant.");
         return;
       }
-      if (data.questions && Array.isArray(data.questions)) {
-        // Append AI questions without overwriting existing manually drafted questions
+      if (!resp.ok || data.error) throw new Error(data.error || "Failed to generate quiz questions.");
+      if (Array.isArray(data.questions) && data.questions.length > 0) {
+        const validQuestions = data.questions.filter((question: any) =>
+          question &&
+          typeof question.questionText === "string" && question.questionText.trim() &&
+          Array.isArray(question.options) && question.options.length === 4 &&
+          question.options.every((option: unknown) => typeof option === "string" && option.trim()) &&
+          Array.isArray(question.correctAnswers) && question.correctAnswers.length > 0 &&
+          question.correctAnswers.every((index: unknown) => Number.isInteger(index) && (index as number) >= 0 && (index as number) < question.options.length) &&
+          typeof question.explanation === "string" && question.explanation.trim()
+        );
+        if (validQuestions.length === 0) throw new Error("The AI response contained no valid questions with confirmed answer keys.");
         const startNumber = questions.length + 1;
-        const newQuestions: AcademicQuestionDraft[] = data.questions.map((q: any, i: number) => ({
+        const newQuestions: AcademicQuestionDraft[] = validQuestions.map((q: any, i: number) => ({
           id: `ai_${Date.now()}_${i}`,
           questionNumber: startNumber + i,
           questionType: "single_mcq",
-          questionText: q.questionText || q.question || "",
-          options: q.options || ["A", "B", "C", "D"],
-          correctAnswers: q.correctAnswers || [q.correctIndex ?? 0],
-          explanation: q.explanation || "",
-          marks: marksPerCorrect,
-          negativeMarks: negativeMarks,
+          questionText: q.questionText.trim(),
+          options: q.options.map((option: string) => option.trim()),
+          correctAnswers: q.correctAnswers,
+          explanation: q.explanation.trim(),
+          marks: typeof q.marks === "number" && q.marks > 0 ? q.marks : marksPerCorrect,
+          negativeMarks: typeof q.negativeMarks === "number" && q.negativeMarks >= 0 ? q.negativeMarks : negativeMarks,
           isComplete: true,
         }));
         setQuestions((prev) => {
-          // If the very first question was untouched empty, replace it
           if (prev.length === 1 && !prev[0].questionText.trim()) {
             return newQuestions.map((q, idx) => ({ ...q, questionNumber: idx + 1 }));
           }
@@ -596,7 +806,7 @@ export default function AcademicQuizCreator({
         });
         setIsAIAssistantOpen(false);
       } else {
-        setAiError(data.error || "Failed to generate questions. Check API keys.");
+        throw new Error(data.error || "The AI service returned no valid questions.");
       }
     } catch (e: any) {
       setAiError(e.message || "Network error generating questions.");
@@ -625,18 +835,18 @@ export default function AcademicQuizCreator({
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                 <Shield className="w-3.5 h-3.5" />
-                VITS {regulation} Academic Regulation
+                {college || "Academic Assessment"}{regulation ? ` · ${regulation}` : ""}
               </span>
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">
                 <GraduationCap className="w-3.5 h-3.5" />
-                B.Tech Assessment Portal
+                {programType || "Academic"} Assessment Portal
               </span>
             </div>
             <h1 className="text-2xl font-bold text-slate-100 tracking-tight">
               Create College-Wide Academic Live Assessment
             </h1>
             <p className="text-sm text-slate-400">
-              {college} • Standardized syllabus mapping with real-time multi-student evaluation
+              {college} • Real-time multi-student assessment for your selected course and academic context
             </p>
           </div>
 
@@ -777,123 +987,233 @@ export default function AcademicQuizCreator({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* College & Regulation (Fixed VR25) */}
+            {/* Institution, program, regulation and department are editable for all schools/colleges. */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                College / Institution
-              </label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">College / University</label>
               <input
                 type="text"
                 value={college}
-                disabled
-                className="w-full text-xs bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 cursor-not-allowed font-medium"
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setCollege(next);
+                  if (next.trim().toLowerCase() === VITS_COLLEGE_NAME.toLowerCase()) {
+                    setRegulation("VR25");
+                    setProgramType("B.Tech");
+                    setBranch(VITS_BRANCHES[0]);
+                    setYear(VITS_YEARS[1]);
+                    setSemester(VITS_SEMESTERS[0]);
+                    setOfficialWebsiteUrl(VITS_SYLLABUS_URL);
+                  } else if (next !== college) {
+                    setRegulation("");
+                    setBranch("");
+                    setYear("");
+                    setSemester("");
+                    setOfficialWebsiteUrl("");
+                  }
+                  clearImportedSyllabus();
+                  setSubject("");
+                  setCustomSubject("");
+                  setUnit("All Units (Comprehensive)");
+                }}
+                className="w-full text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                placeholder="Your college or university name"
+                required
               />
+              <p className="text-[10px] text-slate-500 dark:text-slate-400">Vignan Institute of Technology and Science is selected by default. Change it for another institution.</p>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Academic Regulation
-              </label>
-              <div className="relative">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Degree / Program</label>
+                <select
+                  value={programType}
+                  onChange={(e) => {
+                    const nextProgram = e.target.value;
+                    setProgramType(nextProgram);
+                    clearImportedSyllabus();
+                    setSubject("");
+                    setCustomSubject("");
+                    setBranch("");
+                    if (nextProgram !== "B.Tech") setRegulation("");
+                    else if (college.trim().toLowerCase() === VITS_COLLEGE_NAME.toLowerCase()) {
+                      setRegulation("VR25");
+                      setBranch(VITS_BRANCHES[0]);
+                    }
+                  }}
+                  className="w-full text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                >
+                  {["B.Tech", "B.E.", "B.Sc.", "B.A.", "B.Com.", "BBA", "BCA", "M.Tech", "M.E.", "M.Sc.", "M.A.", "MBA", "MCA", "Diploma", "MBBS / Health Sciences", "Law", "School / High School", "Other / Self-directed"].map((program) => (
+                    <option key={program} value={program}>{program}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Academic Regulation / Curriculum</label>
                 <input
                   type="text"
-                  value={`${regulation} (Vignan Academic Regulation 2025)`}
-                  disabled
-                  className="w-full text-xs bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 cursor-not-allowed font-medium"
+                  value={regulation}
+                  onChange={(e) => setRegulation(e.target.value)}
+                  className="w-full text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  placeholder="e.g. VR25, 2024 curriculum, semester system"
                 />
-                <span className="absolute right-3 top-2.5 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-                  Active
-                </span>
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Branch / Major / Department</label>
+                <input
+                  type="text"
+                  value={branch}
+                  onChange={(e) => { setBranch(e.target.value); setSubject(""); }}
+                  list={isVitsBTech ? "vits-live-quiz-branches" : undefined}
+                  className="w-full text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  placeholder="e.g. CSE, Physics, Commerce, Nursing, Civil Engineering"
+                />
+                {isVitsBTech && (
+                  <datalist id="vits-live-quiz-branches">
+                    {VITS_BRANCHES.map((item) => <option key={item} value={item} />)}
+                  </datalist>
+                )}
               </div>
             </div>
 
-            {/* Department / Branch */}
-            <div className="space-y-1.5 md:col-span-2">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                <span>Engineering Department / Branch</span>
-                <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-normal">
-                  All 11 B.Tech Disciplines Supported
-                </span>
-              </label>
-              <select
-                value={branch}
-                onChange={(e) => setBranch(e.target.value as VitsBranch)}
-                className="w-full text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              >
-                {VITS_BRANCHES.map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
-                ))}
-              </select>
+            {/* Official syllabus discovery for any institution; VITS page is prefilled by default. */}
+            <div className="sm:col-span-2 space-y-3 rounded-2xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/50 dark:bg-indigo-950/20 p-4">
+              <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                <div className="flex-1 space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <Globe className="w-3.5 h-3.5" /> Official College Website / Syllabus Page
+                  </label>
+                  <input
+                    type="url"
+                    value={officialWebsiteUrl}
+                    onChange={(e) => {
+                      setOfficialWebsiteUrl(e.target.value);
+                      clearImportedSyllabus();
+                    }}
+                    placeholder="Leave blank to find the official site automatically"
+                    className="w-full text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">VITS is preselected. For another college, leave this blank and AstraMind searches the web for a likely official homepage.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDiscoverOfficialSyllabus}
+                  disabled={isDiscoveringSyllabus || !college.trim()}
+                  className="shrink-0 inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2.5 text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isDiscoveringSyllabus ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                  {isDiscoveringSyllabus ? "Searching..." : officialWebsiteUrl.trim() ? "Find syllabus" : "Find official site & syllabus"}
+                </button>
+              </div>
+
+              {officialWebsiteUrl.trim() && (
+                <a href={officialWebsiteUrl.trim()} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-indigo-600 dark:text-indigo-300 underline underline-offset-2">
+                  Open official source page <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+              {syllabusNote && (
+                <div role="status" className="rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 p-3 text-[11px] text-slate-600 dark:text-slate-300">
+                  {syllabusNote}
+                  {syllabusSourceUrl && (
+                    <a href={syllabusSourceUrl} target="_blank" rel="noopener noreferrer" className="ml-2 inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-300 underline underline-offset-2">
+                      View imported PDF <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                  {sourceMaterialText && <span className="ml-2 text-emerald-600 dark:text-emerald-300">Syllabus text ready for AI questions</span>}
+                </div>
+              )}
+              {syllabusError && (
+                <div role="alert" className="rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 p-3 text-[11px] text-rose-700 dark:text-rose-300">
+                  {syllabusError}
+                </div>
+              )}
+              {syllabusLinks.length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Links discovered on this official site</div>
+                  <div className="max-h-64 overflow-y-auto space-y-2">
+                    {syllabusLinks.slice(0, 12).map((link) => (
+                      <div key={link.url} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[9px] font-bold rounded px-1.5 py-0.5 border ${link.kind === "pdf" ? "text-rose-600 dark:text-rose-300 border-rose-200 dark:border-rose-900" : "text-blue-600 dark:text-blue-300 border-blue-200 dark:border-blue-900"}`}>{link.kind === "pdf" ? "PDF" : "PAGE"}</span>
+                            <span className="text-xs font-medium text-slate-800 dark:text-slate-100 break-words">{link.title}</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 mt-1 break-all">{link.host}</div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <a href={link.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-slate-300 dark:border-slate-700 px-2.5 py-2 text-[10px] text-slate-600 dark:text-slate-300">
+                            Open <ExternalLink className="w-3 h-3" />
+                          </a>
+                          {link.kind === "pdf" && (
+                            <button type="button" onClick={() => handleImportSyllabusPdf(link)} disabled={Boolean(isImportingSyllabusUrl)} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-2 text-[10px] font-semibold disabled:opacity-50">
+                              {isImportingSyllabusUrl === link.url ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                              {isImportingSyllabusUrl === link.url ? "Importing..." : "Import PDF"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Academic Year */}
+            {/* Academic year or level */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Academic Year
-              </label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Academic Year / Level</label>
               <select
                 value={year}
-                onChange={(e) => setYear(e.target.value as AcademicYear)}
+                onChange={(e) => setYear(e.target.value)}
                 className="w-full text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               >
-                {VITS_YEARS.map((y) => (
-                  <option key={y} value={y}>
-                    {y} (B.Tech)
-                  </option>
+                <option value="">Select academic year / level</option>
+                {Array.from(new Set([...VITS_YEARS, "5th Year", "6th Year", "PG Year 1", "PG Year 2", "Final Year", "Not applicable"])).map((value) => (
+                  <option key={value} value={value}>{value}</option>
                 ))}
               </select>
             </div>
 
-            {/* Semester */}
+            {/* Semester / Term */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Semester
-              </label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Semester / Term</label>
               <select
                 value={semester}
-                onChange={(e) => setSemester(e.target.value as AcademicSemester)}
+                onChange={(e) => setSemester(e.target.value)}
                 className="w-full text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               >
-                {VITS_SEMESTERS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
+                <option value="">Select term / semester</option>
+                {Array.from(new Map([
+                  ...VITS_SEMESTERS.map((value) => [value, value] as const),
+                  ["Term 1", "Term 1"], ["Term 2", "Term 2"], ["Term 3", "Term 3"],
+                  ["Trimester 1", "Trimester 1"], ["Trimester 2", "Trimester 2"], ["Trimester 3", "Trimester 3"],
+                  ["Annual", "Annual / Yearly"], ["Not applicable", "Not applicable"],
+                ] as Array<readonly [string, string]>)).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
                 ))}
               </select>
             </div>
 
-            {/* Course Subject (Dynamic to branch/year/sem) */}
+            {/* Course / subject name — any discipline */}
             <div className="space-y-1.5 md:col-span-2">
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                <span>Course / Subject Name (Curriculum Mapped)</span>
-                <span className="text-[11px] text-slate-500">
-                  {availableSubjects.length} subjects found for {branch.split("(")[0]}
-                </span>
+                <span>Course / Subject Name</span>
+                {availableSubjects.length > 0 && (
+                  <span className="text-[11px] text-slate-500">Optional VITS curriculum suggestions · {availableSubjects.length}</span>
+                )}
               </label>
-              <select
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
+              <input
+                type="text"
+                value={subject === "OTHER" ? customSubject : subject}
+                onChange={(e) => { setSubject(e.target.value); setCustomSubject(""); }}
+                list={availableSubjects.length > 0 ? "vits-live-quiz-subjects" : undefined}
                 className="w-full text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              >
-                {availableSubjects.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-                <option value="OTHER">Enter Custom Course Subject...</option>
-              </select>
-
-              {subject === "OTHER" && (
-                <input
-                  type="text"
-                  placeholder="e.g. Distributed Cloud Computing & Microservices"
-                  value={customSubject}
-                  onChange={(e) => setCustomSubject(e.target.value)}
-                  className="w-full mt-2 text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-indigo-400 dark:border-indigo-600 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                />
+                placeholder="Enter any subject, course, module, or topic"
+              />
+              {availableSubjects.length > 0 && (
+                <datalist id="vits-live-quiz-subjects">
+                  {availableSubjects.map((item) => <option key={item} value={item} />)}
+                </datalist>
               )}
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">Import the official syllabus above to ground AI questions in its text. Without an imported source, questions are general practice and are not verified against the official curriculum.</p>
             </div>
 
             {/* Unit / Syllabus Module */}
@@ -1160,7 +1480,7 @@ export default function AcademicQuizCreator({
                 className="w-full text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               >
                 <option value="Easy">Easy (Recall & Fundamentals)</option>
-                <option value="Medium">Medium (Application & Standard VITS Mid-Exam)</option>
+                <option value="Medium">Medium (Application & standard course assessment)</option>
                 <option value="Hard">Hard (Analytical, Problem-Solving & GATE Level)</option>
                 <option value="Mixed">Mixed Difficulty</option>
               </select>
@@ -1256,7 +1576,7 @@ export default function AcademicQuizCreator({
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                   <span className="text-xs font-bold text-amber-950 dark:text-amber-200">
-                    AI Question Assistant (VR25 Syllabus Grounded)
+                    AI Question Assistant
                   </span>
                 </div>
                 <button
@@ -1267,7 +1587,7 @@ export default function AcademicQuizCreator({
                 </button>
               </div>
               <p className="text-xs text-amber-800 dark:text-amber-300/80">
-                Drafts curriculum-aligned MCQs for <strong className="font-semibold">{subject === "OTHER" ? customSubject : subject}</strong> ({unit}).
+                Drafts questions for <strong className="font-semibold">{subject === "OTHER" ? customSubject : subject}</strong> ({unit}). For official syllabus alignment, import the college’s syllabus PDF below first.
                 New questions will be <em>appended</em> to your list; your existing manual questions will never be overwritten.
               </p>
 
@@ -1292,7 +1612,7 @@ export default function AcademicQuizCreator({
                   className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm disabled:opacity-50 transition-colors"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
-                  {isGeneratingAI ? "Drafting VR25 Questions..." : "Generate & Append Questions"}
+                  {isGeneratingAI ? "Drafting Questions..." : "Generate & Append Questions"}
                 </button>
               </div>
 
@@ -1369,13 +1689,13 @@ export default function AcademicQuizCreator({
                         handleUpdateQuestion(activeQuestionIndex, {
                           questionType: newType,
                           options: ["True", "False"],
-                          correctAnswers: [0],
+                          correctAnswers: [],
                         });
                       } else if (newType === "fill_blank") {
                         handleUpdateQuestion(activeQuestionIndex, {
                           questionType: newType,
                           options: [],
-                          correctAnswers: [0],
+                          correctAnswers: [],
                           blanksExpected: currentQ.blanksExpected?.length ? currentQ.blanksExpected : [""],
                           acceptedAlternatives: currentQ.acceptedAlternatives || [],
                           caseSensitive: currentQ.caseSensitive ?? false,
@@ -1385,7 +1705,7 @@ export default function AcademicQuizCreator({
                         handleUpdateQuestion(activeQuestionIndex, {
                           questionType: newType,
                           options: [],
-                          correctAnswers: [0],
+                          correctAnswers: [],
                           shortAnswerGrading: currentQ.shortAnswerGrading || "manual",
                           keywords: currentQ.keywords || [],
                           sampleAnswer: currentQ.sampleAnswer || "",

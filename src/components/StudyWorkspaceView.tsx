@@ -58,7 +58,8 @@ import {
   LearningActivityRecord,
   KnowledgeDocument,
   KnowledgeChunk,
-  KnowledgeQueryResult
+  KnowledgeQueryResult,
+  PDFStudyDocument
 } from "../types";
 import {
   updateWorkspace,
@@ -76,7 +77,6 @@ import {
   getWorkspaces,
   getActiveWorkspace,
   DEFAULT_INITIAL_WORKSPACE,
-  VR25_CURRICULUM,
   getLearningActivities,
   saveLearningActivity
 } from "../lib/studyWorkspaceStorage";
@@ -148,10 +148,12 @@ export default function StudyWorkspaceView({
     (initialTab as WorkspaceTab) || "overview";
 
   const [activeTab, setActiveTab] = useState<WorkspaceTab>(normalizedInitialTab);
+  const [initialPdfDocument, setInitialPdfDocument] = useState<PDFStudyDocument | null>(null);
+  const [temporaryPdfPreviewUrls, setTemporaryPdfPreviewUrls] = useState<Record<string, string>>({});
   
   // Update activeTab if initialTab prop changes
   useEffect(() => {
-    const normalized: WorkspaceTab = 
+    const normalized: WorkspaceTab =
       initialTab === "learn" ? "lessons" :
       initialTab === "exam" ? "mock-exam" :
       initialTab === "important" ? "important-questions" :
@@ -248,8 +250,12 @@ export default function StudyWorkspaceView({
   const [sourceMode, setSourceMode] = useState<SourceMode>("uploaded_material");
   const [studyContext, setStudyContext] = useState<StudyContext>(() => ({
     regulation: "",
-    year: workspace.year ? `${workspace.year} Year` : "",
-    semester: workspace.semester || "",
+    year: workspace.year ? (/year/i.test(workspace.year) || workspace.year === "Not applicable" ? workspace.year : `${workspace.year} Year`) : "",
+    semester: workspace.semester
+      ? (/(semester|term|trimester|quarter)/i.test(workspace.semester) || ["Annual", "Not applicable"].includes(workspace.semester)
+        ? workspace.semester
+        : `Semester ${workspace.semester}`)
+      : "",
     branch: workspace.branch || "",
     subject: workspace.subject || "",
     unit: "",
@@ -265,6 +271,7 @@ export default function StudyWorkspaceView({
   const [selectedKbSubject, setSelectedKbSubject] = useState<string>("All");
   const [isSyncingKb, setIsSyncingKb] = useState(false);
   const [syncSuccessMessage, setSyncSuccessMessage] = useState<string | null>(null);
+  const [syncErrorMessage, setSyncErrorMessage] = useState<string | null>(null);
   const [learningActivities, setLearningActivities] = useState<LearningActivityRecord[]>(() =>
     getLearningActivities(workspace.id)
   );
@@ -313,27 +320,10 @@ export default function StudyWorkspaceView({
   };
 
   const handleSyncKnowledgeBase = async () => {
-    setIsSyncingKb(true);
+    // Drive syncing is not configured here. Route users to the official syllabus/import flow that is supported.
     setSyncSuccessMessage(null);
-    try {
-      const resp = await fetch("/api/knowledge-base/sync", { method: "POST" });
-      const data = await resp.json();
-      if (data.status) {
-        setKbStatus(data.status);
-        setSyncSuccessMessage(`VR25 Google Drive synced! ${data.status.totalDocuments} documents, ${data.status.totalChunks} chunks indexed.`);
-        // Reload documents list
-        fetch("/api/knowledge-base/documents")
-          .then((r) => r.json())
-          .then((d) => {
-            if (d && Array.isArray(d.documents)) setKbDocuments(d.documents);
-          });
-        setTimeout(() => setSyncSuccessMessage(null), 5000);
-      }
-    } catch (e: any) {
-      setActionError("Failed to sync Drive repository: " + (e?.message || "Network error"));
-    } finally {
-      setIsSyncingKb(false);
-    }
+    setSyncErrorMessage(null);
+    handleOpenCreateModal();
   };
 
   // 9. Materials upload
@@ -406,6 +396,8 @@ export default function StudyWorkspaceView({
 
     setIsAnalyzingUpload(true);
     setActionError(null);
+    // Keep PDF binary in a temporary object URL instead of localStorage (which has small storage quotas).
+    const temporaryPdfPreviewUrl = isPdf ? URL.createObjectURL(file) : undefined;
     const addExtractedMaterial = (content: string, profile?: DocumentProfile) => {
       const newMat = addMaterialToWorkspace(workspace.id, {
         name: file.name,
@@ -414,6 +406,9 @@ export default function StudyWorkspaceView({
         content,
         profile,
       });
+      if (temporaryPdfPreviewUrl) {
+        setTemporaryPdfPreviewUrls((prev) => ({ ...prev, [newMat.id]: temporaryPdfPreviewUrl }));
+      }
       if (onUpdateWorkspace) {
         onUpdateWorkspace({
           ...workspace,
@@ -432,6 +427,7 @@ export default function StudyWorkspaceView({
     const reader = new FileReader();
     reader.onerror = () => {
       setIsAnalyzingUpload(false);
+      if (temporaryPdfPreviewUrl) URL.revokeObjectURL(temporaryPdfPreviewUrl);
       setActionError("The file could not be read. Please try again.");
     };
 
@@ -439,6 +435,7 @@ export default function StudyWorkspaceView({
       reader.onload = async (event) => {
         const textContent = String(event.target?.result || "").trim();
         if (textContent.length < 30) {
+          if (temporaryPdfPreviewUrl) URL.revokeObjectURL(temporaryPdfPreviewUrl);
           setIsAnalyzingUpload(false);
           setActionError("This file does not contain enough readable text to create study material.");
           return;
@@ -484,6 +481,7 @@ export default function StudyWorkspaceView({
         addExtractedMaterial(extractedText, data.profile);
       } catch (error: any) {
         console.error("Material extraction failed:", error);
+        if (temporaryPdfPreviewUrl) URL.revokeObjectURL(temporaryPdfPreviewUrl);
         setActionError(error?.message || "Could not extract text from this PDF. It was not added as a study source.");
       } finally {
         setIsAnalyzingUpload(false);
@@ -883,12 +881,19 @@ export default function StudyWorkspaceView({
           branch: workspace.branch,
           learningGoal: workspace.learningGoal,
           studyContext: {
-            regulation: "VR25",
-            year: workspace.year || "1st Year",
-            semester: workspace.semester || "1st Semester",
-            branch: workspace.branch,
-            subject: workspace.subject,
-            unit: workspace.detectedTopics?.[0] || "All Units",
+            ...studyContext,
+            regulation: workspace.studyContext?.regulation || "",
+            year: workspace.year ? (/year/i.test(workspace.year) || workspace.year === "Not applicable" ? workspace.year : `${workspace.year} Year`) : "",
+            semester: workspace.semester
+              ? (/(semester|term|trimester|quarter)/i.test(workspace.semester) || ["Annual", "Not applicable"].includes(workspace.semester)
+                ? workspace.semester
+                : `Semester ${workspace.semester}`)
+              : "",
+            branch: workspace.branch || "",
+            subject: workspace.subject || "",
+            unit: workspace.studyContext?.unit || "",
+            sourceType: "uploaded_material",
+            sourceDocumentIds: workspace.materials.filter((material) => typeof material.content === "string" && material.content.trim().length >= 30).map((material) => material.id),
           },
         }),
       });
@@ -906,7 +911,7 @@ export default function StudyWorkspaceView({
       } else {
         setTutorMessages((prev) => [
           ...prev,
-          { sender: "ai", text: "I've noted your question. Let's break down this concept from your notes." },
+          { sender: "ai", text: "The AI tutor returned an empty response. Check the AI provider configuration and retry." },
         ]);
       }
     } catch (e) {
@@ -924,7 +929,7 @@ export default function StudyWorkspaceView({
     { id: "overview", label: "Overview", icon: BookOpen },
     { id: "materials", label: "Materials", icon: FileText },
     { id: "pdf-study", label: "PDF Study", icon: FileText },
-    { id: "knowledge-base", label: "VR25 Knowledge Base", icon: HardDrive },
+    { id: "knowledge-base", label: "Source Library", icon: HardDrive },
     { id: "ai-tutor", label: "AI Tutor", icon: GraduationCap },
     { id: "lessons", label: "Smart Lessons", icon: Layers },
     { id: "flashcards", label: "Flashcards", icon: RotateCw },
@@ -951,12 +956,15 @@ export default function StudyWorkspaceView({
                 {workspace.subject}
               </span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-white/50 mt-0.5 font-mono-studio">
-              <span>{workspace.branch}</span>
-              <span>•</span>
-              <span>Year {workspace.year}, Sem {workspace.semester}</span>
-              <span className="hidden md:inline">•</span>
-              <span className="hidden md:inline text-white/40">{workspace.college}</span>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-white/50 mt-0.5 font-mono-studio">
+              {workspace.programType && <span>{workspace.programType}</span>}
+              {workspace.branch && <><span>•</span><span>{workspace.branch}</span></>}
+              {(workspace.year || workspace.semester) && <><span>•</span><span>{[
+                workspace.year ? (/year/i.test(workspace.year) || workspace.year === "Not applicable" ? workspace.year : `${workspace.year} Year`) : "",
+                workspace.semester ? (/(semester|term|trimester|quarter)/i.test(workspace.semester) || ["Annual", "Not applicable"].includes(workspace.semester) ? workspace.semester : `Semester ${workspace.semester}`) : "",
+              ].filter(Boolean).join(" · ")}</span></>}
+              {workspace.college && <><span className="hidden md:inline">•</span><span className="hidden md:inline text-white/40">{workspace.college}</span></>}
+              {workspace.syllabusSourceUrl && <a href={workspace.syllabusSourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-300 hover:text-blue-200 underline underline-offset-2"><ExternalLink className="w-3 h-3" /> Syllabus source</a>}
             </div>
           </div>
         </div>
@@ -1291,13 +1299,13 @@ export default function StudyWorkspaceView({
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-semibold text-white">Workspace Study Materials</h3>
-                <p className="text-xs text-neutral-400">Upload and manage lecture notes, syllabus, PDFs, or PPT presentations</p>
+                <p className="text-xs text-neutral-400">Upload text-readable PDFs, TXT files, Markdown notes, or course materials you want AstraMind to analyze</p>
               </div>
               <div>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf,.ppt,.pptx,.txt,.md,.png,.jpg"
+                  accept=".pdf,.txt,.md"
                   onChange={handleUploadMaterial}
                   className="hidden"
                 />
@@ -1310,34 +1318,7 @@ export default function StudyWorkspaceView({
               </div>
             </div>
 
-            {/* Connected VR25 Master Drive Repository Banner */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-900/30 via-indigo-900/20 to-purple-900/30 border border-blue-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-blue-600/20 border border-blue-500/30 text-blue-400 shrink-0">
-                  <HardDrive className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-white uppercase tracking-wider">VR25 Google Drive Master Repository</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-medium">
-                      Connected & Indexed
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-neutral-300 mt-0.5">
-                    Authoritative syllabus notes (BEE, C Programming, M1, CAEG, English) are pre-indexed and ready for source-grounded answers.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={() => setActiveTab("knowledge-base")}
-                  className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium flex items-center gap-1.5 transition-colors shadow"
-                >
-                  <Database className="w-3.5 h-3.5" /> Browse Master Notes
-                </button>
-              </div>
-            </div>
-
+            {/* Documents are provided by the student or imported from a verified official syllabus source. */}
             {/* Materials List */}
             {workspace.materials.length === 0 ? (
               <div className="p-12 text-center border border-dashed border-neutral-800 rounded-2xl bg-neutral-900/20">
@@ -1413,17 +1394,25 @@ export default function StudyWorkspaceView({
                       </button>
                       <button
                         onClick={() => {
-                          setActivePDFDocument({
+                          const documentToStudy: PDFStudyDocument = {
                             id: material.id,
                             title: material.name.replace(/\.[^/.]+$/, ""),
                             fileName: material.name,
-                            pageCount: material.profile?.pages || 1,
+                            pageCount: Number(material.profile?.pages) || 0,
                             sourceType: "workspace",
                             uploadedAt: material.uploadedAt || Date.now(),
-                            rawContent: material.content,
+                            previewUrl: temporaryPdfPreviewUrls[material.id] ||
+                              (material.type === "pdf" && material.base64
+                                ? (material.base64.startsWith("data:")
+                                    ? material.base64
+                                    : `data:application/pdf;base64,${material.base64}`)
+                                : undefined),
+                            rawContent: material.content || "",
                             subject: workspace.subject,
                             topics: material.profile?.topics || workspace.detectedTopics,
-                          });
+                          };
+                          setInitialPdfDocument(documentToStudy);
+                          setActivePDFDocument(documentToStudy);
                           setActiveTab("pdf-study");
                         }}
                         className="px-2.5 py-1 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
@@ -1435,6 +1424,13 @@ export default function StudyWorkspaceView({
 
                       <button
                         onClick={() => {
+                          const previewUrl = temporaryPdfPreviewUrls[material.id];
+                          if (previewUrl) URL.revokeObjectURL(previewUrl);
+                          setTemporaryPdfPreviewUrls((prev) => {
+                            const next = { ...prev };
+                            delete next[material.id];
+                            return next;
+                          });
                           removeMaterialFromWorkspace(workspace.id, material.id);
                           if (onUpdateWorkspace) {
                             onUpdateWorkspace({
@@ -1461,12 +1457,12 @@ export default function StudyWorkspaceView({
         {/* ========================================================= */}
         {activeTab === "pdf-study" && (
           <div className="h-[calc(100vh-140px)] -m-4 sm:-m-6 flex flex-col">
-            <PDFStudyView workspace={workspace} />
+            <PDFStudyView workspace={workspace} initialDocument={initialPdfDocument} />
           </div>
         )}
 
         {/* ========================================================= */}
-        {/* TAB 2.5: VR25 KNOWLEDGE BASE (GOOGLE DRIVE MASTER) */}
+        {/* SOURCE LIBRARY: documents genuinely indexed by this deployment */}
         {/* ========================================================= */}
         {activeTab === "knowledge-base" && (
           <div className="max-w-4xl mx-auto space-y-6">
@@ -1479,13 +1475,17 @@ export default function StudyWorkspaceView({
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-base sm:text-lg font-bold text-white">VR25 Google Drive Knowledge Base</h3>
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-semibold">
-                        Master Source
+                      <h3 className="text-base sm:text-lg font-bold text-white">Knowledge Base</h3>
+                      <span className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold ${
+                        (kbStatus?.totalDocuments ?? kbDocuments.length) > 0
+                          ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                          : "bg-neutral-800 text-neutral-300 border-neutral-700"
+                      }`}>
+                        {(kbStatus?.totalDocuments ?? kbDocuments.length) > 0 ? "Indexed content" : "Empty index"}
                       </span>
                     </div>
                     <p className="text-xs text-neutral-400 mt-0.5">
-                      B.Tech 1st Year, 1st Semester authoritative notes indexed from Google Drive (<span className="text-neutral-300 font-mono">btech 1st year notes</span>).
+                      Only genuinely ingested documents are shown here. No demo PDFs, invented chunks, or placeholder statistics are added.
                     </p>
                   </div>
                 </div>
@@ -1502,8 +1502,8 @@ export default function StudyWorkspaceView({
                     disabled={isSyncingKb}
                     className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-2 shadow-md shadow-blue-600/25 transition-all disabled:opacity-50"
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncingKb ? "animate-spin" : ""}`} />
-                    {isSyncingKb ? "Syncing Drive..." : "Sync Repository"}
+                    <Search className="w-3.5 h-3.5" />
+                    Find / Import Syllabus
                   </button>
                 </div>
               </div>
@@ -1514,36 +1514,42 @@ export default function StudyWorkspaceView({
                   <span>{syncSuccessMessage}</span>
                 </div>
               )}
+              {syncErrorMessage && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-xs flex items-start gap-2" role="alert">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{syncErrorMessage}</span>
+                </div>
+              )}
             </div>
 
             {/* Metrics Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
               <div className="p-4 rounded-xl bg-neutral-900/50 border border-neutral-800">
-                <div className="text-[11px] text-neutral-400">Indexed Master Documents</div>
+                <div className="text-[11px] text-neutral-400">Indexed Documents</div>
                 <div className="text-xl font-bold text-white mt-1">
-                  {kbStatus?.totalDocuments || (kbDocuments.length > 0 ? kbDocuments.length : 22)}
+                  {kbStatus?.totalDocuments ?? kbDocuments.length}
                 </div>
-                <div className="text-[10px] text-neutral-500 mt-1">Drive notes & PDFs</div>
+                <div className="text-[10px] text-neutral-500 mt-1">Ingested source files</div>
               </div>
 
               <div className="p-4 rounded-xl bg-neutral-900/50 border border-neutral-800">
                 <div className="text-[11px] text-neutral-400">Semantic Indexed Chunks</div>
                 <div className="text-xl font-bold text-emerald-400 mt-1">
-                  {kbStatus?.totalChunks || 142}
+                  {kbStatus?.totalChunks ?? 0}
                 </div>
                 <div className="text-[10px] text-neutral-500 mt-1">600–800 token partitions</div>
               </div>
 
               <div className="p-4 rounded-xl bg-neutral-900/50 border border-neutral-800">
-                <div className="text-[11px] text-neutral-400">Academic Hierarchy</div>
-                <div className="text-base font-bold text-blue-400 mt-1 truncate">VR25 • 1st Year</div>
-                <div className="text-[10px] text-neutral-500 mt-1">Semester 1 Curriculum</div>
+                <div className="text-[11px] text-neutral-400">Indexed Subjects</div>
+                <div className="text-base font-bold text-blue-400 mt-1 truncate">{kbStatus?.subjects?.length ?? 0}</div>
+                <div className="text-[10px] text-neutral-500 mt-1">Count from the real source index</div>
               </div>
 
               <div className="p-4 rounded-xl bg-neutral-900/50 border border-neutral-800">
-                <div className="text-[11px] text-neutral-400">Retrieval Model</div>
-                <div className="text-base font-bold text-purple-400 mt-1">Hybrid RAG</div>
-                <div className="text-[10px] text-neutral-500 mt-1">BM25 + Cosine Vector</div>
+                <div className="text-[11px] text-neutral-400">Retrieval</div>
+                <div className="text-base font-bold text-purple-400 mt-1">Keyword + Similarity</div>
+                <div className="text-[10px] text-neutral-500 mt-1">Only indexed text is searched</div>
               </div>
             </div>
 
@@ -1555,7 +1561,7 @@ export default function StudyWorkspaceView({
                   RAG Query Understanding & Retrieval Playground
                 </h4>
                 <p className="text-xs text-neutral-400 mt-0.5">
-                  Search documents explicitly synced to this knowledge base. For your personal study tools, upload material in the Materials tab.
+                  Search only text indexed from real source documents. To study your own syllabus, import it from Create Workspace or upload it in Materials.
                 </p>
               </div>
 
@@ -1644,29 +1650,11 @@ export default function StudyWorkspaceView({
                             Topic: <span className="text-neutral-200">{item.chunk.topic}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => {
-                                setActivePDFDocument({
-                                  id: item.chunk.documentId || `doc_${Date.now()}`,
-                                  title: item.chunk.documentName.replace(/\.[^/.]+$/, ""),
-                                  fileName: item.chunk.documentName,
-                                  pageCount: item.chunk.pageNumber ? Math.max(item.chunk.pageNumber, 10) : 50,
-                                  sourceType: "google_drive",
-                                  subject: item.chunk.subject,
-                                  unit: item.chunk.unit,
-                                  uploadedAt: Date.now(),
-                                  rawContent: item.chunk.content,
-                                });
-                                setActiveTab("pdf-study");
-                              }}
-                              className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1 font-semibold cursor-pointer"
-                            >
-                              <FileText className="w-3 h-3 text-blue-400" /> Study PDF
-                            </button>
+                            
                             <button
                               onClick={() => {
                                 setActiveTab("ai-tutor");
-                                handleSendTutorMessage(`Based on ${item.chunk.documentName} (Page ${item.chunk.pageNumber}), explain ${item.chunk.topic}`);
+                                handleSendTutorMessage(`Based on ${item.chunk.documentName} (Page ${item.chunk.pageNumber}), explain ${item.chunk.topic}`, item.chunk.content);
                               }}
                               className="px-2.5 py-1 rounded-lg bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 text-[11px] font-medium transition-colors"
                             >
@@ -1687,10 +1675,10 @@ export default function StudyWorkspaceView({
                 <div>
                   <h4 className="text-sm font-semibold text-white flex items-center gap-2">
                     <Database className="w-4 h-4 text-blue-400" />
-                    VR25 Subject Partitions & Master Documents
+                    Indexed Source Documents
                   </h4>
                   <p className="text-xs text-neutral-400">
-                    Syllabus-aligned repository files from Google Drive
+                    Only documents actually indexed on the server appear here.
                   </p>
                 </div>
 
@@ -1698,11 +1686,8 @@ export default function StudyWorkspaceView({
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
                   {[
                     "All",
-                    "Basic Electrical Engineering",
-                    "Programming for Problem Solving",
-                    "Mathematics-I",
-                    "Engineering Drawing",
-                    "Communicative English",
+                    ...Array.from(new Set((kbStatus?.subjects || kbDocuments.map((doc: any) => doc.subject))
+                      .filter((subject): subject is string => typeof subject === "string" && subject.trim().length > 0))),
                   ].map((sub, sIdx) => (
                     <button
                       key={sIdx}
@@ -1713,7 +1698,7 @@ export default function StudyWorkspaceView({
                           : "bg-neutral-900 text-neutral-400 hover:text-white hover:bg-neutral-800"
                       }`}
                     >
-                      {sub === "All" ? "All Subjects" : sub.split(" ")[0]}
+                      {sub === "All" ? "All Subjects" : sub}
                     </button>
                   ))}
                 </div>
@@ -1736,8 +1721,14 @@ export default function StudyWorkspaceView({
                           <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/25">
                             {doc.subjectCode || doc.subject}
                           </span>
-                          <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" /> Indexed
+                          <span className={`text-[10px] font-medium flex items-center gap-1 ${
+                            doc.status === "indexed"
+                              ? "text-emerald-400"
+                              : doc.status === "pending"
+                              ? "text-amber-300"
+                              : "text-rose-300"
+                          }`}>
+                            {doc.status === "indexed" ? "Indexed" : doc.status === "pending" ? "Pending" : "Failed"}
                           </span>
                         </div>
                         <h5 className="text-xs font-bold text-white truncate">{doc.documentName}</h5>
@@ -1745,33 +1736,28 @@ export default function StudyWorkspaceView({
                       </div>
 
                       <div className="pt-2 border-t border-neutral-800/80 flex items-center justify-between text-xs text-neutral-400">
-                        <span>PDF • {doc.pageCount || 1} Pages</span>
+                        <span>{typeof doc.pageCount === "number" && doc.pageCount > 0 ? `PDF • ${doc.pageCount} Pages` : doc.mimeType || "Page count unavailable"}</span>
                         <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => {
-                              setActivePDFDocument({
-                                id: doc.id,
-                                title: doc.documentName.replace(/\.[^/.]+$/, ""),
-                                fileName: doc.documentName,
-                                pageCount: doc.pageCount || 1,
-                                sourceType: "google_drive",
-                                driveFileId: doc.driveFileId,
-                                subject: doc.subject,
-                                unit: doc.unit,
-                                uploadedAt: Date.now(),
-                                rawContent: `Document ${doc.documentName} for ${doc.subject}. Authoritative syllabus content.`,
-                              });
-                              setActiveTab("pdf-study");
-                            }}
-                            className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md shadow-blue-600/25 transition-all"
-                          >
-                            <FileText className="w-3.5 h-3.5" />
-                            <span>OPEN PDF</span>
-                          </button>
+                          
                         </div>
                       </div>
                     </div>
                   ))}
+                {kbDocuments.length === 0 && (
+                  <div className="col-span-full p-8 text-center border border-dashed border-neutral-700 rounded-2xl bg-neutral-950/30 space-y-3">
+                    <Database className="w-8 h-8 text-neutral-500 mx-auto" />
+                    <h5 className="text-sm font-semibold text-white">No indexed documents yet</h5>
+                    <p className="text-xs text-neutral-400 max-w-xl mx-auto">
+                      This deployment does not have live Google Drive ingestion configured. No sample PDFs or invented chunks are added. Upload your PDF or text notes in Materials to use the source-grounded study tools.
+                    </p>
+                    <button
+                      onClick={() => setActiveTab("materials")}
+                      className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold cursor-pointer"
+                    >
+                      Go to Materials
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1830,39 +1816,22 @@ export default function StudyWorkspaceView({
                       <div className="mt-3.5 pt-3 border-t border-neutral-800/80 space-y-2">
                         <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-400">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                          <span>Authoritative VR25 Study Source Citations</span>
+                          <span>Source references</span>
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {msg.citations.map((cite, cIdx) => (
-                            <button
+                            <div
                               key={cIdx}
-                              onClick={() => {
-                                const anyCite = cite as any;
-                                setActivePDFDocument({
-                                  id: anyCite.documentId || `doc_${Date.now()}`,
-                                  title: cite.documentName.replace(/\.[^/.]+$/, ""),
-                                  fileName: cite.documentName,
-                                  pageCount: cite.pageNumber ? Math.max(cite.pageNumber, 10) : 50,
-                                  sourceType: "google_drive",
-                                  subject: cite.subject,
-                                  unit: cite.unit,
-                                  uploadedAt: Date.now(),
-                                  rawContent: `Cited content from ${cite.documentName} (Page ${cite.pageNumber}) on ${anyCite.topic || cite.subject}.`,
-                                });
-                                setActiveTab("pdf-study");
-                              }}
-                              className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-neutral-950/80 border border-emerald-500/25 hover:border-emerald-500/50 hover:bg-neutral-800 text-[11px] text-neutral-200 transition-colors group cursor-pointer"
+                              className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-neutral-950/80 border border-emerald-500/25 text-[11px] text-neutral-200"
                             >
                               <FileText className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                               <span className="font-medium text-white truncate max-w-[180px]">{cite.documentName}</span>
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300 font-mono">
-                                p. {cite.pageNumber}
-                              </span>
-                              <span className="text-[10px] text-neutral-400 hidden sm:inline">
-                                ({cite.unit || cite.subject})
-                              </span>
-                              <span className="text-[10px] text-emerald-400 font-semibold group-hover:underline">Open in PDF Study →</span>
-                            </button>
+                              {typeof cite.pageNumber === "number" && cite.pageNumber > 0 && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300 font-mono">p. {cite.pageNumber}</span>
+                              )}
+                              <span className="text-[10px] text-neutral-400 hidden sm:inline">({cite.unit || cite.subject})</span>
+                              <span className="text-[10px] text-emerald-400 font-semibold">Source reference</span>
+                            </div>
                           ))}
                         </div>
                       </div>

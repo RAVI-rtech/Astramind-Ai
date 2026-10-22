@@ -42,7 +42,7 @@ export interface StudentRecord {
   hall_ticket_number: string;
   avatar_url?: string;
   status: "Active" | "Pending" | "Graduated" | "Suspended";
-  attendance_percentage: number;
+  attendance_percentage: number | null;
   cgpa: string;
   year?: string;
   created_at: string;
@@ -81,13 +81,13 @@ export default function StudentManagementPage({
     full_name: "",
     email: "",
     roll_number: "",
-    branch: "CSE",
-    section: "A",
+    branch: "",
+    section: "",
     hall_ticket_number: "",
     status: "Active" as StudentRecord["status"],
-    attendance_percentage: 85,
-    cgpa: "8.0",
-    year: "3rd Year",
+    attendance_percentage: null,
+    cgpa: "",
+    year: "",
   });
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -100,6 +100,12 @@ export default function StudentManagementPage({
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const formatDate = (value?: string) => {
+    if (!value) return "—";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString();
   };
 
   const fetchStudents = async () => {
@@ -184,11 +190,13 @@ export default function StudentManagementPage({
   const stats = useMemo(() => {
     const total = students.length;
     const active = students.filter((s) => s.status === "Active").length;
-    const avgAttendance =
-      total > 0
-        ? Math.round(students.reduce((acc, s) => acc + (s.attendance_percentage || 0), 0) / total)
-        : 0;
-    const branchCount = new Set(students.map((s) => s.branch)).size;
+    const knownAttendance = students
+      .map((student) => student.attendance_percentage)
+      .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+    const avgAttendance = knownAttendance.length > 0
+      ? Math.round(knownAttendance.reduce((sum, value) => sum + value, 0) / knownAttendance.length)
+      : null;
+    const branchCount = new Set(students.map((s) => s.branch).filter(Boolean)).size;
     return { total, active, avgAttendance, branchCount };
   }, [students]);
 
@@ -198,13 +206,13 @@ export default function StudentManagementPage({
       full_name: "",
       email: "",
       roll_number: "",
-      branch: "CSE",
-      section: "A",
+      branch: "",
+      section: "",
       hall_ticket_number: "",
       status: "Active",
-      attendance_percentage: 85,
-      cgpa: "8.0",
-      year: "3rd Year",
+      attendance_percentage: null,
+      cgpa: "",
+      year: "",
     });
     setFormError(null);
     setIsAddModalOpen(true);
@@ -223,7 +231,7 @@ export default function StudentManagementPage({
       status: student.status,
       attendance_percentage: student.attendance_percentage,
       cgpa: student.cgpa,
-      year: student.year || "3rd Year",
+      year: student.year || "",
     });
     setFormError(null);
     setIsEditModalOpen(true);
@@ -385,10 +393,10 @@ export default function StudentManagementPage({
       `"${s.section}"`,
       `"${s.hall_ticket_number}"`,
       `"${s.status}"`,
-      `"${s.attendance_percentage}%"`,
+      `"${typeof s.attendance_percentage === "number" ? `${s.attendance_percentage}%` : ""}"`,
       `"${s.cgpa}"`,
       `"${s.year || ''}"`,
-      `"${new Date(s.created_at).toLocaleDateString()}"`
+      `"${formatDate(s.created_at)}"`
     ]);
 
     const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
@@ -533,7 +541,7 @@ export default function StudentManagementPage({
               <span className="text-[11px] font-semibold uppercase tracking-wider">Avg Attendance</span>
               <Award className="w-4 h-4 text-amber-400" />
             </div>
-            <p className="text-2xl font-bold text-amber-400 font-mono">{stats.avgAttendance}%</p>
+            <p className="text-2xl font-bold text-amber-400 font-mono">{stats.avgAttendance === null ? "—" : `${stats.avgAttendance}%`}</p>
             <p className="text-[10px] text-white/40">Institution-wide aggregate</p>
           </div>
         </div>
@@ -699,9 +707,9 @@ export default function StudentManagementPage({
                             </div>
                             <div className="min-w-0">
                               <p className="font-semibold text-white group-hover:text-[#a78bfa] transition-colors truncate">
-                                {student.full_name}
+                                {student.full_name || "Name unavailable"}
                               </p>
-                              <p className="text-[11px] text-white/40 truncate">{student.email}</p>
+                              <p className="text-[11px] text-white/40 truncate">{student.email || "Email unavailable"}</p>
                             </div>
                           </div>
                         </td>
@@ -715,9 +723,9 @@ export default function StudentManagementPage({
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-1.5">
                             <span className="px-2 py-0.5 rounded-md bg-white/[0.06] border border-white/[0.08] text-white/80 font-medium">
-                              {student.branch}
+                              {student.branch || "—"}
                             </span>
-                            <span className="text-white/40">Sec {student.section}</span>
+                            <span className="text-white/40">Sec {student.section || "—"}</span>
                           </div>
                         </td>
 
@@ -731,18 +739,18 @@ export default function StudentManagementPage({
                           <div className="space-y-0.5">
                             <div className="flex items-center gap-1.5">
                               <span className={`font-semibold ${
-                                student.attendance_percentage >= 75 ? "text-emerald-400" : "text-rose-400"
+                                typeof student.attendance_percentage !== "number" ? "text-white/60" : student.attendance_percentage >= 75 ? "text-emerald-400" : "text-rose-400"
                               }`}>
-                                {student.attendance_percentage}%
+                                {typeof student.attendance_percentage === "number" ? `${student.attendance_percentage}%` : "—"}
                               </span>
-                              <span className="text-[10px] text-white/30">• CGPA {student.cgpa}</span>
+                              <span className="text-[10px] text-white/30">• CGPA {student.cgpa || "—"}</span>
                             </div>
                             <div className="w-20 h-1 bg-white/[0.06] rounded-full overflow-hidden">
                               <div
                                 className={`h-full rounded-full ${
-                                  student.attendance_percentage >= 75 ? "bg-emerald-400" : "bg-rose-400"
+                                  typeof student.attendance_percentage !== "number" ? "bg-transparent" : student.attendance_percentage >= 75 ? "bg-emerald-400" : "bg-rose-400"
                                 }`}
-                                style={{ width: `${Math.min(100, student.attendance_percentage)}%` }}
+                                style={{ width: `${typeof student.attendance_percentage === "number" ? Math.max(0, Math.min(100, student.attendance_percentage)) : 0}%` }}
                               />
                             </div>
                           </div>
@@ -883,6 +891,7 @@ export default function StudentManagementPage({
                     onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
                     className="w-full h-9 bg-[#1c1c1f] border border-white/[0.08] rounded-xl px-3 text-xs text-white focus:outline-none focus:border-[#a78bfa]"
                   >
+                    <option value="">Select branch</option>
                     {branchesList.filter((b) => b !== "ALL").map((b) => (
                       <option key={b} value={b}>
                         {b}
@@ -898,6 +907,7 @@ export default function StudentManagementPage({
                     onChange={(e) => setFormData({ ...formData, section: e.target.value })}
                     className="w-full h-9 bg-[#1c1c1f] border border-white/[0.08] rounded-xl px-3 text-xs text-white focus:outline-none focus:border-[#a78bfa]"
                   >
+                    <option value="">Select section</option>
                     {sectionsList.filter((s) => s !== "ALL").map((s) => (
                       <option key={s} value={s}>
                         Section {s}
@@ -912,8 +922,8 @@ export default function StudentManagementPage({
                     type="number"
                     min="0"
                     max="100"
-                    value={formData.attendance_percentage}
-                    onChange={(e) => setFormData({ ...formData, attendance_percentage: Number(e.target.value) })}
+                    value={formData.attendance_percentage ?? ""}
+                    onChange={(e) => setFormData({ ...formData, attendance_percentage: e.target.value === "" ? null : Number(e.target.value) })}
                     className="w-full h-9 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 text-xs text-white focus:outline-none focus:border-[#a78bfa]"
                   />
                 </div>
@@ -924,7 +934,7 @@ export default function StudentManagementPage({
                     type="text"
                     value={formData.cgpa}
                     onChange={(e) => setFormData({ ...formData, cgpa: e.target.value })}
-                    placeholder="8.5"
+                    placeholder="Enter if known"
                     className="w-full h-9 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 text-xs text-white focus:outline-none focus:border-[#a78bfa]"
                   />
                 </div>
@@ -1026,6 +1036,7 @@ export default function StudentManagementPage({
                     onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
                     className="w-full h-9 bg-[#1c1c1f] border border-white/[0.08] rounded-xl px-3 text-xs text-white focus:outline-none focus:border-[#a78bfa]"
                   >
+                    <option value="">Select branch</option>
                     {branchesList.filter((b) => b !== "ALL").map((b) => (
                       <option key={b} value={b}>
                         {b}
@@ -1041,6 +1052,7 @@ export default function StudentManagementPage({
                     onChange={(e) => setFormData({ ...formData, section: e.target.value })}
                     className="w-full h-9 bg-[#1c1c1f] border border-white/[0.08] rounded-xl px-3 text-xs text-white focus:outline-none focus:border-[#a78bfa]"
                   >
+                    <option value="">Select section</option>
                     {sectionsList.filter((s) => s !== "ALL").map((s) => (
                       <option key={s} value={s}>
                         Section {s}
@@ -1070,8 +1082,8 @@ export default function StudentManagementPage({
                     type="number"
                     min="0"
                     max="100"
-                    value={formData.attendance_percentage}
-                    onChange={(e) => setFormData({ ...formData, attendance_percentage: Number(e.target.value) })}
+                    value={formData.attendance_percentage ?? ""}
+                    onChange={(e) => setFormData({ ...formData, attendance_percentage: e.target.value === "" ? null : Number(e.target.value) })}
                     className="w-full h-9 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 text-xs text-white focus:outline-none focus:border-[#a78bfa]"
                   />
                 </div>
@@ -1142,29 +1154,29 @@ export default function StudentManagementPage({
                 </div>
                 <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
                   <p className="text-[10px] uppercase font-semibold text-white/40">Branch & Section</p>
-                  <p className="font-semibold text-white mt-0.5">{activeStudent.branch} • Sec {activeStudent.section}</p>
+                  <p className="font-semibold text-white mt-0.5">{activeStudent.branch || "—"} • Sec {activeStudent.section || "—"}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
                   <p className="text-[10px] uppercase font-semibold text-white/40">Current CGPA</p>
-                  <p className="font-bold text-amber-400 mt-0.5">{activeStudent.cgpa} / 10.0</p>
+                  <p className="font-bold text-amber-400 mt-0.5">{activeStudent.cgpa ? `${activeStudent.cgpa} / 10.0` : "—"}</p>
                 </div>
               </div>
 
               <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.04] space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-white/40">Attendance Ratio</span>
-                  <span className="font-bold text-emerald-400">{activeStudent.attendance_percentage}%</span>
+                  <span className="font-bold text-emerald-400">{typeof activeStudent.attendance_percentage === "number" ? `${activeStudent.attendance_percentage}%` : "—"}</span>
                 </div>
                 <div className="w-full h-2 bg-white/[0.06] rounded-full overflow-hidden">
                   <div
                     className="h-full bg-emerald-400 rounded-full"
-                    style={{ width: `${activeStudent.attendance_percentage}%` }}
+                    style={{ width: `${typeof activeStudent.attendance_percentage === "number" ? Math.max(0, Math.min(100, activeStudent.attendance_percentage)) : 0}%` }}
                   />
                 </div>
               </div>
 
               <div className="text-[11px] text-white/40 flex items-center justify-between pt-2">
-                <span>Record Created: {new Date(activeStudent.created_at).toLocaleDateString()}</span>
+                <span>Record Created: {formatDate(activeStudent.created_at)}</span>
                 <span>ID: {activeStudent.id.substring(0, 8)}...</span>
               </div>
             </div>

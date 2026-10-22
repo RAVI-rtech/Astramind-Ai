@@ -75,33 +75,59 @@ export default function CourseViewerModal({
     setIsGeneratingQuiz(true);
     setQuizGenError(null);
     try {
+      const sourceParts = [
+        "Course: " + course.title,
+        course.description,
+        ...course.lessons.map((lesson) => [
+          lesson.title,
+          lesson.description,
+          lesson.content,
+        ].filter(Boolean).join("\n")),
+      ];
+      const extractedContent = sourceParts.filter(Boolean).join("\n\n").trim();
+      if (extractedContent.length < 30) {
+        throw new Error("This course has no readable lesson text to build a grounded quiz.");
+      }
       const resp = await fetch("/api/workspace/generate-mcq", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           subject: course.title,
-          unitName: course.category,
+          topic: course.subcategory || course.category,
           count: 5,
           difficulty: course.level === "Advanced" ? "Hard" : "Medium",
+          extractedContent: extractedContent.slice(0, 16000),
         }),
       });
       const data = await resp.json();
       if (!resp.ok || data.error) {
         throw new Error(data.error || "Failed to generate quiz questions.");
       }
-      if (Array.isArray(data.questions) && data.questions.length > 0) {
-        const formatted = data.questions.map((q: any, idx: number) => ({
-          id: `cq-${Date.now()}-${idx}`,
-          question: q.question,
-          options: q.options || ["Option A", "Option B", "Option C", "Option D"],
-          correctIndex: typeof q.correctIndex === "number" ? q.correctIndex : 0,
-          explanation: q.explanation || "Correct based on core engineering concepts.",
-        }));
-        setQuizList(formatted);
-        setQuizAnswers({});
-        setQuizSubmitted(false);
-        setQuizScore(null);
+      const validQuestions = Array.isArray(data.questions)
+        ? data.questions.filter((question: any) =>
+            question &&
+            typeof question.question === "string" && question.question.trim() &&
+            Array.isArray(question.options) && question.options.length >= 2 &&
+            question.options.every((option: unknown) => typeof option === "string" && option.trim()) &&
+            Number.isInteger(question.correctIndex) &&
+            question.correctIndex >= 0 && question.correctIndex < question.options.length &&
+            typeof question.explanation === "string" && question.explanation.trim()
+          )
+        : [];
+      if (validQuestions.length === 0) {
+        throw new Error("The AI returned no valid quiz questions with answer keys.");
       }
+      const formatted = validQuestions.map((question: any, idx: number) => ({
+        id: "cq-" + Date.now() + "-" + idx,
+        question: question.question.trim(),
+        options: question.options.map((option: string) => option.trim()),
+        correctIndex: question.correctIndex,
+        explanation: question.explanation.trim(),
+      }));
+      setQuizList(formatted);
+      setQuizAnswers({});
+      setQuizSubmitted(false);
+      setQuizScore(null);
     } catch (e: any) {
       setQuizGenError(e?.message || "Failed to generate quiz. Please retry.");
     } finally {

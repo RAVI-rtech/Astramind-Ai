@@ -35,10 +35,10 @@ export default function TechLeadTemplate({ resume, accentHex }: TemplateProps) {
       >
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">
-            {personalInfo.fullName || "Your Full Name"}
+            {personalInfo.fullName || ""}
           </h1>
           <p className="text-sm font-medium tracking-wider uppercase opacity-90 mt-1">
-            {personalInfo.jobTitle || "Tech Lead & Full Stack Engineer"}
+            {personalInfo.jobTitle || ""}
           </p>
         </div>
 

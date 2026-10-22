@@ -18,10 +18,10 @@ export default function ElegantSerifTemplate({ resume, accentHex }: TemplateProp
       {/* Top Header */}
       <div className="text-center pb-4 mb-5 border-b-2" style={{ borderColor: accentHex }}>
         <h1 className="text-3xl font-normal tracking-wide text-slate-900 font-serif">
-          {personalInfo.fullName || "Your Full Name"}
+          {personalInfo.fullName || ""}
         </h1>
         <p className="text-sm italic text-slate-600 mt-1 font-sans tracking-wide">
-          {personalInfo.jobTitle || "Professional Title"}
+          {personalInfo.jobTitle || ""}
         </p>
 
         <div className="flex flex-wrap justify-center items-center gap-x-3 gap-y-1 text-xs text-slate-600 mt-3 font-sans">

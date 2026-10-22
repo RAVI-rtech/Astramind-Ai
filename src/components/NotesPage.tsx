@@ -12,33 +12,6 @@ export interface Note {
   color: string;
 }
 
-const DEFAULT_NOTES: Note[] = [
-  {
-    id: "note-1",
-    title: "AI Operating System Architecture Notes",
-    content: "Key principles for AstraMind OS:\n- Glassmorphic translucent surface cards with 24px corner radii\n- Multi-threaded reasoning with instant streaming feedback\n- Local-first caching with secure encrypted Cloud persistence\n- Voice input & TTS multimodal integration",
-    category: "Architecture",
-    updatedAt: "Today, 2:45 PM",
-    color: "from-purple-500/20 to-indigo-500/10 border-purple-500/30",
-  },
-  {
-    id: "note-2",
-    title: "Technical Interview Questions & Cheat Sheet",
-    content: "1. Explain event loop microtasks vs macrotasks in Node.js\n2. How to implement lazy client initialization for API keys\n3. CSS glassmorphism performance optimization via hardware-accelerated transforms",
-    category: "Interview",
-    updatedAt: "Yesterday, 6:12 PM",
-    color: "from-blue-500/20 to-cyan-500/10 border-blue-500/30",
-  },
-  {
-    id: "note-3",
-    title: "System Design Blueprint - Microservices & Redis",
-    content: "Use redis pub/sub for instant sync across worker nodes. Deploy edge reverse proxy listening exclusively on container port 3000.",
-    category: "System Design",
-    updatedAt: "3 days ago",
-    color: "from-emerald-500/20 to-teal-500/10 border-emerald-500/30",
-  },
-];
-
 interface NotesPageProps {
   accentColorClass?: string;
   onStartChat?: (prompt: string) => void;
@@ -46,8 +19,22 @@ interface NotesPageProps {
 
 export default function NotesPage({ onStartChat }: NotesPageProps) {
   const [notes, setNotes] = useState<Note[]>(() => {
-    const saved = localStorage.getItem("astramind_notes");
-    return saved ? JSON.parse(saved) : DEFAULT_NOTES;
+    try {
+      const saved = localStorage.getItem("astramind_notes");
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      if (!Array.isArray(parsed)) return [];
+      const userNotes = parsed.filter((note: Note) =>
+        note && !["note-1", "note-2", "note-3"].includes(note.id)
+      );
+      if (userNotes.length !== parsed.length) {
+        localStorage.setItem("astramind_notes", JSON.stringify(userNotes));
+      }
+      return userNotes;
+    } catch (error) {
+      console.warn("Could not load saved notes:", error);
+      return [];
+    }
   });
   const [activeNoteId, setActiveNoteId] = useState<string>(notes[0]?.id || "");
   const [searchQuery, setSearchQuery] = useState("");
@@ -58,7 +45,7 @@ export default function NotesPage({ onStartChat }: NotesPageProps) {
     localStorage.setItem("astramind_notes", JSON.stringify(notes));
   }, [notes]);
 
-  const activeNote = notes.find((n) => n.id === activeNoteId) || notes[0];
+  const activeNote = notes.find((n) => n.id === activeNoteId);
 
   const categories = ["All", "Architecture", "Interview", "System Design", "General"];
 
@@ -74,7 +61,7 @@ export default function NotesPage({ onStartChat }: NotesPageProps) {
     const newNote: Note = {
       id: `note-${Date.now()}`,
       title: "Untitled Note",
-      content: "Type your notes here or request AstraMind AI to auto-generate summary...",
+      content: "",
       category: "General",
       updatedAt: "Just now",
       color: "from-purple-500/20 to-indigo-500/10 border-purple-500/30",
