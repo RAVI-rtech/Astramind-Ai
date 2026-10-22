@@ -559,7 +559,17 @@ export default function CreateWorkspaceModal({
                 {isDiscoveringSyllabus ? "Searching…" : officialWebsiteUrl.trim() ? "Find syllabus" : "Find official site & syllabus"}
               </button>
             </div>
-            {isVitsCollege && <a href={VITS_SYLLABUS_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[11px] text-blue-300 hover:text-blue-200 underline underline-offset-2">VITS official syllabus page <ExternalLink className="w-3 h-3" /></a>}
+            {officialWebsiteUrl.trim() && (
+              <a
+                href={officialWebsiteUrl.trim()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-[11px] text-blue-300 hover:text-blue-200 underline underline-offset-2"
+              >
+                {isVitsCollege ? "VITS official syllabus page" : "Open candidate official college site"}
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
             {syllabusDiscoveryNote && <div className="p-3 rounded-xl bg-neutral-950/70 border border-neutral-800 text-xs text-neutral-300" role="status">{syllabusDiscoveryNote}</div>}
             {syllabusDiscoveryError && <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-200" role="alert">{syllabusDiscoveryError}</div>}
             {syllabusSourceUrl && <div className="text-[11px] text-emerald-300 flex items-center gap-2"><Check className="w-3.5 h-3.5" /> Official syllabus source attached. <a href={syllabusSourceUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 inline-flex items-center gap-1">Open source <ExternalLink className="w-3 h-3" /></a></div>}
