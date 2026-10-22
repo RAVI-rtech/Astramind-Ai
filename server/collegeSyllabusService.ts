@@ -333,43 +333,38 @@ export async function findOfficialCollegeWebsite(collegeName: string): Promise<O
   }
 
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  const response: any = await ai.models.generateContent({
+  const interaction: any = await ai.interactions.create({
     model: "gemini-3.8-flash",
-    contents: [{
-      role: "user",
-      parts: [{
-        text: `Find the official website homepage for the higher-education institution named "${college}".
-Search the web and use official institutional pages or other reliable results to distinguish it from similarly named institutions, admission aggregators, ranking sites, and third-party directories.
+    input: `Find the official website homepage for the higher-education institution named "${college}".
+Search the web and use official institutional pages to distinguish it from similarly named institutions, admission aggregators, ranking sites, and third-party directories.
 Return JSON only:
 {
   "officialWebsiteUrl": "the institution's official HTTPS homepage exactly as present in the search results",
   "reason": "short reason this is the institution's official domain"
 }
-Do not invent a domain or URL. If you cannot confidently identify it, return {"officialWebsiteUrl":"","reason":"Official site could not be identified confidently."}.`
-      }]
-    }],
-    config: {
-      tools: [{ googleSearch: {} }],
-      temperature: 0.1,
-    },
+Do not invent a domain or URL. If you cannot confidently identify it, return {"officialWebsiteUrl":"","reason":"Official site could not be identified confidently."}.`,
+    tools: [{ type: "google_search" }],
   });
 
-  const candidate = response.candidates?.[0];
-  const groundingChunks = Array.isArray(candidate?.groundingMetadata?.groundingChunks)
-    ? candidate.groundingMetadata.groundingChunks
-    : [];
-  const evidenceUrls = groundingChunks
-    .map((chunk: any) => chunk?.web?.uri)
-    .filter((url: unknown): url is string => typeof url === "string" && /^https:\/\//i.test(url))
-    .map((url: string) => {
-      try { return new URL(url).origin + new URL(url).pathname; } catch { return ""; }
-    })
-    .filter(Boolean);
-  const uniqueEvidence = Array.from(new Set<string>(evidenceUrls)).slice(0, 10);
+  const outputBlocks: string[] = [];
+  const evidenceLinks: string[] = [];
+  for (const step of Array.isArray(interaction.steps) ? interaction.steps : []) {
+    if (step?.type !== "model_output" || !Array.isArray(step.content)) continue;
+    for (const contentBlock of step.content) {
+      if (contentBlock?.type !== "text") continue;
+      if (typeof contentBlock.text === "string") outputBlocks.push(contentBlock.text);
+      for (const annotation of Array.isArray(contentBlock.annotations) ? contentBlock.annotations : []) {
+        if (annotation?.type === "url_citation" && typeof annotation.url === "string" && /^https:\/\//i.test(annotation.url)) {
+          evidenceLinks.push(annotation.url);
+        }
+      }
+    }
+  }
+  const uniqueEvidence = Array.from(new Set(evidenceLinks)).slice(0, 10);
 
   let parsed: any = null;
-  const rawText = String(candidate?.content?.parts?.map((part: any) => part?.text || "").join("\n") || response.text || "").trim();
-  const jsonCandidate = rawText.replace(/^\`\`\`(?:json)?\s*/i, "").replace(/\s*\`\`\`$/, "");
+  const rawText = String(interaction.output_text || outputBlocks.join("\n")).trim();
+  const jsonCandidate = rawText.replace(/^`{3}(?:json)?\s*/i, "").replace(/\s*`{3}$/, "");
   try { parsed = JSON.parse(jsonCandidate); } catch {
     const match = jsonCandidate.match(/\{[\s\S]*\}/);
     if (match) {
