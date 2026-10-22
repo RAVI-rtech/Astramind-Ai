@@ -76,7 +76,7 @@ export function getActivePDFDocument(): PDFStudyDocument | null {
     if (!raw) return null;
     const doc = JSON.parse(raw) as PDFStudyDocument;
     // Clear the hard-coded BEE demo document shipped in older builds.
-    if (!doc || doc.sourceType !== "uploaded" || doc.id === "doc_bee_drive" || doc.fileName === "BEE COMPLETE NOTES.pdf") {
+    if (!doc || (doc.sourceType !== "uploaded" && doc.sourceType !== "workspace") || doc.id === "doc_bee_drive" || doc.fileName === "BEE COMPLETE NOTES.pdf") {
       localStorage.removeItem(STORAGE_KEYS.ACTIVE_DOC);
       return null;
     }
