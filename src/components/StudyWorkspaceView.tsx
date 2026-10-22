@@ -881,12 +881,11 @@ export default function StudyWorkspaceView({
           branch: workspace.branch,
           learningGoal: workspace.learningGoal,
           studyContext: {
-            regulation: "VR25",
-            year: workspace.year || "1st Year",
-            semester: workspace.semester || "1st Semester",
-            branch: workspace.branch,
-            subject: workspace.subject,
-            unit: workspace.detectedTopics?.[0] || "All Units",
+            ...studyContext,
+            branch: workspace.branch || "",
+            subject: workspace.subject || "",
+            sourceType: "uploaded_material",
+            sourceDocumentIds: workspace.materials.map((material) => material.id),
           },
         }),
       });
@@ -904,7 +903,7 @@ export default function StudyWorkspaceView({
       } else {
         setTutorMessages((prev) => [
           ...prev,
-          { sender: "ai", text: "I've noted your question. Let's break down this concept from your notes." },
+          { sender: "ai", text: "The AI tutor returned an empty response. Check the AI provider configuration and retry." },
         ]);
       }
     } catch (e) {
