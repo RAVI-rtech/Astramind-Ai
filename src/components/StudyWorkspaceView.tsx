@@ -237,37 +237,25 @@ export default function StudyWorkspaceView({
   }>>([
     {
       sender: "ai",
-      text: `Hello! I am your AstraMind AI Tutor grounded in the **VR25 B.Tech Master Knowledge Base** for **${workspace.subject}** (${workspace.branch}).\n\nI have loaded your curriculum material from the master Google Drive repository. Every explanation will be directly cited from your syllabus documents and lecture notes. What concept would you like to master today?`,
+      text: "Upload a readable PDF, TXT, Markdown, or notes file in Materials first. I will ground explanations in extracted text and will not invent document content or citations.",
     },
   ]);
   const [tutorInput, setTutorInput] = useState("");
   const [isTutorThinking, setIsTutorThinking] = useState(false);
   const tutorMessagesEndRef = useRef<HTMLDivElement>(null);
 
-  // VR25 Knowledge Base & Study Context State
-  const [sourceMode, setSourceMode] = useState<SourceMode>("vr25_knowledge_base");
-  const [studyContext, setStudyContext] = useState<StudyContext>(() => {
-    const sub = workspace.subject.toLowerCase();
-    const mappedSubject = sub.includes("electrical") || sub.includes("bee")
-      ? "Basic Electrical Engineering"
-      : sub.includes("math") || sub.includes("m1") || sub.includes("calculus")
-      ? "Mathematics-I"
-      : sub.includes("drawing") || sub.includes("graphics") || sub.includes("caeg")
-      ? "Engineering Drawing"
-      : sub.includes("english")
-      ? "Communicative English"
-      : "Programming for Problem Solving";
-
-    return {
-      regulation: "VR25",
-      year: "1st Year",
-      semester: "1st Semester",
-      branch: workspace.branch || "CSE",
-      subject: mappedSubject,
-      unit: "All Units",
-      sourceType: "drive_material",
-    };
-  });
+  // Start with source material uploaded by the student, not an assumed master syllabus.
+  const [sourceMode, setSourceMode] = useState<SourceMode>("uploaded_material");
+  const [studyContext, setStudyContext] = useState<StudyContext>(() => ({
+    regulation: "",
+    year: workspace.year ? `${workspace.year} Year` : "",
+    semester: workspace.semester || "",
+    branch: workspace.branch || "",
+    subject: workspace.subject || "",
+    unit: "",
+    sourceType: "uploaded_material",
+    sourceDocumentIds: workspace.materials.map((material) => material.id),
+  }));
 
   const [kbStatus, setKbStatus] = useState<KnowledgeBaseStatus | null>(null);
   const [kbDocuments, setKbDocuments] = useState<KnowledgeDocument[]>([]);
@@ -387,11 +375,16 @@ export default function StudyWorkspaceView({
   }, [tutorMessages]);
 
   // Helper to get all extracted text from uploaded materials as the single source of truth
-  const getExtractedSourceContent = () => {
-    const list = workspace.materials
-      .map((m) => `--- SOURCE DOCUMENT: ${m.name} (${m.type}) ---\n${m.content || ""}`)
-      .filter(Boolean);
-    return list.join("\n\n");
+  const getExtractedSourceContent = () => workspace.materials
+    .filter((material) => typeof material.content === "string" && material.content.trim().length >= 30)
+    .map((material) => `--- USER-SUPPLIED SOURCE DOCUMENT: ${material.name} (${material.type}) ---\n${material.content!.trim()}`)
+    .join("\n\n");
+
+  const requireWorkspaceSource = (toolName: string): boolean => {
+    if (getExtractedSourceContent().trim().length >= 30) return true;
+    setActionError(`Upload a readable PDF, TXT, Markdown, or notes file in Materials before using ${toolName}. Files without extracted text are not used as AI source material.`);
+    setActiveTab("materials");
+    return false;
   };
 
   // Handlers
@@ -518,6 +511,7 @@ export default function StudyWorkspaceView({
   };
 
   const handleGenerateLesson = async (customTopic?: string) => {
+    if (!requireWorkspaceSource("Guided Lessons")) return;
     const topicToUse = customTopic || workspace.detectedTopics[0] || workspace.subject;
     setIsGeneratingLesson(true);
     setActionError(null);
@@ -572,6 +566,7 @@ export default function StudyWorkspaceView({
   };
 
   const handleGenerateFlashcards = async () => {
+    if (!requireWorkspaceSource("Flashcards")) return;
     setIsGeneratingFlashcards(true);
     setActionError(null);
     try {
@@ -637,6 +632,7 @@ export default function StudyWorkspaceView({
   };
 
   const handleStartQuiz = async () => {
+    if (!requireWorkspaceSource("Quiz")) return;
     setIsGeneratingQuiz(true);
     setActionError(null);
     try {
@@ -716,6 +712,7 @@ export default function StudyWorkspaceView({
   };
 
   const handleStartMockExam = async (durationMinutes: number = 30) => {
+    if (!requireWorkspaceSource("Mock Exam")) return;
     setIsGeneratingExam(true);
     setActionError(null);
     try {
@@ -724,7 +721,7 @@ export default function StudyWorkspaceView({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           subject: workspace.subject,
-          topic: "Full Syllabus Comprehensive Exam",
+          topic: "Assessment based on uploaded material",
           count: 10,
           difficulty: "Hard",
           extractedContent: getExtractedSourceContent().slice(0, 16000),
@@ -742,7 +739,7 @@ export default function StudyWorkspaceView({
           id: "me-" + Date.now().toString(36),
           workspaceId: workspace.id,
           subject: workspace.subject,
-          unitsOrTopics: "Units 1 - 5 Comprehensive",
+          unitsOrTopics: "Uploaded material",
           difficulty: "Hard",
           durationMinutes,
           questions: data.questions,
@@ -795,6 +792,7 @@ export default function StudyWorkspaceView({
   };
 
   const handleGenerateImportantQuestions = async () => {
+    if (!requireWorkspaceSource("Important Questions")) return;
     setIsGeneratingIQ(true);
     setActionError(null);
     try {
@@ -824,6 +822,7 @@ export default function StudyWorkspaceView({
   };
 
   const handleGenerateSummaryNotes = async () => {
+    if (!requireWorkspaceSource("Summary Notes")) return;
     setIsGeneratingSummary(true);
     setActionError(null);
     try {
@@ -847,6 +846,7 @@ export default function StudyWorkspaceView({
   };
 
   const handleGeneratePractice = async () => {
+    if (!requireWorkspaceSource("Practice")) return;
     setIsGeneratingPractice(true);
     setActionError(null);
     try {
@@ -875,7 +875,7 @@ export default function StudyWorkspaceView({
 
   const handleSendTutorMessage = async (queryText?: string) => {
     const textToSend = queryText || tutorInput.trim();
-    if (!textToSend || isTutorThinking) return;
+    if (!textToSend || isTutorThinking || !requireWorkspaceSource("AI Tutor")) return;
 
     setTutorMessages((prev) => [...prev, { sender: "user", text: textToSend }]);
     if (!queryText) setTutorInput("");
@@ -1571,28 +1571,8 @@ export default function StudyWorkspaceView({
                   RAG Query Understanding & Retrieval Playground
                 </h4>
                 <p className="text-xs text-neutral-400 mt-0.5">
-                  Test how student questions are classified by subject, mapped to academic units, and grounded in master PDF chunks.
+                  Search documents explicitly synced to this knowledge base. For your personal study tools, upload material in the Materials tab.
                 </p>
-              </div>
-
-              {/* Sample Queries */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
-                <span className="text-neutral-500 text-[11px] shrink-0">Try queries:</span>
-                {[
-                  "Explain Kirchhoff's current law",
-                  "Dynamic memory allocation in C using malloc and calloc",
-                  "Find the eigenvalues of a 3x3 matrix",
-                  "What are orthographic projections?",
-                  "Rural BPO and Human Resources in Kizhanur",
-                ].map((sample, sIdx) => (
-                  <button
-                    key={sIdx}
-                    onClick={() => handleSearchKb(sample)}
-                    className="px-2.5 py-1 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white text-[11px] whitespace-nowrap border border-neutral-700/60 transition-colors shrink-0"
-                  >
-                    {sample}
-                  </button>
-                ))}
               </div>
 
               {/* Search Form */}
