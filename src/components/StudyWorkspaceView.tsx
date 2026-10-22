@@ -77,7 +77,6 @@ import {
   getWorkspaces,
   getActiveWorkspace,
   DEFAULT_INITIAL_WORKSPACE,
-  VR25_CURRICULUM,
   getLearningActivities,
   saveLearningActivity
 } from "../lib/studyWorkspaceStorage";
