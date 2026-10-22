@@ -863,72 +863,61 @@ export default function AcademicQuizCreator({
               </div>
             </div>
 
-            {/* Academic Year */}
+            {/* Academic year or level */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Academic Year
-              </label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Academic Year / Level</label>
               <select
                 value={year}
-                onChange={(e) => setYear(e.target.value as AcademicYear)}
+                onChange={(e) => setYear(e.target.value)}
                 className="w-full text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               >
-                {VITS_YEARS.map((y) => (
-                  <option key={y} value={y}>
-                    {y} (B.Tech)
-                  </option>
+                {Array.from(new Set([...VITS_YEARS, "5th Year", "6th Year", "PG Year 1", "PG Year 2", "Final Year", "Not applicable"])).map((value) => (
+                  <option key={value} value={value}>{value}</option>
                 ))}
               </select>
             </div>
 
-            {/* Semester */}
+            {/* Semester / Term */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Semester
-              </label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Semester / Term</label>
               <select
                 value={semester}
-                onChange={(e) => setSemester(e.target.value as AcademicSemester)}
+                onChange={(e) => setSemester(e.target.value)}
                 className="w-full text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               >
-                {VITS_SEMESTERS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
+                {Array.from(new Map([
+                  ...VITS_SEMESTERS.map((value) => [value, value] as const),
+                  ["Term 1", "Term 1"], ["Term 2", "Term 2"], ["Term 3", "Term 3"],
+                  ["Trimester 1", "Trimester 1"], ["Trimester 2", "Trimester 2"], ["Trimester 3", "Trimester 3"],
+                  ["Annual", "Annual / Yearly"], ["Not applicable", "Not applicable"],
+                ] as Array<readonly [string, string]>)).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
                 ))}
               </select>
             </div>
 
-            {/* Course Subject (Dynamic to branch/year/sem) */}
+            {/* Course / subject name — any discipline */}
             <div className="space-y-1.5 md:col-span-2">
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                <span>Course / Subject Name (Curriculum Mapped)</span>
-                <span className="text-[11px] text-slate-500">
-                  {availableSubjects.length} subjects found for {branch.split("(")[0]}
-                </span>
+                <span>Course / Subject Name</span>
+                {availableSubjects.length > 0 && (
+                  <span className="text-[11px] text-slate-500">Optional VITS curriculum suggestions · {availableSubjects.length}</span>
+                )}
               </label>
-              <select
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
+              <input
+                type="text"
+                value={subject === "OTHER" ? customSubject : subject}
+                onChange={(e) => { setSubject(e.target.value); setCustomSubject(""); }}
+                list={availableSubjects.length > 0 ? "vits-live-quiz-subjects" : undefined}
                 className="w-full text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              >
-                {availableSubjects.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-                <option value="OTHER">Enter Custom Course Subject...</option>
-              </select>
-
-              {subject === "OTHER" && (
-                <input
-                  type="text"
-                  placeholder="e.g. Distributed Cloud Computing & Microservices"
-                  value={customSubject}
-                  onChange={(e) => setCustomSubject(e.target.value)}
-                  className="w-full mt-2 text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-indigo-400 dark:border-indigo-600 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                />
+                placeholder="Enter any subject, course, module, or topic"
+              />
+              {availableSubjects.length > 0 && (
+                <datalist id="vits-live-quiz-subjects">
+                  {availableSubjects.map((item) => <option key={item} value={item} />)}
+                </datalist>
               )}
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">For accurate syllabus-based quizzes, use the same subject name as your selected curriculum or your uploaded notes.</p>
             </div>
 
             {/* Unit / Syllabus Module */}
