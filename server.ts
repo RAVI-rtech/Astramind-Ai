@@ -3417,7 +3417,7 @@ app.post("/api/live-quiz/remove-student", async (req, res) => {
 
 app.post("/api/live-quiz/generate-questions", async (req, res) => {
   try {
-    const { college, regulation, programType, subject, branch, year, semester, count, difficulty, topic, unit } = req.body || {};
+    const { college, regulation, programType, subject, branch, year, semester, count, difficulty, topic, unit, sourceText } = req.body || {};
     if (typeof subject !== "string" || subject.trim().length < 2) {
       res.status(400).json({ error: "Enter a subject before generating quiz questions." });
       return;
@@ -3431,6 +3431,7 @@ app.post("/api/live-quiz/generate-questions", async (req, res) => {
       year: typeof year === "string" ? year.trim() : undefined,
       semester: typeof semester === "string" ? semester.trim() : undefined,
       unit: typeof unit === "string" ? unit.trim() : undefined,
+      sourceText: typeof sourceText === "string" ? sourceText.slice(0, 28000) : undefined,
       count: Number(count) || 5,
       difficulty: difficulty || "Medium",
       topic,
