@@ -42,7 +42,7 @@ export interface StudentRecord {
   hall_ticket_number: string;
   avatar_url?: string;
   status: "Active" | "Pending" | "Graduated" | "Suspended";
-  attendance_percentage: number;
+  attendance_percentage: number | null;
   cgpa: string;
   year?: string;
   created_at: string;
@@ -85,9 +85,9 @@ export default function StudentManagementPage({
     section: "A",
     hall_ticket_number: "",
     status: "Active" as StudentRecord["status"],
-    attendance_percentage: 85,
-    cgpa: "8.0",
-    year: "3rd Year",
+    attendance_percentage: null,
+    cgpa: "",
+    year: "",
   });
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -184,11 +184,13 @@ export default function StudentManagementPage({
   const stats = useMemo(() => {
     const total = students.length;
     const active = students.filter((s) => s.status === "Active").length;
-    const avgAttendance =
-      total > 0
-        ? Math.round(students.reduce((acc, s) => acc + (s.attendance_percentage || 0), 0) / total)
-        : 0;
-    const branchCount = new Set(students.map((s) => s.branch)).size;
+    const knownAttendance = students
+      .map((student) => student.attendance_percentage)
+      .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+    const avgAttendance = knownAttendance.length > 0
+      ? Math.round(knownAttendance.reduce((sum, value) => sum + value, 0) / knownAttendance.length)
+      : null;
+    const branchCount = new Set(students.map((s) => s.branch).filter(Boolean)).size;
     return { total, active, avgAttendance, branchCount };
   }, [students]);
 
@@ -202,9 +204,9 @@ export default function StudentManagementPage({
       section: "A",
       hall_ticket_number: "",
       status: "Active",
-      attendance_percentage: 85,
-      cgpa: "8.0",
-      year: "3rd Year",
+      attendance_percentage: null,
+      cgpa: "",
+      year: "",
     });
     setFormError(null);
     setIsAddModalOpen(true);
@@ -223,7 +225,7 @@ export default function StudentManagementPage({
       status: student.status,
       attendance_percentage: student.attendance_percentage,
       cgpa: student.cgpa,
-      year: student.year || "3rd Year",
+      year: student.year || "",
     });
     setFormError(null);
     setIsEditModalOpen(true);
@@ -533,7 +535,7 @@ export default function StudentManagementPage({
               <span className="text-[11px] font-semibold uppercase tracking-wider">Avg Attendance</span>
               <Award className="w-4 h-4 text-amber-400" />
             </div>
-            <p className="text-2xl font-bold text-amber-400 font-mono">{stats.avgAttendance}%</p>
+            <p className="text-2xl font-bold text-amber-400 font-mono">{stats.avgAttendance === null ? "—" : `${stats.avgAttendance}%`}</p>
             <p className="text-[10px] text-white/40">Institution-wide aggregate</p>
           </div>
         </div>
@@ -884,7 +886,8 @@ export default function StudentManagementPage({
                     className="w-full h-9 bg-[#1c1c1f] border border-white/[0.08] rounded-xl px-3 text-xs text-white focus:outline-none focus:border-[#a78bfa]"
                   >
                     {branchesList.filter((b) => b !== "ALL").map((b) => (
-                      <option key={b} value={b}>
+                      <option value="">Select branch</option>
+                    <option key={b} value={b}>
                         {b}
                       </option>
                     ))}
@@ -899,7 +902,8 @@ export default function StudentManagementPage({
                     className="w-full h-9 bg-[#1c1c1f] border border-white/[0.08] rounded-xl px-3 text-xs text-white focus:outline-none focus:border-[#a78bfa]"
                   >
                     {sectionsList.filter((s) => s !== "ALL").map((s) => (
-                      <option key={s} value={s}>
+                      <option value="">Select section</option>
+                    <option key={s} value={s}>
                         Section {s}
                       </option>
                     ))}
@@ -912,8 +916,8 @@ export default function StudentManagementPage({
                     type="number"
                     min="0"
                     max="100"
-                    value={formData.attendance_percentage}
-                    onChange={(e) => setFormData({ ...formData, attendance_percentage: Number(e.target.value) })}
+                    value={formData.attendance_percentage ?? ""}
+                    onChange={(e) => setFormData({ ...formData, attendance_percentage: e.target.value === "" ? null : Number(e.target.value) })}
                     className="w-full h-9 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 text-xs text-white focus:outline-none focus:border-[#a78bfa]"
                   />
                 </div>
@@ -924,7 +928,7 @@ export default function StudentManagementPage({
                     type="text"
                     value={formData.cgpa}
                     onChange={(e) => setFormData({ ...formData, cgpa: e.target.value })}
-                    placeholder="8.5"
+                    placeholder="Enter if known"
                     className="w-full h-9 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 text-xs text-white focus:outline-none focus:border-[#a78bfa]"
                   />
                 </div>
@@ -1027,7 +1031,8 @@ export default function StudentManagementPage({
                     className="w-full h-9 bg-[#1c1c1f] border border-white/[0.08] rounded-xl px-3 text-xs text-white focus:outline-none focus:border-[#a78bfa]"
                   >
                     {branchesList.filter((b) => b !== "ALL").map((b) => (
-                      <option key={b} value={b}>
+                      <option value="">Select branch</option>
+                    <option key={b} value={b}>
                         {b}
                       </option>
                     ))}
@@ -1042,7 +1047,8 @@ export default function StudentManagementPage({
                     className="w-full h-9 bg-[#1c1c1f] border border-white/[0.08] rounded-xl px-3 text-xs text-white focus:outline-none focus:border-[#a78bfa]"
                   >
                     {sectionsList.filter((s) => s !== "ALL").map((s) => (
-                      <option key={s} value={s}>
+                      <option value="">Select section</option>
+                    <option key={s} value={s}>
                         Section {s}
                       </option>
                     ))}
@@ -1070,8 +1076,8 @@ export default function StudentManagementPage({
                     type="number"
                     min="0"
                     max="100"
-                    value={formData.attendance_percentage}
-                    onChange={(e) => setFormData({ ...formData, attendance_percentage: Number(e.target.value) })}
+                    value={formData.attendance_percentage ?? ""}
+                    onChange={(e) => setFormData({ ...formData, attendance_percentage: e.target.value === "" ? null : Number(e.target.value) })}
                     className="w-full h-9 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 text-xs text-white focus:outline-none focus:border-[#a78bfa]"
                   />
                 </div>
@@ -1146,19 +1152,19 @@ export default function StudentManagementPage({
                 </div>
                 <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
                   <p className="text-[10px] uppercase font-semibold text-white/40">Current CGPA</p>
-                  <p className="font-bold text-amber-400 mt-0.5">{activeStudent.cgpa} / 10.0</p>
+                  <p className="font-bold text-amber-400 mt-0.5">{activeStudent.cgpa ? `${activeStudent.cgpa} / 10.0` : "—"}</p>
                 </div>
               </div>
 
               <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.04] space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-white/40">Attendance Ratio</span>
-                  <span className="font-bold text-emerald-400">{activeStudent.attendance_percentage}%</span>
+                  <span className="font-bold text-emerald-400">{typeof activeStudent.attendance_percentage === "number" ? `${activeStudent.attendance_percentage}%` : "—"}</span>
                 </div>
                 <div className="w-full h-2 bg-white/[0.06] rounded-full overflow-hidden">
                   <div
                     className="h-full bg-emerald-400 rounded-full"
-                    style={{ width: `${activeStudent.attendance_percentage}%` }}
+                    style={{ width: `${typeof activeStudent.attendance_percentage === "number" ? Math.max(0, Math.min(100, activeStudent.attendance_percentage)) : 0}%` }}
                   />
                 </div>
               </div>
