@@ -188,36 +188,15 @@ CITATIONS_JSON: [{"pageNumber": 12, "chapter": "Unit 2", "topic": "Concept", "ex
       }
     }
 
-    if (!citations || citations.length === 0) {
-      const pageMatch = text.match(/(?:page|p\.)\s*(\d+)/i);
-      citations = [
-        {
-          pageNumber: pageMatch ? parseInt(pageMatch[1], 10) : 1,
-          chapter: chapterOrScope || "Core Content",
-          topic: pdfTitle,
-          excerpt: `Authoritative reference from ${pdfTitle}`,
-        },
-      ];
-    }
+    // Citations are emitted only when the model provided verifiable source references.
+    if (!Array.isArray(citations)) citations = [];
 
     return { text, citations };
   } catch (err: any) {
-    // Extractive fallback from PDF text
-    return {
-      text: `### Verified Reference from ${pdfTitle}\n\nBased on the curriculum notes in **${pdfTitle}**:\n\n${pdfContent.slice(0, 800)}\n\n*Review full lecture notes for derivations and worked examples.*`,
-      citations: [
-        {
-          pageNumber: 1,
-          chapter: chapterOrScope || "Syllabus Core",
-          topic: pdfTitle,
-          excerpt: pdfContent.slice(0, 150),
-        },
-      ],
-    };
+    throw new Error("PDF chat could not be generated from the uploaded PDF. Please retry or check your AI provider configuration.");
   }
 }
 
-// ==========================================
 // 2. PDF SUMMARIZATION (5 VARIANTS)
 // ==========================================
 
@@ -279,31 +258,10 @@ Return a JSON object:
       createdAt: Date.now(),
     };
   } catch (err) {
-    // Extractive fallback
-    const lines = pdfContent.split("\n").filter((l) => l.trim().length > 15);
-    return {
-      id: `sum_${Date.now()}`,
-      documentId: pdfTitle,
-      documentTitle: pdfTitle,
-      summaryType,
-      chapterOrScope,
-      overviewText: `Structured summary synthesized from ${pdfTitle}. Covers core curriculum units and examination requirements.`,
-      keyConcepts: lines.slice(0, 5),
-      importantDefinitions: [
-        { term: "Core Principle", definition: lines[0] || "Foundational theorem from syllabus", page: 1 },
-      ],
-      formulas: [
-        { formula: "Standard Equation", description: "Governing relation from notes", page: 1 },
-      ],
-      examples: [],
-      importantPoints: lines.slice(1, 4),
-      examFocusedPoints: ["Review standard university numericals and step-by-step derivations."],
-      createdAt: Date.now(),
-    };
+    throw new Error("Summary generation failed. No substitute or placeholder summary was created.");
   }
 }
 
-// ==========================================
 // 3. AI NOTES (STUDENT-FRIENDLY & STRUCTURED)
 // ==========================================
 
@@ -373,19 +331,10 @@ Return a JSON object:
       examTips: Array.isArray(data.examTips) ? data.examTips : [],
     };
   } catch (err) {
-    return {
-      title: `${pdfTitle} - Quick Notes`,
-      topic: topic || "Core Principles",
-      markdownContent: `## Revision Notes: ${pdfTitle}\n\n### Key Concepts\n\n${pdfContent.slice(0, 1000)}\n\n### Exam Takeaways\n- Focus on definition, formula, and step-by-step derivation.`,
-      definitions: [{ term: "Key Concept", meaning: "Fundamental syllabus definition" }],
-      formulas: [{ name: "Governing Formula", formula: "Derived from notes" }],
-      examples: [],
-      examTips: ["Practice previous end-semester exam questions."],
-    };
+    throw new Error("Notes generation failed. No substitute or placeholder notes were created.");
   }
 }
 
-// ==========================================
 // 4. FLASHCARD INTELLIGENCE (5, 10, 20, 30, 50 CARDS)
 // ==========================================
 
@@ -445,38 +394,10 @@ Categories can be: "Definition", "Formula", "Law/Principle", "Comparison", "Core
       }));
     }
   } catch (err) {
-    console.warn("AI flashcard generation error, falling back to extractive synthesis:", err);
+    throw new Error("Flashcard generation failed. No sample flashcards were created.");
   }
-
-  // Heuristic extractive fallback
-  const lines = pdfContent.split("\n").filter((l) => l.trim().length > 20);
-  const fallbackCards: PDFFlashcardItem[] = [];
-
-  for (let i = 0; i < Math.min(count, Math.max(lines.length, 5)); i++) {
-    const line = lines[i] || `Core principle from ${pdfTitle}`;
-    const colonIdx = line.indexOf(":");
-    let front = `What is the key principle of ${pdfTitle}?`;
-    let back = line;
-
-    if (colonIdx > 5 && colonIdx < 50) {
-      front = `What is ${line.slice(0, colonIdx).trim()}?`;
-      back = line.slice(colonIdx + 1).trim();
-    }
-
-    fallbackCards.push({
-      id: `fc_ext_${Date.now()}_${i}`,
-      front,
-      back,
-      topic: pdfTitle.replace(/\.[^/.]+$/, ""),
-      pageNumber: i + 1,
-      category: i % 2 === 0 ? "Definition" : "Core Concept",
-    });
-  }
-
-  return fallbackCards;
 }
 
-// ==========================================
 // 5. QUESTION GENERATOR
 // ==========================================
 
@@ -549,43 +470,10 @@ Return a JSON array of question objects:
       }));
     }
   } catch (err) {
-    console.warn("AI question generation error, falling back to extractive synthesis:", err);
+    throw new Error("Question generation failed. No sample questions were created.");
   }
-
-  // Heuristic extractive questions
-  return [
-    {
-      id: `q_fallback_1`,
-      type: "mcq",
-      question: `Which fundamental principle is demonstrated in ${pdfTitle}?`,
-      options: [
-        "A) Conservation of energy and charge in networks",
-        "B) Random thermal expansion",
-        "C) Fluid viscosity dynamics",
-        "D) Quantum entanglement"
-      ],
-      correctAnswer: "A) Conservation of energy and charge in networks",
-      explanation: `Core principle derived directly from ${pdfTitle}.`,
-      pageReference: 1,
-      marks: 2,
-      difficulty,
-      topic: "Core Concept",
-    },
-    {
-      id: `q_fallback_2`,
-      type: "short",
-      question: `State the primary theorem discussed in ${pdfTitle} and write its governing equation.`,
-      correctAnswer: "The theorem states that linear systems obey superposition and conservation principles.",
-      explanation: "Students must write the formal definition and equation.",
-      pageReference: 5,
-      marks: 5,
-      difficulty,
-      topic: "Fundamental Theorem",
-    },
-  ];
 }
 
-// ==========================================
 // 6. TOPIC EXPLAINER
 // ==========================================
 
@@ -646,24 +534,10 @@ Return JSON:
       pageReference: typeof data.pageReference === "number" ? data.pageReference : 1,
     };
   } catch (err) {
-    return {
-      topic,
-      documentTitle: pdfTitle,
-      analogy: `Imagine ${topic} like a water distribution network where what goes in must equal what comes out.`,
-      coreDefinition: `The foundational theorem of ${topic} establishes linear relationships between system variables.`,
-      stepByStepBreakdown: [
-        "Identify system nodes and boundary values.",
-        "Formulate characteristic equations.",
-        "Solve matrix or algebraic relations."
-      ],
-      keyFormulas: ["Governing Relation: Ax = b"],
-      examTakeaways: ["High-probability end-semester question. State assumptions clearly."],
-      pageReference: 1,
-    };
+    throw new Error("Topic explanation failed. No unrelated explanation was substituted.");
   }
 }
 
-// ==========================================
 // 7. FIND IMPORTANT TOPICS
 // ==========================================
 
@@ -717,30 +591,7 @@ Return a JSON array of objects:
       }));
     }
   } catch (err) {
-    console.warn("AI important topics error, falling back to extractive syllabus list:", err);
+    throw new Error("Important-topic analysis failed. No invented exam frequency or marks were returned.");
   }
-
-  // Extractive topics list
-  return [
-    {
-      rank: 1,
-      topic: `${pdfTitle.replace(/\.[^/.]+$/, "")} - Core Laws & Theorems`,
-      importance: "Critical",
-      examFrequency: "Tested in ~90% of semester exams as compulsory 10-mark question",
-      keyConcepts: ["Fundamental statements", "Governing equations", "Standard numericals"],
-      expectedMarks: "10-14 Marks",
-      pageReference: 1,
-      whyImportant: "Foundational theory tested directly in Part-A and Part-B.",
-    },
-    {
-      rank: 2,
-      topic: "Step-by-Step Derivations and Equivalents",
-      importance: "High",
-      examFrequency: "Appears regularly in internal tests and final exams",
-      keyConcepts: ["System parameters", "Circuit / Matrix transformations"],
-      expectedMarks: "8-10 Marks",
-      pageReference: 15,
-      whyImportant: "Evaluates procedural understanding and mathematical accuracy.",
-    },
-  ];
 }
+
