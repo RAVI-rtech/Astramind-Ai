@@ -2574,18 +2574,20 @@ app.get("/api/admin/students", async (req, res) => {
             if (!exists) {
               students.unshift({
                 id: p.id,
-                full_name: p.full_name || "Student",
-                email: p.email || `${p.roll_number?.toLowerCase() || 'student'}@vits.ac.in`,
+                full_name: p.full_name || "",
+                email: p.email || "",
                 roll_number: p.roll_number || "",
-                branch: p.branch || "CSE",
-                section: p.section || "A",
+                branch: p.branch || "",
+                section: p.section || "",
                 hall_ticket_number: p.hall_ticket_number || "",
                 avatar_url: p.avatar_url || "",
-                status: "Active",
-                attendance_percentage: 85,
-                cgpa: "8.0",
-                year: "3rd Year",
-                created_at: p.created_at || new Date().toISOString(),
+                status: p.status || "Active",
+                attendance_percentage: typeof p.attendance_percentage === "number" && Number.isFinite(p.attendance_percentage)
+                  ? p.attendance_percentage
+                  : null,
+                cgpa: p.cgpa === undefined || p.cgpa === null ? "" : String(p.cgpa),
+                year: p.year || "",
+                created_at: p.created_at || "",
               });
             }
           }
@@ -2673,18 +2675,24 @@ app.post("/api/admin/students", async (req, res) => {
       return;
     }
 
+    const attendanceValue =
+      attendance_percentage === "" || attendance_percentage === null || attendance_percentage === undefined
+        ? null
+        : Number(attendance_percentage);
     const newStudent = {
       id: "std-" + Date.now().toString(36) + "-" + Math.random().toString(36).substring(2, 7),
       full_name: full_name.trim(),
       email: email.trim().toLowerCase(),
       roll_number: cleanRoll,
-      branch: branch || "CSE",
-      section: section || "A",
+      branch: typeof branch === "string" ? branch.trim() : "",
+      section: typeof section === "string" ? section.trim() : "",
       hall_ticket_number: (hall_ticket_number || "").trim().toUpperCase(),
       status: status || "Active",
-      attendance_percentage: Number(attendance_percentage) || 85,
-      cgpa: cgpa || "8.0",
-      year: year || "3rd Year",
+      attendance_percentage: typeof attendanceValue === "number" && Number.isFinite(attendanceValue) && attendanceValue >= 0 && attendanceValue <= 100
+        ? attendanceValue
+        : null,
+      cgpa: typeof cgpa === "string" ? cgpa.trim() : "",
+      year: typeof year === "string" ? year.trim() : "",
       created_at: new Date().toISOString(),
     };
 
