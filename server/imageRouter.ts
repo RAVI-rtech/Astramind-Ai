@@ -226,8 +226,8 @@ export class ImageRouter {
  */
 export class GoogleImagenProvider implements ImageProvider {
   public id = "google-imagen-v3";
-  public name = "Google Imagen 3 Studio";
-  public priority = 2;
+  public name = "Google Imagen 3 Studio (legacy)";
+  public priority = 99;
 
   constructor(private getGenAI: () => GoogleGenAI | null) {}
 
@@ -286,8 +286,8 @@ export class GoogleImagenProvider implements ImageProvider {
  */
 export class GoogleGeminiFlashProvider implements ImageProvider {
   public id = "google-gemini-flash";
-  public name = "Gemini Flash Neural Engine";
-  public priority = 3;
+  public name = "Gemini Image Generation";
+  public priority = 2;
 
   constructor(private getGenAI: () => GoogleGenAI | null) {}
 
@@ -303,7 +303,7 @@ export class GoogleGeminiFlashProvider implements ImageProvider {
       ? `${params.prompt}, ${params.style} style`
       : params.prompt;
 
-    const modelsToTry = ["gemini-3.1-flash-image", "gemini-3.1-flash-lite-image", "gemini-2.5-flash"];
+    const modelsToTry = ["gemini-nano-banana-2.1", "gemini-3.1-flash-image", "gemini-3.1-flash-lite-image"];
 
     for (const modelName of modelsToTry) {
       try {
@@ -345,7 +345,7 @@ export class GoogleGeminiFlashProvider implements ImageProvider {
       }
     }
 
-    const editModelsToTry = ["gemini-3.1-flash-image", "gemini-3.1-flash-lite-image", "gemini-2.5-flash"];
+    const editModelsToTry = ["gemini-nano-banana-2.1", "gemini-3.1-flash-image", "gemini-3.1-flash-lite-image"];
 
     for (const modelName of editModelsToTry) {
       try {
@@ -382,7 +382,7 @@ export class GoogleGeminiFlashProvider implements ImageProvider {
 export class PollinationsAIProvider implements ImageProvider {
   public id = "pollinations-ai";
   public name = "Pollinations Open Studio";
-  public priority = 2;
+  public priority = 3;
 
   public async isAvailable(): Promise<boolean> {
     return true; // Public endpoint requiring no keys
@@ -453,11 +453,11 @@ export class PollinationsAIProvider implements ImageProvider {
 export function createDefaultImageRouter(getGenAI: () => GoogleGenAI | null): ImageRouter {
   const router = new ImageRouter();
 
-  // Register providers in priority order
+  // Prefer Hugging Face first, then current Gemini image models when a Gemini key is configured.
+  // Imagen's Gemini API models were shut down in August 2026; do not route live traffic to them.
   router.registerProvider(new HuggingFaceImageProvider());
-  router.registerProvider(new PollinationsAIProvider());
-  router.registerProvider(new GoogleImagenProvider(getGenAI));
   router.registerProvider(new GoogleGeminiFlashProvider(getGenAI));
+  router.registerProvider(new PollinationsAIProvider());
 
   return router;
 }
