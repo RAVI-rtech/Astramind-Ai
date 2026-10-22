@@ -191,8 +191,8 @@ export interface ResumeData {
 // ASTRAMIND STUDY WORKSPACE TYPES
 // ==========================================
 
-export type BTechYear = "1st" | "2nd" | "3rd" | "4th";
-export type BTechSemester = "I" | "II";
+export type BTechYear = "1st" | "2nd" | "3rd" | "4th" | "";
+export type BTechSemester = "I" | "II" | "";
 
 export type LearningGoal =
   | "Understand concepts"
