@@ -322,6 +322,9 @@ export default function AcademicQuizCreator({
       // ignore storage quota errors
     }
   }, [
+    college,
+    regulation,
+    programType,
     branch,
     year,
     semester,
