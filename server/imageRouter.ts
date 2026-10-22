@@ -100,6 +100,7 @@ export class ImageRouter {
 
     let attemptCount = 0;
     let lastError: Error | null = null;
+    const failureMessages: string[] = [];
 
     for (const provider of providersToTry) {
       attemptCount++;
@@ -113,7 +114,9 @@ export class ImageRouter {
       try {
         const isAvail = await provider.isAvailable().catch(() => false);
         if (!isAvail) {
-          console.warn(`[ImageRouter Log] Provider "${provider.name}" reported as unavailable. Skipping.`);
+          const message = `${provider.name}: not configured or unavailable`;
+          failureMessages.push(message);
+          console.warn(`[ImageRouter Log] ${message}. Skipping.`);
           continue;
         }
 
@@ -129,17 +132,21 @@ export class ImageRouter {
           };
         }
       } catch (err: any) {
-        console.warn(`[ImageRouter Internal Log] Provider "${provider.name}" failed:`, err?.message || err);
-        lastError = err;
-        // Continue to fallback providers so the user request succeeds with authentic AI imagery
+        const rawMessage = String(err?.message || err || "Unknown provider error");
+        const safeMessage = rawMessage.replace(/hf_[a-zA-Z0-9_-]+/g, "[REDACTED_TOKEN]").slice(0, 260);
+        console.warn(`[ImageRouter Internal Log] Provider "${provider.name}" failed:`, safeMessage);
+        failureMessages.push(`${provider.name}: ${safeMessage}`);
+        lastError = err instanceof Error ? err : new Error(safeMessage);
+        // Continue to fallback providers so generation can succeed with another configured provider.
       }
     }
 
     // If all providers failed or were unavailable
     console.error("[ImageRouter Error] All registered providers failed or were unavailable.");
-    if (lastError) {
-      throw lastError;
+    if (failureMessages.length > 0) {
+      throw new Error(`All image providers failed. ${failureMessages.join(" | ").slice(0, 1200)}`);
     }
+    if (lastError) throw lastError;
     throw new Error("Image generation is currently unavailable. Please try again later.");
   }
 
@@ -448,8 +455,9 @@ export class PollinationsAIProvider implements ImageProvider {
       };
     } catch (err: any) {
       clearTimeout(timeoutId);
-      console.warn("[PollinationsAIProvider] Fetch failed:", err?.message || err);
-      throw new Error("Pollinations fallback failed.");
+      const message = String(err?.message || "Pollinations fallback failed.");
+      console.warn("[PollinationsAIProvider] Fetch failed:", message);
+      throw new Error(message);
     }
   }
 
