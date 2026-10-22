@@ -1781,9 +1781,10 @@ Difficulty: ${difficulty}`;
         : null;
       if (!correctAnswer) {
         const normalized = (value: string) => value.replace(/^[ABCD][).:\s-]+/i, "").trim().toLowerCase();
-        correctAnswer = labels.find((label) =>
+        const matchingLabel = labels.find((label) =>
           normalized(options[label]) === normalized(answerText) && answerText.length > 0
-        ) as "A" | "B" | "C" | "D" | undefined || null;
+        );
+        if (matchingLabel) correctAnswer = matchingLabel as "A" | "B" | "C" | "D";
       }
 
       if (!correctAnswer ||
