@@ -343,15 +343,16 @@ export default function AcademicQuizCreator({
   ]);
 
   const buildDraftObject = (): AcademicQuizDraft => {
-    const effectiveSubject = subject === "OTHER" ? (customSubject.trim() || "Custom Engineering Subject") : subject;
+    const effectiveSubject = subject === "OTHER" ? customSubject.trim() : subject.trim();
     const totalMarks = questions.reduce((sum, q) => sum + (q.marks || marksPerCorrect || 1), 0);
 
     return {
-      college,
-      regulation,
-      branch,
-      year,
-      semester,
+      college: college.trim() || VITS_COLLEGE_NAME,
+      regulation: regulation.trim(),
+      programType,
+      branch: branch.trim() || "Not specified",
+      year: year.trim() || "Not specified",
+      semester: semester.trim() || "Not specified",
       subject: effectiveSubject,
       unit,
       topic,
