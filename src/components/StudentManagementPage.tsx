@@ -891,9 +891,9 @@ export default function StudentManagementPage({
                     onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
                     className="w-full h-9 bg-[#1c1c1f] border border-white/[0.08] rounded-xl px-3 text-xs text-white focus:outline-none focus:border-[#a78bfa]"
                   >
+                    <option value="">Select branch</option>
                     {branchesList.filter((b) => b !== "ALL").map((b) => (
-                      <option value="">Select branch</option>
-                    <option key={b} value={b}>
+                      <option key={b} value={b}>
                         {b}
                       </option>
                     ))}
@@ -907,9 +907,9 @@ export default function StudentManagementPage({
                     onChange={(e) => setFormData({ ...formData, section: e.target.value })}
                     className="w-full h-9 bg-[#1c1c1f] border border-white/[0.08] rounded-xl px-3 text-xs text-white focus:outline-none focus:border-[#a78bfa]"
                   >
+                    <option value="">Select section</option>
                     {sectionsList.filter((s) => s !== "ALL").map((s) => (
-                      <option value="">Select section</option>
-                    <option key={s} value={s}>
+                      <option key={s} value={s}>
                         Section {s}
                       </option>
                     ))}
@@ -1036,9 +1036,9 @@ export default function StudentManagementPage({
                     onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
                     className="w-full h-9 bg-[#1c1c1f] border border-white/[0.08] rounded-xl px-3 text-xs text-white focus:outline-none focus:border-[#a78bfa]"
                   >
+                    <option value="">Select branch</option>
                     {branchesList.filter((b) => b !== "ALL").map((b) => (
-                      <option value="">Select branch</option>
-                    <option key={b} value={b}>
+                      <option key={b} value={b}>
                         {b}
                       </option>
                     ))}
@@ -1052,9 +1052,9 @@ export default function StudentManagementPage({
                     onChange={(e) => setFormData({ ...formData, section: e.target.value })}
                     className="w-full h-9 bg-[#1c1c1f] border border-white/[0.08] rounded-xl px-3 text-xs text-white focus:outline-none focus:border-[#a78bfa]"
                   >
+                    <option value="">Select section</option>
                     {sectionsList.filter((s) => s !== "ALL").map((s) => (
-                      <option value="">Select section</option>
-                    <option key={s} value={s}>
+                      <option key={s} value={s}>
                         Section {s}
                       </option>
                     ))}
