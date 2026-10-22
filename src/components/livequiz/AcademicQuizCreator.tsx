@@ -590,23 +590,32 @@ export default function AcademicQuizCreator({
         onOpenAuth?.("Please sign in to use the AI Question Assistant.");
         return;
       }
-      if (data.questions && Array.isArray(data.questions)) {
-        // Append AI questions without overwriting existing manually drafted questions
+      if (!resp.ok || data.error) throw new Error(data.error || "Failed to generate quiz questions.");
+      if (Array.isArray(data.questions) && data.questions.length > 0) {
+        const validQuestions = data.questions.filter((question: any) =>
+          question &&
+          typeof question.questionText === "string" && question.questionText.trim() &&
+          Array.isArray(question.options) && question.options.length === 4 &&
+          question.options.every((option: unknown) => typeof option === "string" && option.trim()) &&
+          Array.isArray(question.correctAnswers) && question.correctAnswers.length > 0 &&
+          question.correctAnswers.every((index: unknown) => Number.isInteger(index) && (index as number) >= 0 && (index as number) < question.options.length) &&
+          typeof question.explanation === "string" && question.explanation.trim()
+        );
+        if (validQuestions.length === 0) throw new Error("The AI response contained no valid questions with confirmed answer keys.");
         const startNumber = questions.length + 1;
-        const newQuestions: AcademicQuestionDraft[] = data.questions.map((q: any, i: number) => ({
+        const newQuestions: AcademicQuestionDraft[] = validQuestions.map((q: any, i: number) => ({
           id: `ai_${Date.now()}_${i}`,
           questionNumber: startNumber + i,
           questionType: "single_mcq",
-          questionText: q.questionText || q.question || "",
-          options: q.options || ["A", "B", "C", "D"],
-          correctAnswers: q.correctAnswers || [q.correctIndex ?? 0],
-          explanation: q.explanation || "",
-          marks: marksPerCorrect,
-          negativeMarks: negativeMarks,
+          questionText: q.questionText.trim(),
+          options: q.options.map((option: string) => option.trim()),
+          correctAnswers: q.correctAnswers,
+          explanation: q.explanation.trim(),
+          marks: typeof q.marks === "number" && q.marks > 0 ? q.marks : marksPerCorrect,
+          negativeMarks: typeof q.negativeMarks === "number" && q.negativeMarks >= 0 ? q.negativeMarks : negativeMarks,
           isComplete: true,
         }));
         setQuestions((prev) => {
-          // If the very first question was untouched empty, replace it
           if (prev.length === 1 && !prev[0].questionText.trim()) {
             return newQuestions.map((q, idx) => ({ ...q, questionNumber: idx + 1 }));
           }
@@ -614,7 +623,7 @@ export default function AcademicQuizCreator({
         });
         setIsAIAssistantOpen(false);
       } else {
-        setAiError(data.error || "Failed to generate questions. Check API keys.");
+        throw new Error(data.error || "The AI service returned no valid questions.");
       }
     } catch (e: any) {
       setAiError(e.message || "Network error generating questions.");
