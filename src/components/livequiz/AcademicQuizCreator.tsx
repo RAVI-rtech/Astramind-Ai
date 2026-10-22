@@ -80,12 +80,13 @@ export default function AcademicQuizCreator({
 }: AcademicQuizCreatorProps) {
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
 
-  // Step 1: Academic Details
-  const [college] = useState(VITS_COLLEGE_NAME);
-  const [regulation] = useState("VR25");
-  const [branch, setBranch] = useState<VitsBranch>(VITS_BRANCHES[0]);
-  const [year, setYear] = useState<AcademicYear>(VITS_YEARS[1]); // Default 2nd Year
-  const [semester, setSemester] = useState<AcademicSemester>(VITS_SEMESTERS[0]);
+  // Step 1: Academic Details. VITS is the default profile, not a restriction.
+  const [college, setCollege] = useState<string>(VITS_COLLEGE_NAME);
+  const [regulation, setRegulation] = useState<string>("VR25");
+  const [programType, setProgramType] = useState<string>("B.Tech");
+  const [branch, setBranch] = useState<string>(VITS_BRANCHES[0]);
+  const [year, setYear] = useState<string>(VITS_YEARS[1]);
+  const [semester, setSemester] = useState<string>(VITS_SEMESTERS[0]);
   const [subject, setSubject] = useState<string>("");
   const [customSubject, setCustomSubject] = useState<string>("");
   const [unit, setUnit] = useState<string>("All Units (Comprehensive)");
