@@ -476,13 +476,14 @@ export default function AcademicQuizHistory({
                     onClick={() => {
                       // Create a new draft populated with this question
                       const newDraft: AcademicQuizDraft = {
-                        title: "Custom Quiz from Question Bank",
-                        college: "Vignan Institute of Science and Technology",
-                        regulation: "VR25",
-                        branch: "Computer Science and Engineering (CSE)",
-                        year: "2nd Year",
-                        semester: "Semester I",
-                        subject: "Engineering Subject",
+                        title: qb.sourceTitle ? `${qb.sourceTitle} — Practice Quiz` : "Question Bank Practice Quiz",
+                        college: qb.college || "Not specified",
+                        regulation: qb.regulation || "",
+                        programType: qb.programType || "",
+                        branch: qb.branch || "Not specified",
+                        year: qb.year || "Not specified",
+                        semester: qb.semester || "Not specified",
+                        subject: qb.subject || qb.sourceTitle || "Question Bank Practice",
                         unit: "All Units",
                         assessmentType: "Class Assessment",
                         questionCount: 1,
