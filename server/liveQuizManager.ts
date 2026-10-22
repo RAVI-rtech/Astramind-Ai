@@ -620,6 +620,7 @@ export function createLiveQuizRoom(params: {
   title: string;
   college?: string;
   regulation?: string;
+  programType?: string;
   branch: string;
   year: string;
   semester: string;
@@ -643,15 +644,40 @@ export function createLiveQuizRoom(params: {
   const roomCode = generateRoomCode();
   const hostId = "host-" + Date.now().toString(36);
 
-  // Normalize questions authoritatively
-  let rawQuestions: LiveQuizQuestion[] = (params.questions || []).map((q, idx) => {
-    const options = Array.isArray(q.options) && q.options.length > 0
-      ? q.options
-      : ["Option A", "Option B", "Option C", "Option D"];
+  // Validate every question before opening the room. Never fabricate options or mark option A correct.
+  if (!Array.isArray(params.questions) || params.questions.length === 0) {
+    throw new Error("Add at least one complete question before starting the live quiz.");
+  }
 
-    const questionType = q.questionType || (options.length === 2 && (options[0] === "True" || options[0] === "true") ? "true_false" : "single_mcq");
+  let rawQuestions: LiveQuizQuestion[] = params.questions.map((q, idx) => {
+    if (!q || typeof (q.question || q.questionText) !== "string" || !String(q.question || q.questionText).trim()) {
+      throw new Error(`Question #${idx + 1} is missing its question text.`);
+    }
 
-    // Gather raw correct answer representations from all possible formats
+    const suppliedOptions = Array.isArray(q.options)
+      ? q.options.filter((option: unknown) => typeof option === "string").map((option: string) => option.trim())
+      : [];
+    const inferredTrueFalse = suppliedOptions.length === 2 &&
+      ["true", "false"].includes(suppliedOptions[0].toLowerCase()) &&
+      ["true", "false"].includes(suppliedOptions[1].toLowerCase());
+    const questionType = q.questionType || (inferredTrueFalse ? "true_false" : "single_mcq");
+
+    // True/False has a well-defined option set; all other option-based questions must supply their own options.
+    const options = questionType === "true_false" && suppliedOptions.filter(Boolean).length === 0
+      ? ["True", "False"]
+      : suppliedOptions;
+
+    if (questionType === "single_mcq" || questionType === "multiple_mcq") {
+      if (options.length !== 4 || options.some((option) => !option)) {
+        throw new Error(`Question #${idx + 1} must have four non-empty answer options.`);
+      }
+    } else if (questionType === "true_false") {
+      if (options.length !== 2 || options.some((option) => !option)) {
+        throw new Error(`Question #${idx + 1} must have valid True/False options.`);
+      }
+    }
+
+    // Support answer formats created by the question editor and imported question bank.
     let rawCorrectList: any[] = [];
     if (Array.isArray(q.correctAnswers) && q.correctAnswers.length > 0) {
       rawCorrectList = q.correctAnswers;
@@ -665,31 +691,55 @@ export function createLiveQuizRoom(params: {
       rawCorrectList = [q.correct];
     }
 
-    // Authoritatively convert to 0-based option number indices
-    let correctAnswers: number[] = rawCorrectList
-      .map((ans) => normalizeAnswerToOptionIndex(ans, options))
-      .filter((idx): idx is number => typeof idx === "number" && idx >= 0);
+    const correctAnswers: number[] = rawCorrectList
+      .map((answer) => normalizeAnswerToOptionIndex(answer, options))
+      .filter((index): index is number => typeof index === "number" && Number.isInteger(index) && index >= 0 && index < options.length);
 
-    if (correctAnswers.length === 0) {
-      correctAnswers = [0];
+    if (questionType === "single_mcq" || questionType === "multiple_mcq" || questionType === "true_false") {
+      if (correctAnswers.length === 0) {
+        throw new Error(`Question #${idx + 1} is missing a valid correct-answer key. Open the question and select the correct answer.`);
+      }
+      if (questionType === "single_mcq" && correctAnswers.length !== 1) {
+        throw new Error(`Question #${idx + 1} must have exactly one correct answer.`);
+      }
+    }
+
+    const blanksExpected = Array.isArray(q.blanksExpected)
+      ? q.blanksExpected.filter((value: unknown) => typeof value === "string" && value.trim())
+      : typeof q.expectedAnswer === "string" && q.expectedAnswer.trim() ? [q.expectedAnswer.trim()] : [];
+    const acceptedAlternatives = Array.isArray(q.acceptedAlternatives)
+      ? q.acceptedAlternatives.filter((value: unknown) => typeof value === "string" && value.trim())
+      : [];
+    const keywords = Array.isArray(q.keywords)
+      ? q.keywords.filter((value: unknown) => typeof value === "string" && value.trim())
+      : [];
+    const sampleAnswer = typeof q.sampleAnswer === "string" ? q.sampleAnswer.trim() : "";
+    const shortAnswerGrading = q.shortAnswerGrading === "manual" ? "manual" : "auto";
+
+    if (questionType === "fill_blank" && blanksExpected.length === 0) {
+      throw new Error(`Question #${idx + 1} needs at least one expected answer for the blank.`);
+    }
+    if (questionType === "short_answer" && shortAnswerGrading === "auto" &&
+        blanksExpected.length === 0 && acceptedAlternatives.length === 0 && keywords.length === 0 && !sampleAnswer) {
+      throw new Error(`Question #${idx + 1} needs a sample answer or accepted keywords for automatic short-answer grading.`);
     }
 
     return {
-      id: q.id || `q_${idx + 1}_${Date.now().toString(36)}`,
+      id: typeof q.id === "string" && q.id.trim() ? q.id : `q_${idx + 1}_${Date.now().toString(36)}`,
       questionNumber: idx + 1,
       questionType,
-      question: q.question || q.questionText || `Question ${idx + 1}`,
+      question: String(q.question || q.questionText).trim(),
       options,
-      correctIndex: correctAnswers[0] ?? 0,
+      correctIndex: correctAnswers[0],
       correctAnswers,
-      blanksExpected: Array.isArray(q.blanksExpected) ? q.blanksExpected : (typeof q.expectedAnswer === "string" ? [q.expectedAnswer] : undefined),
-      acceptedAlternatives: Array.isArray(q.acceptedAlternatives) ? q.acceptedAlternatives : undefined,
+      blanksExpected: blanksExpected.length ? blanksExpected : undefined,
+      acceptedAlternatives: acceptedAlternatives.length ? acceptedAlternatives : undefined,
       caseSensitive: !!q.caseSensitive,
       trimWhitespace: q.trimWhitespace !== false,
-      shortAnswerGrading: q.shortAnswerGrading || "auto",
-      keywords: Array.isArray(q.keywords) ? q.keywords : undefined,
-      sampleAnswer: q.sampleAnswer || "",
-      explanation: q.explanation || "",
+      shortAnswerGrading,
+      keywords: keywords.length ? keywords : undefined,
+      sampleAnswer: sampleAnswer || undefined,
+      explanation: typeof q.explanation === "string" ? q.explanation.trim() : "",
       marks: typeof q.marks === "number" && q.marks > 0 ? q.marks : (params.marksPerCorrect ?? 1),
       negativeMarks: typeof q.negativeMarks === "number" && q.negativeMarks >= 0 ? q.negativeMarks : (params.negativeMarks ?? 0),
       imageUrl: q.imageUrl,
@@ -717,6 +767,7 @@ export function createLiveQuizRoom(params: {
     title: params.title || `${params.subject} Academic Live Quiz`,
     college: params.college || "Vignan Institute of Technology and Science",
     regulation: params.regulation || "",
+    programType: params.programType || "",
     branch: params.branch,
     year: params.year,
     semester: params.semester,
