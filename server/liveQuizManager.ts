@@ -2191,16 +2191,31 @@ No markdown codeblocks. Output raw JSON only.`;
       const rawText = resp.choices[0]?.message?.content?.trim() || "";
       const parsed = extractJSON(rawText);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map((q, idx) => ({
+        const validQuestions = parsed.filter((question) =>
+          question &&
+          typeof (question.questionText || question.question) === "string" &&
+          String(question.questionText || question.question).trim() &&
+          Array.isArray(question.options) &&
+          question.options.length === 4 &&
+          question.options.every((option) => typeof option === "string" && option.trim()) &&
+          Array.isArray(question.correctAnswers) &&
+          question.correctAnswers.length > 0 &&
+          question.correctAnswers.every((index) => Number.isInteger(index) && index >= 0 && index < question.options.length) &&
+          typeof question.explanation === "string" && question.explanation.trim()
+        );
+        if (validQuestions.length === 0) {
+          throw new Error("The AI fallback returned no questions with verified answer keys.");
+        }
+        return validQuestions.map((question, idx) => ({
           id: `q_${idx + 1}_${Date.now().toString(36)}`,
           questionNumber: idx + 1,
           questionType: "single_mcq" as const,
-          questionText: q.questionText || q.question || `Question ${idx + 1}`,
-          options: Array.isArray(q.options) && q.options.length === 4 ? q.options : ["Option A", "Option B", "Option C", "Option D"],
-          correctAnswers: Array.isArray(q.correctAnswers) ? q.correctAnswers : [typeof q.correctIndex === "number" ? q.correctIndex : 0],
-          explanation: typeof q.explanation === "string" ? q.explanation : "",
-          marks: q.marks || 1,
-          negativeMarks: q.negativeMarks || 0,
+          questionText: String(question.questionText || question.question).trim(),
+          options: question.options.map((option) => option.trim()),
+          correctAnswers: question.correctAnswers,
+          explanation: question.explanation.trim(),
+          marks: typeof question.marks === "number" && question.marks > 0 ? question.marks : 1,
+          negativeMarks: typeof question.negativeMarks === "number" && question.negativeMarks >= 0 ? question.negativeMarks : 0,
           isComplete: true,
         }));
       }
