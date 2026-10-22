@@ -150,6 +150,7 @@ export default function StudyWorkspaceView({
 
   const [activeTab, setActiveTab] = useState<WorkspaceTab>(normalizedInitialTab);
   const [initialPdfDocument, setInitialPdfDocument] = useState<PDFStudyDocument | null>(null);
+  const [temporaryPdfPreviewUrls, setTemporaryPdfPreviewUrls] = useState<Record<string, string>>({});
   
   // Update activeTab if initialTab prop changes
   useEffect(() => {
@@ -400,6 +401,8 @@ export default function StudyWorkspaceView({
 
     setIsAnalyzingUpload(true);
     setActionError(null);
+    // Keep PDF binary in a temporary object URL instead of localStorage (which has small storage quotas).
+    const temporaryPdfPreviewUrl = isPdf ? URL.createObjectURL(file) : undefined;
     const addExtractedMaterial = (content: string, profile?: DocumentProfile) => {
       const newMat = addMaterialToWorkspace(workspace.id, {
         name: file.name,
@@ -408,6 +411,9 @@ export default function StudyWorkspaceView({
         content,
         profile,
       });
+      if (temporaryPdfPreviewUrl) {
+        setTemporaryPdfPreviewUrls((prev) => ({ ...prev, [newMat.id]: temporaryPdfPreviewUrl }));
+      }
       if (onUpdateWorkspace) {
         onUpdateWorkspace({
           ...workspace,
@@ -426,6 +432,7 @@ export default function StudyWorkspaceView({
     const reader = new FileReader();
     reader.onerror = () => {
       setIsAnalyzingUpload(false);
+      if (temporaryPdfPreviewUrl) URL.revokeObjectURL(temporaryPdfPreviewUrl);
       setActionError("The file could not be read. Please try again.");
     };
 
@@ -433,6 +440,7 @@ export default function StudyWorkspaceView({
       reader.onload = async (event) => {
         const textContent = String(event.target?.result || "").trim();
         if (textContent.length < 30) {
+          if (temporaryPdfPreviewUrl) URL.revokeObjectURL(temporaryPdfPreviewUrl);
           setIsAnalyzingUpload(false);
           setActionError("This file does not contain enough readable text to create study material.");
           return;
@@ -478,6 +486,7 @@ export default function StudyWorkspaceView({
         addExtractedMaterial(extractedText, data.profile);
       } catch (error: any) {
         console.error("Material extraction failed:", error);
+        if (temporaryPdfPreviewUrl) URL.revokeObjectURL(temporaryPdfPreviewUrl);
         setActionError(error?.message || "Could not extract text from this PDF. It was not added as a study source.");
       } finally {
         setIsAnalyzingUpload(false);
@@ -1424,11 +1433,12 @@ export default function StudyWorkspaceView({
                             pageCount: Number(material.profile?.pages) || 0,
                             sourceType: "workspace",
                             uploadedAt: material.uploadedAt || Date.now(),
-                            previewUrl: material.type === "pdf" && material.base64
-                              ? (material.base64.startsWith("data:")
-                                  ? material.base64
-                                  : `data:application/pdf;base64,${material.base64}`)
-                              : undefined,
+                            previewUrl: temporaryPdfPreviewUrls[material.id] ||
+                              (material.type === "pdf" && material.base64
+                                ? (material.base64.startsWith("data:")
+                                    ? material.base64
+                                    : `data:application/pdf;base64,${material.base64}`)
+                                : undefined),
                             rawContent: material.content || "",
                             subject: workspace.subject,
                             topics: material.profile?.topics || workspace.detectedTopics,
@@ -1446,6 +1456,13 @@ export default function StudyWorkspaceView({
 
                       <button
                         onClick={() => {
+                          const previewUrl = temporaryPdfPreviewUrls[material.id];
+                          if (previewUrl) URL.revokeObjectURL(previewUrl);
+                          setTemporaryPdfPreviewUrls((prev) => {
+                            const next = { ...prev };
+                            delete next[material.id];
+                            return next;
+                          });
                           removeMaterialFromWorkspace(workspace.id, material.id);
                           if (onUpdateWorkspace) {
                             onUpdateWorkspace({
