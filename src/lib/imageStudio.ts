@@ -110,7 +110,7 @@ export async function saveImageToHistory(
     originalImageUrl: item.originalImageUrl,
     style: item.style,
     aspectRatio: item.aspectRatio,
-    providerId: item.providerId || "astramind-vision-pro",
+    providerId: item.providerId || "huggingface-inference",
     createdAt: new Date().toISOString(),
   };
 
