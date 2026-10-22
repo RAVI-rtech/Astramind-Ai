@@ -279,19 +279,27 @@ export default function CreateWorkspaceModal({
             }),
           });
           const data = await resp.json();
-          if (data.profile) {
-            setDocProfile(data.profile);
-            setSubject(data.profile.detectedDomain);
-            if (!name) setName(`${data.profile.title || data.profile.detectedDomain} Study Workspace`);
-            setUploadedFile({
-              ...fileObj,
-              content: data.extractedText || "",
-              profile: data.profile,
-            });
+          if (!resp.ok || data.error) throw new Error(data.error || "PDF analysis failed.");
+          const extractedText = typeof data.extractedText === "string" ? data.extractedText.trim() : "";
+          if (extractedText.length < 30) {
+            throw new Error("No readable text could be extracted from this PDF. Scanned/image-only PDFs are not yet supported; upload a text-readable PDF instead.");
           }
+          if (!data.profile) throw new Error("The PDF text was extracted, but the document profile could not be created.");
+          setDocProfile(data.profile);
+          setSubject(data.profile.detectedDomain || subject || "");
+          if (!name) setName(`${data.profile.title || data.profile.detectedDomain || file.name} Study Workspace`);
+          setUploadedFile({
+            name: file.name,
+            type: "pdf",
+            size: fileObj.size,
+            content: extractedText,
+            profile: data.profile,
+          });
         } catch (err: any) {
           console.error("Document analysis error:", err);
-          setAnalysisError("Some parts of this document could not be confidently classified.");
+          setUploadedFile(null);
+          setDocProfile(null);
+          setAnalysisError(err?.message || "PDF analysis failed. The file was not added as a usable study source.");
         } finally {
           setIsAnalyzingDoc(false);
         }
