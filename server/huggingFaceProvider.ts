@@ -1,5 +1,5 @@
 import { InferenceClient } from "@huggingface/inference";
-import { ImageProvider, GenerateImageParams, EditImageParams } from "./imageRouter";
+import { ImageProvider, GenerateImageParams } from "./imageRouter";
 
 export class HuggingFaceImageProvider implements ImageProvider {
   public id = "huggingface-inference";
