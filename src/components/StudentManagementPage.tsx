@@ -81,8 +81,8 @@ export default function StudentManagementPage({
     full_name: "",
     email: "",
     roll_number: "",
-    branch: "CSE",
-    section: "A",
+    branch: "",
+    section: "",
     hall_ticket_number: "",
     status: "Active" as StudentRecord["status"],
     attendance_percentage: null,
@@ -100,6 +100,12 @@ export default function StudentManagementPage({
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const formatDate = (value?: string) => {
+    if (!value) return "—";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString();
   };
 
   const fetchStudents = async () => {
@@ -200,8 +206,8 @@ export default function StudentManagementPage({
       full_name: "",
       email: "",
       roll_number: "",
-      branch: "CSE",
-      section: "A",
+      branch: "",
+      section: "",
       hall_ticket_number: "",
       status: "Active",
       attendance_percentage: null,
@@ -390,7 +396,7 @@ export default function StudentManagementPage({
       `"${typeof s.attendance_percentage === "number" ? `${s.attendance_percentage}%` : ""}"`,
       `"${s.cgpa}"`,
       `"${s.year || ''}"`,
-      `"${new Date(s.created_at).toLocaleDateString()}"`
+      `"${formatDate(s.created_at)}"`
     ]);
 
     const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
@@ -701,9 +707,9 @@ export default function StudentManagementPage({
                             </div>
                             <div className="min-w-0">
                               <p className="font-semibold text-white group-hover:text-[#a78bfa] transition-colors truncate">
-                                {student.full_name}
+                                {student.full_name || "Name unavailable"}
                               </p>
-                              <p className="text-[11px] text-white/40 truncate">{student.email}</p>
+                              <p className="text-[11px] text-white/40 truncate">{student.email || "Email unavailable"}</p>
                             </div>
                           </div>
                         </td>
@@ -717,9 +723,9 @@ export default function StudentManagementPage({
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-1.5">
                             <span className="px-2 py-0.5 rounded-md bg-white/[0.06] border border-white/[0.08] text-white/80 font-medium">
-                              {student.branch}
+                              {student.branch || "—"}
                             </span>
-                            <span className="text-white/40">Sec {student.section}</span>
+                            <span className="text-white/40">Sec {student.section || "—"}</span>
                           </div>
                         </td>
 
@@ -1148,7 +1154,7 @@ export default function StudentManagementPage({
                 </div>
                 <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
                   <p className="text-[10px] uppercase font-semibold text-white/40">Branch & Section</p>
-                  <p className="font-semibold text-white mt-0.5">{activeStudent.branch} • Sec {activeStudent.section}</p>
+                  <p className="font-semibold text-white mt-0.5">{activeStudent.branch || "—"} • Sec {activeStudent.section || "—"}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
                   <p className="text-[10px] uppercase font-semibold text-white/40">Current CGPA</p>
@@ -1170,7 +1176,7 @@ export default function StudentManagementPage({
               </div>
 
               <div className="text-[11px] text-white/40 flex items-center justify-between pt-2">
-                <span>Record Created: {new Date(activeStudent.created_at).toLocaleDateString()}</span>
+                <span>Record Created: {formatDate(activeStudent.created_at)}</span>
                 <span>ID: {activeStudent.id.substring(0, 8)}...</span>
               </div>
             </div>
