@@ -265,6 +265,7 @@ export default function StudyWorkspaceView({
   const [selectedKbSubject, setSelectedKbSubject] = useState<string>("All");
   const [isSyncingKb, setIsSyncingKb] = useState(false);
   const [syncSuccessMessage, setSyncSuccessMessage] = useState<string | null>(null);
+  const [syncErrorMessage, setSyncErrorMessage] = useState<string | null>(null);
   const [learningActivities, setLearningActivities] = useState<LearningActivityRecord[]>(() =>
     getLearningActivities(workspace.id)
   );
@@ -315,22 +316,19 @@ export default function StudyWorkspaceView({
   const handleSyncKnowledgeBase = async () => {
     setIsSyncingKb(true);
     setSyncSuccessMessage(null);
+    setSyncErrorMessage(null);
     try {
       const resp = await fetch("/api/knowledge-base/sync", { method: "POST" });
       const data = await resp.json();
-      if (data.status) {
-        setKbStatus(data.status);
-        setSyncSuccessMessage(`VR25 Google Drive synced! ${data.status.totalDocuments} documents, ${data.status.totalChunks} chunks indexed.`);
-        // Reload documents list
-        fetch("/api/knowledge-base/documents")
-          .then((r) => r.json())
-          .then((d) => {
-            if (d && Array.isArray(d.documents)) setKbDocuments(d.documents);
-          });
-        setTimeout(() => setSyncSuccessMessage(null), 5000);
-      }
-    } catch (e: any) {
-      setActionError("Failed to sync Drive repository: " + (e?.message || "Network error"));
+      if (!resp.ok || data.error) throw new Error(data.error || "The server did not confirm a successful import.");
+      if (!data.status) throw new Error("The server did not confirm an indexed result.");
+      setKbStatus(data.status);
+      setSyncSuccessMessage(`Sync completed: ${data.status.totalDocuments} documents and ${data.status.totalChunks} chunks indexed.`);
+      const docsResp = await fetch("/api/knowledge-base/documents");
+      const docs = await docsResp.json();
+      if (Array.isArray(docs.documents)) setKbDocuments(docs.documents);
+    } catch (error: any) {
+      setSyncErrorMessage(error?.message || "Knowledge-base sync failed.");
     } finally {
       setIsSyncingKb(false);
     }
@@ -1479,13 +1477,17 @@ export default function StudyWorkspaceView({
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-base sm:text-lg font-bold text-white">VR25 Google Drive Knowledge Base</h3>
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-semibold">
-                        Master Source
+                      <h3 className="text-base sm:text-lg font-bold text-white">Knowledge Base</h3>
+                      <span className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold ${
+                        (kbStatus?.totalDocuments ?? kbDocuments.length) > 0
+                          ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                          : "bg-neutral-800 text-neutral-300 border-neutral-700"
+                      }`}>
+                        {(kbStatus?.totalDocuments ?? kbDocuments.length) > 0 ? "Indexed content" : "Empty index"}
                       </span>
                     </div>
                     <p className="text-xs text-neutral-400 mt-0.5">
-                      B.Tech 1st Year, 1st Semester authoritative notes indexed from Google Drive (<span className="text-neutral-300 font-mono">btech 1st year notes</span>).
+                      Only genuinely ingested documents are shown here. No demo PDFs, invented chunks, or placeholder statistics are added.
                     </p>
                   </div>
                 </div>
@@ -1514,36 +1516,42 @@ export default function StudyWorkspaceView({
                   <span>{syncSuccessMessage}</span>
                 </div>
               )}
+              {syncErrorMessage && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-xs flex items-start gap-2" role="alert">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{syncErrorMessage}</span>
+                </div>
+              )}
             </div>
 
             {/* Metrics Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
               <div className="p-4 rounded-xl bg-neutral-900/50 border border-neutral-800">
-                <div className="text-[11px] text-neutral-400">Indexed Master Documents</div>
+                <div className="text-[11px] text-neutral-400">Indexed Documents</div>
                 <div className="text-xl font-bold text-white mt-1">
-                  {kbStatus?.totalDocuments || (kbDocuments.length > 0 ? kbDocuments.length : 22)}
+                  {kbStatus?.totalDocuments ?? kbDocuments.length}
                 </div>
-                <div className="text-[10px] text-neutral-500 mt-1">Drive notes & PDFs</div>
+                <div className="text-[10px] text-neutral-500 mt-1">Ingested source files</div>
               </div>
 
               <div className="p-4 rounded-xl bg-neutral-900/50 border border-neutral-800">
                 <div className="text-[11px] text-neutral-400">Semantic Indexed Chunks</div>
                 <div className="text-xl font-bold text-emerald-400 mt-1">
-                  {kbStatus?.totalChunks || 142}
+                  {kbStatus?.totalChunks ?? 0}
                 </div>
                 <div className="text-[10px] text-neutral-500 mt-1">600–800 token partitions</div>
               </div>
 
               <div className="p-4 rounded-xl bg-neutral-900/50 border border-neutral-800">
-                <div className="text-[11px] text-neutral-400">Academic Hierarchy</div>
-                <div className="text-base font-bold text-blue-400 mt-1 truncate">VR25 • 1st Year</div>
-                <div className="text-[10px] text-neutral-500 mt-1">Semester 1 Curriculum</div>
+                <div className="text-[11px] text-neutral-400">Indexed Subjects</div>
+                <div className="text-base font-bold text-blue-400 mt-1 truncate">{kbStatus?.subjects?.length ?? 0}</div>
+                <div className="text-[10px] text-neutral-500 mt-1">Count from the real source index</div>
               </div>
 
               <div className="p-4 rounded-xl bg-neutral-900/50 border border-neutral-800">
-                <div className="text-[11px] text-neutral-400">Retrieval Model</div>
-                <div className="text-base font-bold text-purple-400 mt-1">Hybrid RAG</div>
-                <div className="text-[10px] text-neutral-500 mt-1">BM25 + Cosine Vector</div>
+                <div className="text-[11px] text-neutral-400">Retrieval</div>
+                <div className="text-base font-bold text-purple-400 mt-1">Keyword + Similarity</div>
+                <div className="text-[10px] text-neutral-500 mt-1">Only indexed text is searched</div>
               </div>
             </div>
 
