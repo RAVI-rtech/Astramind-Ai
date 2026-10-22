@@ -49,6 +49,7 @@ export default function StudyAssistantPanel({ onClose, onAddXp }: StudyAssistant
   const [examSubject, setExamSubject] = useState("");
   const [daysUntilExam, setDaysUntilExam] = useState("14");
   const [revisionPlan, setRevisionPlan] = useState<string | null>(null);
+  const [revisionPlanError, setRevisionPlanError] = useState<string | null>(null);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
 
   // Summarize Document / Text
@@ -164,22 +165,33 @@ export default function StudyAssistantPanel({ onClose, onAddXp }: StudyAssistant
 
   // Generate Revision Schedule Plan
   const handleGeneratePlan = async () => {
+    const days = Number(daysUntilExam);
     if (!examSubject.trim() || isGeneratingPlan) return;
+    if (!Number.isInteger(days) || days < 1 || days > 365) {
+      setRevisionPlanError("Enter a whole number of days between 1 and 365.");
+      return;
+    }
     setIsGeneratingPlan(true);
+    setRevisionPlanError(null);
+    setRevisionPlan(null);
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [{ sender: "user", text: `Create a structured day-by-day revision schedule for "${examSubject}" over the next ${daysUntilExam} days. Include daily review topics, practice problems, and rest intervals.` }],
-          systemInstruction: "You are an expert exam strategist. Return a well-structured Markdown daily timetable."
+          messages: [{ sender: "user", text: `Create a structured day-by-day revision schedule for "${examSubject.trim()}" over the next ${days} days. Include daily review topics, practice problems, and rest intervals.` }],
+          systemInstruction: "You are an exam strategist. Return a practical timetable based on the supplied subject and days. Do not claim to know the student's syllabus; ask them to adapt unspecified topics to their actual notes."
         })
       });
       const data = await res.json();
-      setRevisionPlan(data.text);
+      if (!res.ok || data.error) throw new Error(data.error || "Revision schedule generation failed.");
+      if (typeof data.text !== "string" || data.text.trim().length < 20) {
+        throw new Error("The AI service returned an empty revision schedule.");
+      }
+      setRevisionPlan(data.text.trim());
       onAddXp(25);
-    } catch (e) {
-      setRevisionPlan("Failed to generate revision schedule.");
+    } catch (err: any) {
+      setRevisionPlanError(err?.message || "Failed to generate revision schedule. Please retry.");
     } finally {
       setIsGeneratingPlan(false);
     }
@@ -420,6 +432,9 @@ export default function StudyAssistantPanel({ onClose, onAddXp }: StudyAssistant
                 <label className="text-xs text-slate-400 font-bold">Days Until Exam</label>
                 <input
                   type="number"
+                    min="1"
+                    max="365"
+                    step="1"
                   value={daysUntilExam}
                   onChange={(e) => setDaysUntilExam(e.target.value)}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white outline-none focus:border-emerald-500 mt-1"
@@ -434,6 +449,9 @@ export default function StudyAssistantPanel({ onClose, onAddXp }: StudyAssistant
               {isGeneratingPlan ? "Planning Schedule..." : "Build Daily Revision Timetable"}
             </button>
 
+            {revisionPlanError && (
+              <div role="alert" className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300">{revisionPlanError}</div>
+            )}
             {revisionPlan && (
               <div className="bg-[#040612] border border-white/10 rounded-xl p-4 text-xs text-slate-300 whitespace-pre-wrap leading-relaxed">
                 {revisionPlan}
