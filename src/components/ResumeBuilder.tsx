@@ -167,7 +167,7 @@ export default function ResumeBuilder({
   const handleCreateNewResume = (title = "New Professional Resume") => {
     const newId = `resume_${Date.now()}`;
     const newResume: ResumeData = {
-      ...INITIAL_RESUME,
+      ...EMPTY_RESUME_TEMPLATE,
       id: newId,
       title,
       lastUpdated: Date.now(),
@@ -353,23 +353,23 @@ export default function ResumeBuilder({
           templateId: "modern-executive",
           accentColor: "indigo",
           personalInfo: {
-            fullName: result.personalInfo?.fullName || "Astra Mind Candidate",
+            fullName: result.personalInfo?.fullName || "",
             jobTitle: result.personalInfo?.jobTitle || wizardJobTitle.trim(),
-            email: result.personalInfo?.email || "candidate@astramind.ai",
-            phone: result.personalInfo?.phone || "+1 (555) 234-5678",
-            location: result.personalInfo?.location || "San Francisco, CA",
-            linkedinUrl: result.personalInfo?.linkedinUrl || "https://linkedin.com/in/candidate",
-            githubUrl: result.personalInfo?.githubUrl || "https://github.com/candidate",
-            portfolioUrl: result.personalInfo?.portfolioUrl || "https://candidate.dev",
-            summary: result.personalInfo?.summary || "Accomplished specialist with extensive industry impact.",
+            email: result.personalInfo?.email || "",
+            phone: result.personalInfo?.phone || "",
+            location: result.personalInfo?.location || "",
+            linkedinUrl: result.personalInfo?.linkedinUrl || "",
+            githubUrl: result.personalInfo?.githubUrl || "",
+            portfolioUrl: result.personalInfo?.portfolioUrl || "",
+            summary: result.personalInfo?.summary || "",
           },
-          education: result.education || INITIAL_RESUME.education,
-          experience: result.experience || INITIAL_RESUME.experience,
-          projects: result.projects || INITIAL_RESUME.projects,
-          certifications: result.certifications || INITIAL_RESUME.certifications,
-          skills: result.skills || INITIAL_RESUME.skills,
-          achievements: result.achievements || INITIAL_RESUME.achievements,
-          languages: result.languages || INITIAL_RESUME.languages,
+          education: result.education || [],
+          experience: result.experience || [],
+          projects: result.projects || [],
+          certifications: result.certifications || [],
+          skills: result.skills || [],
+          achievements: result.achievements || [],
+          languages: result.languages || [],
         };
 
         setSavedResumes((prev) => [newResume, ...prev]);
