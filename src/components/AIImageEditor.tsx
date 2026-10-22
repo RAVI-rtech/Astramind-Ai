@@ -57,7 +57,7 @@ export default function AIImageEditor({
 }: AIImageEditorProps) {
   const [sourceImage, setSourceImage] = useState<string | null>(initialImage || null);
   const [editPrompt, setEditPrompt] = useState(initialPrompt || "");
-  const [selectedProvider, setSelectedProvider] = useState("astramind-vision-pro");
+  const [selectedProvider, setSelectedProvider] = useState("google-gemini-flash");
   const [isEditing, setIsEditing] = useState(false);
   const [progressPercent, setProgressPercent] = useState(0);
   const [progressStep, setProgressStep] = useState("");
