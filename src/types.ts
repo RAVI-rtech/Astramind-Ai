@@ -209,6 +209,7 @@ export interface StudyMaterial {
   type: string; // "pdf" | "ppt" | "notes" | "image" | "text"
   size?: string;
   url?: string;
+  officialSourceUrl?: string;
   base64?: string;
   content?: string;
   uploadedAt: number;
@@ -269,6 +270,12 @@ export interface StudyWorkspace {
   id: string;
   name: string;
   college: string;
+  /** Degree/program selected by the student; supports B.Tech, arts, science, commerce, diploma and other tracks. */
+  programType?: string;
+  /** Official college or university website used to discover syllabus links. */
+  officialWebsiteUrl?: string;
+  /** Official syllabus URL selected or imported for this workspace. */
+  syllabusSourceUrl?: string;
   branch: string;
   year: BTechYear;
   semester: BTechSemester;
