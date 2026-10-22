@@ -307,7 +307,7 @@ export default function ProfileEnhancerPage({
               <Linkedin className="w-3.5 h-3.5" />
               <span>LinkedIn Presence Optimizer</span>
               <span className="text-white/30">•</span>
-              <span>B.Tech & Freshers Edition</span>
+              <span>For Every Career Stage</span>
             </div>
             <h1 className="font-serif-studio text-4xl sm:text-5xl font-medium text-white tracking-tight leading-tight">
               Profile Enhancer
