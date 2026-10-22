@@ -769,7 +769,9 @@ export async function chatWithAITutor(params: {
   }> = [];
 
   try {
-    if (lastUserMsg) {
+    // Only search the shared index when the caller explicitly selects an indexed library source.
+    // Uploaded-material tutoring must not accidentally blend another college's documents into this answer.
+    if (lastUserMsg && studyContext?.sourceType === "drive_material") {
       const ragResults = await searchKnowledgeBase(lastUserMsg, studyContext, { topK: 3 });
       if (ragResults.chunks.length > 0) {
         retrievedChunksContext = ragResults.chunks
@@ -797,7 +799,7 @@ If the source does not contain enough information, say so clearly. If adding gen
 Use concise Markdown, headings, bullets, and code/math blocks where helpful.`;
 
   const combinedReference = [
-    retrievedChunksContext ? `VERIFIED VR25 STUDY MATERIAL (HIGH PRIORITY):\n${retrievedChunksContext}` : "",
+    retrievedChunksContext ? `INDEXED SOURCE EXCERPTS (HIGH PRIORITY):\n${retrievedChunksContext}` : "",
     extractedContent ? `WORKSPACE UPLOADED NOTES:\n${extractedContent.slice(0, 10000)}` : "",
   ].filter(Boolean).join("\n\n");
 
