@@ -43,7 +43,8 @@ import {
 import { VitsBranch, AcademicYear, AcademicSemester } from "../../types/academicQuiz";
 import { getSupabaseAuthHeaders } from "../../lib/supabase";
 
-const LOCAL_STORAGE_DRAFT_KEY = "vits_academic_live_quiz_draft_v1";
+const LOCAL_STORAGE_DRAFT_KEY = "astramind_academic_live_quiz_draft_v2";
+const LEGACY_VITS_DRAFT_KEY = "vits_academic_live_quiz_draft_v1";
 
 interface AcademicQuizCreatorProps {
   initialDraft?: AcademicQuizDraft | null;
