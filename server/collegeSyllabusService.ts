@@ -242,9 +242,9 @@ export async function discoverCollegeSyllabus(params: {
     const next = pages.shift()!;
     if (visited.has(next)) continue;
     visited.add(next);
+    if (directPdf && visited.size === 1) continue;
     try {
       const resource = await fetchPublicResource(next, siteDomain, MAX_HTML_BYTES);
-      if (directPdf && visited.size === 1) continue;
       if (!resource.contentType.includes("text/html") && !/^\s*<!doctype html|^\s*<html/i.test(resource.body.toString("utf8", 0, 400))) continue;
       const pageLinks = extractSyllabusLinks(resource.body.toString("utf8"), resource.url, siteDomain);
       links.push(...pageLinks);
