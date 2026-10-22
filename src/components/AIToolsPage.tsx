@@ -22,7 +22,7 @@ export default function AIToolsPage({ onNavigateTab, onStartChat }: AIToolsPageP
     {
       id: "profile-enhancer",
       title: "LinkedIn Profile Enhancer",
-      description: "AI-powered LinkedIn presence optimizer designed for B.Tech students & freshers to elevate headline, about, projects, and skills.",
+      description: "AI-powered LinkedIn profile optimizer for students, graduates, career switchers, internship seekers, and professionals.",
       icon: Linkedin,
       category: "Career & HR",
       badge: "NEW",
