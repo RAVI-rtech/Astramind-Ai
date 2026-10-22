@@ -163,10 +163,6 @@ export default function StudyWorkspaceView({
     setActiveTab(normalized);
   }, [initialTab]);
 
-  useEffect(() => {
-    if (activeTab !== "pdf-study") setInitialPdfDocument(null);
-  }, [activeTab]);
-
   // Sub-tab States
   // 1. Lessons
   const [lessons, setLessons] = useState<GuidedLesson[]>(() => getSavedLessons(workspace.id));
