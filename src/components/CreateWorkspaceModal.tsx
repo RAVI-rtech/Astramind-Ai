@@ -96,21 +96,39 @@ export default function CreateWorkspaceModal({
       setSyllabusDiscoveryError("Enter your college or institution name first.");
       return;
     }
-    if (!officialWebsiteUrl.trim()) {
-      setSyllabusDiscoveryError("Enter the college's official HTTPS website or syllabus page.");
-      return;
-    }
+
     setIsDiscoveringSyllabus(true);
     setSyllabusDiscoveryError(null);
     setSyllabusDiscoveryNote(null);
     setSyllabusLinks([]);
+
     try {
+      let sourceUrl = officialWebsiteUrl.trim();
+      let sourceNote = "";
+
+      // When a non-default college has no URL yet, search the live web for a candidate official homepage.
+      if (!sourceUrl) {
+        const lookupResponse = await fetch("/api/college-syllabus/find-official-site", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ college: college.trim() }),
+        });
+        const lookupData = await lookupResponse.json();
+        if (!lookupResponse.ok || lookupData.error) {
+          throw new Error(lookupData.error || "Could not find an official college website.");
+        }
+        sourceUrl = typeof lookupData.officialWebsiteUrl === "string" ? lookupData.officialWebsiteUrl.trim() : "";
+        if (!sourceUrl) throw new Error("No official website was identified. Paste the official college URL and try again.");
+        sourceNote = lookupData.note || "A candidate official website was found.";
+        setOfficialWebsiteUrl(sourceUrl);
+      }
+
       const response = await fetch("/api/college-syllabus/discover", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           college: college.trim(),
-          officialWebsiteUrl: officialWebsiteUrl.trim(),
+          officialWebsiteUrl: sourceUrl,
           programType,
           branch,
           year: yearLabel,
@@ -121,8 +139,10 @@ export default function CreateWorkspaceModal({
       if (!response.ok || data.error) throw new Error(data.error || "Could not inspect the official website.");
       const links = Array.isArray(data.links) ? data.links : [];
       setSyllabusLinks(links);
-      setSyllabusDiscoveryNote(data.note || (links.length ? "Official syllabus links found." : "No syllabus links were found on that page."));
-      if (links.length === 0) setSyllabusDiscoveryError("No syllabus or curriculum links were found. Try the college's dedicated academics/syllabus page.");
+      setSyllabusDiscoveryNote([sourceNote, data.note || (links.length ? "Official syllabus links found." : "No syllabus links were found.")].filter(Boolean).join(" "));
+      if (links.length === 0) {
+        setSyllabusDiscoveryError("No syllabus or curriculum links were found on this page. Open the verified official site below or enter its dedicated academics/syllabus page URL.");
+      }
     } catch (error: any) {
       setSyllabusDiscoveryError(error?.message || "Syllabus discovery failed.");
     } finally {
@@ -534,9 +554,9 @@ export default function CreateWorkspaceModal({
                 <h3 className="text-sm font-semibold text-white">Find the official syllabus</h3>
                 <p className="text-xs text-neutral-400 mt-1 leading-relaxed">AstraMind checks the academic page you provide and lists syllabus links it finds. If a directly downloadable PDF is available, import it into Materials. The app never assumes that a syllabus is correct based on a college name alone.</p>
               </div>
-              <button type="button" onClick={handleDiscoverSyllabus} disabled={isDiscoveringSyllabus || !college.trim() || !officialWebsiteUrl.trim()} className="shrink-0 flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-2.5 text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+              <button type="button" onClick={handleDiscoverSyllabus} disabled={isDiscoveringSyllabus || !college.trim()} className="shrink-0 flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-2.5 text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
                 {isDiscoveringSyllabus ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                {isDiscoveringSyllabus ? "Searching…" : "Find syllabus"}
+                {isDiscoveringSyllabus ? "Searching…" : officialWebsiteUrl.trim() ? "Find syllabus" : "Find official site & syllabus"}
               </button>
             </div>
             {isVitsCollege && <a href={VITS_SYLLABUS_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[11px] text-blue-300 hover:text-blue-200 underline underline-offset-2">VITS official syllabus page <ExternalLink className="w-3 h-3" /></a>}
