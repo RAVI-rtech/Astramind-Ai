@@ -254,6 +254,9 @@ export default function StudyAssistantPanel({ onClose, onAddXp }: StudyAssistant
               <span>{isSummarizing ? "Summarizing with AI..." : "Generate High-Yield Summary (+20 XP)"}</span>
             </button>
 
+            {summaryError && (
+              <div role="alert" className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300">{summaryError}</div>
+            )}
             {summaryResult && (
               <div className="bg-[#040612] border border-white/10 rounded-xl p-4 space-y-2">
                 <div className="text-xs font-bold text-emerald-400">AI Generated Summary & Exam Takeaways</div>
@@ -284,8 +287,10 @@ export default function StudyAssistantPanel({ onClose, onAddXp }: StudyAssistant
               </button>
             </div>
 
-            {/* Flashcard 3D Interactive Card */}
-            {flashcards.length > 0 && (
+            {flashcardError && (
+              <div role="alert" className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300">{flashcardError}</div>
+            )}
+            {flashcards.length > 0 ? (
               <div className="space-y-4">
                 <div
                   onClick={() => setIsFlipped(!isFlipped)}
@@ -305,23 +310,23 @@ export default function StudyAssistantPanel({ onClose, onAddXp }: StudyAssistant
                     <button
                       onClick={() => {
                         setIsFlipped(false);
-                        setCurrentCardIdx(prev => (prev > 0 ? prev - 1 : flashcards.length - 1));
+                        setCurrentCardIdx((prev) => (prev > 0 ? prev - 1 : flashcards.length - 1));
                       }}
                       className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white cursor-pointer"
-                    >
-                      Previous
-                    </button>
+                    >Previous</button>
                     <button
                       onClick={() => {
                         setIsFlipped(false);
-                        setCurrentCardIdx(prev => (prev < flashcards.length - 1 ? prev + 1 : 0));
+                        setCurrentCardIdx((prev) => (prev < flashcards.length - 1 ? prev + 1 : 0));
                       }}
                       className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold cursor-pointer"
-                    >
-                      Next Card
-                    </button>
+                    >Next Card</button>
                   </div>
                 </div>
+              </div>
+            ) : (
+              <div className="p-8 text-center border border-dashed border-white/10 rounded-2xl text-xs text-slate-400">
+                No flashcards generated yet. Enter a topic above and select Generate. Your cards will appear here after a valid AI response.
               </div>
             )}
           </div>
@@ -347,6 +352,9 @@ export default function StudyAssistantPanel({ onClose, onAddXp }: StudyAssistant
               </button>
             </div>
 
+            {quizError && (
+              <div role="alert" className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300">{quizError}</div>
+            )}
             {generatedQuiz.length > 0 && (
               <div className="space-y-4">
                 {generatedQuiz.map((q, idx) => (
@@ -376,6 +384,11 @@ export default function StudyAssistantPanel({ onClose, onAddXp }: StudyAssistant
                     </div>
                   </div>
                 ))}
+                {quizSubmitted && (
+                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-200 text-xs font-bold text-center">
+                    Score: {generatedQuiz.filter((question, index) => userQuizAnswers[index] === question.correctIndex).length} / {generatedQuiz.length}
+                  </div>
+                )}
                 {!quizSubmitted && (
                   <button
                     onClick={() => setQuizSubmitted(true)}
