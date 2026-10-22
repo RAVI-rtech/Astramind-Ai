@@ -85,97 +85,59 @@ export const LEARNING_GOALS: LearningGoal[] = [
 
 // Initial starter workspace for students to have a rich experience immediately
 export const DEFAULT_INITIAL_WORKSPACE: StudyWorkspace = {
-  id: "ws-vits-dsa-1",
-  name: "Data Structures & Algorithms Mastery",
-  college: "Vignan Institute of Technology and Science",
+  id: "workspace-empty",
+  name: "My Study Workspace",
+  college: "",
   branch: "Computer Science and Engineering (CSE)",
-  year: "2nd",
+  year: "1st",
   semester: "I",
-  subject: "Data Structures & Algorithms",
-  learningGoal: "Prepare for exam",
-  materials: [
-    {
-      id: "mat-dsa-unit1",
-      name: "Unit_1_Linear_Data_Structures_Lecture_Notes.pdf",
-      type: "pdf",
-      size: "2.4 MB",
-      uploadedAt: Date.now() - 86400000 * 3,
-      content: "Unit 1: Stacks, Queues, Circular Queues, Linked Lists (Singly, Doubly, Circular). Infix to Postfix conversion using Stacks. Applications in Recursion and Memory Management.",
-    },
-    {
-      id: "mat-dsa-unit2",
-      name: "Unit_2_Non_Linear_Trees_Graphs_Syllabus.pptx",
-      type: "ppt",
-      size: "4.1 MB",
-      uploadedAt: Date.now() - 86400000 * 2,
-      content: "Unit 2: Binary Search Trees, AVL Trees, B-Trees, Graph Representations (Adjacency Matrix, Adjacency List), BFS, DFS, Dijkstra's Shortest Path.",
-    }
-  ],
-  detectedTopics: [
-    "Stack Operations & Applications",
-    "Linked Lists & Double Linked Lists",
-    "Binary Search Trees & Traversal",
-    "AVL Trees & Balance Rotations",
-    "Graph Traversal (BFS & DFS)",
-    "Dijkstra's Algorithm",
-  ],
-  documentProfile: {
-    fileName: "Unit_1_Linear_Data_Structures_Lecture_Notes.pdf",
-    detectedDomain: "Computer Science",
-    confidence: "High",
-    title: "Linear & Non-Linear Data Structures",
-    topics: [
-      "Stack Operations & Applications",
-      "Linked Lists & Double Linked Lists",
-      "Binary Search Trees & Traversal",
-      "AVL Trees & Balance Rotations",
-      "Graph Traversal (BFS & DFS)",
-      "Dijkstra's Algorithm",
-    ],
-    estimatedSections: 6,
-    pages: 42,
-    extractedTextLength: 15400,
-    hasFormulas: false,
-    hasCode: true,
-    hasTables: true,
-    keyTerminology: ["Stack", "Queue", "Linked List", "Binary Search Tree", "AVL Tree", "BFS", "DFS", "Dijkstra"],
-    summary: "Foundational data structures curriculum covering linear structures (stacks, queues, lists) and non-linear representations (trees, graphs, and shortest path algorithms).",
-    processingStatus: {
-      contentExtracted: true,
-      topicsIdentified: true,
-      studyToolsReady: true,
-    },
-  },
-  createdAt: Date.now() - 86400000 * 5,
-  lastActive: Date.now() - 3600000,
-  progressPercent: 42,
+  subject: "General Study",
+  learningGoal: "Understand concepts",
+  materials: [],
+  detectedTopics: [],
+  createdAt: Date.now(),
+  lastActive: Date.now(),
+  progressPercent: 0,
   stats: {
-    lessonsCompleted: 3,
-    quizzesAttempted: 2,
-    quizAccuracy: 85,
-    flashcardsReviewed: 14,
-    materialsUploaded: 2,
-    topicsCompleted: 2,
+    lessonsCompleted: 0,
+    quizzesAttempted: 0,
+    quizAccuracy: 0,
+    flashcardsReviewed: 0,
+    materialsUploaded: 0,
+    topicsCompleted: 0,
   },
-  recommendedNextAction: "Study Unit 2 - Binary Search Trees & Tree Rotations",
+  recommendedNextAction: "Upload your study material to begin.",
 };
 
 export function getWorkspaces(): StudyWorkspace[] {
+  const saveDefault = (): StudyWorkspace[] => {
+    const initial = [{ ...DEFAULT_INITIAL_WORKSPACE }];
+    try {
+      localStorage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(initial));
+    } catch (e) {
+      console.warn("Could not persist an empty study workspace:", e);
+    }
+    return initial;
+  };
   try {
     const raw = localStorage.getItem(WORKSPACES_STORAGE_KEY);
-    if (!raw) {
-      const initial = [DEFAULT_INITIAL_WORKSPACE];
-      localStorage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(initial));
-      return initial;
-    }
+    if (!raw) return saveDefault();
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
+    if (!Array.isArray(parsed)) return saveDefault();
+
+    // Remove the hard-coded starter workspace shipped by earlier builds.
+    const realWorkspaces = parsed.filter((workspace: StudyWorkspace) =>
+      workspace && workspace.id !== "ws-vits-dsa-1" &&
+      !String(workspace.id || "").startsWith("sample-workspace")
+    );
+    if (realWorkspaces.length !== parsed.length) {
+      localStorage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(realWorkspaces));
     }
-    return [DEFAULT_INITIAL_WORKSPACE];
+    if (realWorkspaces.length > 0) return realWorkspaces;
+    return saveDefault();
   } catch (e) {
     console.warn("Failed to load workspaces from storage:", e);
-    return [DEFAULT_INITIAL_WORKSPACE];
+    return saveDefault();
   }
 }
 
