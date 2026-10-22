@@ -1,4 +1,4 @@
-import { HfInference } from "@huggingface/inference";
+import { InferenceClient } from "@huggingface/inference";
 import { ImageProvider, GenerateImageParams, EditImageParams } from "./imageRouter";
 
 export class HuggingFaceImageProvider implements ImageProvider {
@@ -77,7 +77,8 @@ export class HuggingFaceImageProvider implements ImageProvider {
 
     console.log(`[HuggingFaceImageProvider] Calling Hugging Face Inference for model: "${primaryModel}"`);
 
-    const hf = new HfInference(token);
+    // InferenceClient routes through the current Hugging Face Inference Providers API.
+    const hf = new InferenceClient(token);
 
     let retries = 0;
     const maxRetries = 2;
@@ -85,6 +86,7 @@ export class HuggingFaceImageProvider implements ImageProvider {
     while (retries <= maxRetries) {
       try {
         const imageBlob = await hf.textToImage({
+          provider: "auto",
           model: primaryModel,
           inputs: finalPrompt,
           parameters: {
@@ -109,7 +111,7 @@ export class HuggingFaceImageProvider implements ImageProvider {
         throw new Error(`Model "${primaryModel}" did not return valid image data.`);
       } catch (err: any) {
         const rawErrMsg: string = err?.message || String(err);
-        const status = err?.httpResponse?.status || err?.status;
+        const status = err?.httpResponse?.status || err?.response?.status || err?.statusCode || err?.status;
 
         // Clean any sensitive token strings from error message
         const sanitizedErrMsg = rawErrMsg.replace(/hf_[a-zA-Z0-9_-]+/g, "[REDACTED_TOKEN]");
