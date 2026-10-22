@@ -36,7 +36,6 @@ import {
   UserProfile
 } from "../types";
 import { AcademicQuizDraft } from "../types/academicLiveQuiz";
-import { VITS_BRANCHES } from "../lib/studyWorkspaceStorage";
 import { getSupabaseAuthHeaders } from "../lib/supabase";
 import AcademicQuizCreator from "./livequiz/AcademicQuizCreator";
 import AcademicQuizHistory from "./livequiz/AcademicQuizHistory";
