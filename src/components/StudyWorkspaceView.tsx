@@ -387,127 +387,109 @@ export default function StudyWorkspaceView({
     return false;
   };
 
-  // Handlers
+  // Upload only material whose contents can be extracted and used as genuine study context.
   const handleUploadMaterial = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
+
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    const isText = file.type.startsWith("text/") || /\.(txt|md)$/i.test(file.name);
+    if (!isPdf && !isText) {
+      setActionError("Upload a text-based PDF, TXT, or Markdown file. Other formats are not currently extractable as reliable study sources.");
+      return;
+    }
+    if (file.size > 30 * 1024 * 1024) {
+      setActionError("This file is larger than 30 MB. Please upload a smaller document.");
+      return;
+    }
 
     setIsAnalyzingUpload(true);
     setActionError(null);
-    const isText = file.type.startsWith("text/") || file.name.endsWith(".txt") || file.name.endsWith(".md");
+    const addExtractedMaterial = (content: string, profile?: DocumentProfile) => {
+      const newMat = addMaterialToWorkspace(workspace.id, {
+        name: file.name,
+        type: isPdf ? "pdf" : "notes",
+        size: isPdf ? (file.size / (1024 * 1024)).toFixed(2) + " MB" : Math.max(1, Math.round(file.size / 1024)) + " KB",
+        content,
+        profile,
+      });
+      if (onUpdateWorkspace) {
+        onUpdateWorkspace({
+          ...workspace,
+          subject: profile?.detectedDomain && profile.detectedDomain !== "General Academic" && profile.detectedDomain !== "Unknown / General"
+            ? profile.detectedDomain
+            : workspace.subject,
+          documentProfile: profile || workspace.documentProfile,
+          detectedTopics: profile?.topics?.length
+            ? Array.from(new Set([...profile.topics, ...workspace.detectedTopics]))
+            : workspace.detectedTopics,
+          materials: [newMat, ...workspace.materials],
+        });
+      }
+    };
+
     const reader = new FileReader();
+    reader.onerror = () => {
+      setIsAnalyzingUpload(false);
+      setActionError("The file could not be read. Please try again.");
+    };
 
     if (isText) {
       reader.onload = async (event) => {
-        const textContent = (event.target?.result as string) || "";
+        const textContent = String(event.target?.result || "").trim();
+        if (textContent.length < 30) {
+          setIsAnalyzingUpload(false);
+          setActionError("This file does not contain enough readable text to create study material.");
+          return;
+        }
+        let profile: DocumentProfile | undefined;
         try {
           const resp = await fetch("/api/workspace/analyze-document", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              fileName: file.name,
-              fileType: "text",
-              content: textContent,
-            }),
+            body: JSON.stringify({ fileName: file.name, fileType: "text", content: textContent }),
           });
-          const data = await resp.json();
-          const profile: DocumentProfile | undefined = data.profile;
-          const extractedText = data.extractedText || textContent;
-
-          const newMat = addMaterialToWorkspace(workspace.id, {
-            name: file.name,
-            type: "notes",
-            size: `${Math.round(file.size / 1024)} KB`,
-            content: extractedText,
-            profile,
-          });
-
-          if (onUpdateWorkspace) {
-            onUpdateWorkspace({
-              ...workspace,
-              subject: profile?.detectedDomain && profile.detectedDomain !== "General Academic" ? profile.detectedDomain : workspace.subject,
-              documentProfile: profile || workspace.documentProfile,
-              detectedTopics: profile?.topics ? Array.from(new Set([...profile.topics, ...workspace.detectedTopics])) : workspace.detectedTopics,
-              materials: [newMat, ...workspace.materials],
-            });
+          if (resp.ok) {
+            const data = await resp.json();
+            profile = data.profile;
           }
-        } catch (err: any) {
-          console.error("Material upload analysis failed:", err);
-          setActionError("Document content could not be fully analyzed. Fallback extraction used.");
-          const newMat = addMaterialToWorkspace(workspace.id, {
-            name: file.name,
-            type: "notes",
-            size: `${Math.round(file.size / 1024)} KB`,
-            content: textContent,
-          });
-          if (onUpdateWorkspace) {
-            onUpdateWorkspace({
-              ...workspace,
-              materials: [newMat, ...workspace.materials],
-            });
-          }
+        } catch (error) {
+          console.warn("Document classification unavailable; retaining user text:", error);
         } finally {
+          addExtractedMaterial(textContent, profile);
           setIsAnalyzingUpload(false);
         }
       };
       reader.readAsText(file);
-    } else {
-      reader.onload = async (event) => {
-        const base64Data = ((event.target?.result as string) || "").split(",")[1];
-        const fileType = file.name.endsWith(".pdf") ? "pdf" : file.name.endsWith(".ppt") || file.name.endsWith(".pptx") ? "ppt" : "notes";
-        try {
-          const resp = await fetch("/api/workspace/analyze-document", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              fileName: file.name,
-              fileType,
-              base64: base64Data,
-            }),
-          });
-          const data = await resp.json();
-          const profile: DocumentProfile | undefined = data.profile;
-          const extractedText = data.extractedText || "";
-
-          const newMat = addMaterialToWorkspace(workspace.id, {
-            name: file.name,
-            type: fileType,
-            size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-            base64: base64Data,
-            content: extractedText,
-            profile,
-          });
-
-          if (onUpdateWorkspace) {
-            onUpdateWorkspace({
-              ...workspace,
-              subject: profile?.detectedDomain && profile.detectedDomain !== "General Academic" ? profile.detectedDomain : workspace.subject,
-              documentProfile: profile || workspace.documentProfile,
-              detectedTopics: profile?.topics ? Array.from(new Set([...profile.topics, ...workspace.detectedTopics])) : workspace.detectedTopics,
-              materials: [newMat, ...workspace.materials],
-            });
-          }
-        } catch (err: any) {
-          console.error("Material upload analysis failed:", err);
-          setActionError("PDF text could not be fully extracted. Multimodal understanding enabled.");
-          const newMat = addMaterialToWorkspace(workspace.id, {
-            name: file.name,
-            type: fileType,
-            size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-            base64: base64Data,
-          });
-          if (onUpdateWorkspace) {
-            onUpdateWorkspace({
-              ...workspace,
-              materials: [newMat, ...workspace.materials],
-            });
-          }
-        } finally {
-          setIsAnalyzingUpload(false);
-        }
-      };
-      reader.readAsDataURL(file);
+      return;
     }
+
+    reader.onload = async (event) => {
+      try {
+        const dataUrl = String(event.target?.result || "");
+        const base64Data = dataUrl.split(",")[1] || "";
+        if (!base64Data) throw new Error("The PDF could not be read.");
+        const resp = await fetch("/api/workspace/analyze-document", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileName: file.name, fileType: "pdf", base64: base64Data }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || "Could not extract text from this PDF.");
+        const extractedText = typeof data.extractedText === "string" ? data.extractedText.trim() : "";
+        if (extractedText.length < 30) {
+          throw new Error("No readable text could be extracted from this PDF. Use a text-based PDF rather than an image-only scan.");
+        }
+        addExtractedMaterial(extractedText, data.profile);
+      } catch (error: any) {
+        console.error("Material extraction failed:", error);
+        setActionError(error?.message || "Could not extract text from this PDF. It was not added as a study source.");
+      } finally {
+        setIsAnalyzingUpload(false);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleGenerateLesson = async (customTopic?: string) => {
