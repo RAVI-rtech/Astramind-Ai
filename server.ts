@@ -774,11 +774,15 @@ async function getAvailableImageModels(ai: GoogleGenAI, requestedCustomModel?: s
 app.get("/api/image-models-status", async (req, res) => {
   try {
     const router = createDefaultImageRouter(getGoogleGenAI);
-    const providers = router.getProviders();
+    const providers = await router.getProviderStatuses();
+    const availableProviders = providers.filter((provider) => provider.available);
     res.json({
-      available: providers.length > 0,
-      models: providers.map((p) => p.name),
-      message: "Modular Image Router operational with multiple configured providers."
+      available: availableProviders.length > 0,
+      models: availableProviders.map((provider) => provider.name),
+      providers,
+      message: availableProviders.length > 0
+        ? "Image providers are available; AstraMind will try configured providers and fall back automatically."
+        : "No image provider is currently available. Check Hugging Face token access and Gemini API configuration."
     });
   } catch (err: any) {
     console.error("[AstraMind Status] Error checking router status:", err);
@@ -872,7 +876,7 @@ app.post("/api/edit-image", async (req, res) => {
 
       try {
         const result = await imageRouter.editImage(
-          { prompt: prompt.trim(), image },
+          { prompt: prompt.trim(), image, providerId },
           (statusText) => {
             res.write(`data: ${JSON.stringify({ type: "status", message: statusText })}\n\n`);
           }
@@ -881,7 +885,8 @@ app.post("/api/edit-image", async (req, res) => {
         res.write(`data: ${JSON.stringify({ type: "result", imageUrl: result.imageUrl, provider: result.providerId, model: result.modelUsed })}\n\n`);
         return res.end();
       } catch (routerErr: any) {
-        res.write(`data: ${JSON.stringify({ type: "error", error: "Image generation is currently unavailable. Please try again later." })}\n\n`);
+        console.error("[AstraMind Image Edit] Streaming provider error:", routerErr?.message || routerErr);
+        res.write(`data: ${JSON.stringify({ type: "error", error: routerErr?.message || "Image editing is currently unavailable. Please try again later." })}\n\n`);
         return res.end();
       }
     }
@@ -890,6 +895,7 @@ app.post("/api/edit-image", async (req, res) => {
       const result = await imageRouter.editImage({
         prompt: prompt.trim(),
         image,
+        providerId,
       });
 
       return res.json({
@@ -899,13 +905,14 @@ app.post("/api/edit-image", async (req, res) => {
         statusHistory: result.statusHistory,
       });
     } catch (routerErr: any) {
+      console.error("[AstraMind Image Edit] Provider error:", routerErr?.message || routerErr);
       return res.status(503).json({
-        error: "Image generation is currently unavailable. Please try again later.",
+        error: routerErr?.message || "Image editing is currently unavailable. Please try again later.",
       });
     }
   } catch (error: any) {
     console.error("[AstraMind Image Edit] Server error:", error);
-    res.status(503).json({ error: "Image generation is currently unavailable. Please try again later." });
+    res.status(503).json({ error: error?.message || "Image editing is currently unavailable. Please try again later." });
   }
 });
 

@@ -55,6 +55,16 @@ export class ImageRouter {
     return this.providers.map((p) => ({ id: p.id, name: p.name, priority: p.priority }));
   }
 
+  /** Report configured provider availability without attempting an image request. */
+  public async getProviderStatuses(): Promise<{ id: string; name: string; priority: number; available: boolean }[]> {
+    return Promise.all(this.providers.map(async (provider) => ({
+      id: provider.id,
+      name: provider.name,
+      priority: provider.priority,
+      available: await provider.isAvailable().catch(() => false),
+    })));
+  }
+
   /**
    * Main image generation method with automatic failover across multiple providers.
    */
@@ -90,6 +100,7 @@ export class ImageRouter {
 
     let attemptCount = 0;
     let lastError: Error | null = null;
+    const failureMessages: string[] = [];
 
     for (const provider of providersToTry) {
       attemptCount++;
@@ -103,7 +114,9 @@ export class ImageRouter {
       try {
         const isAvail = await provider.isAvailable().catch(() => false);
         if (!isAvail) {
-          console.warn(`[ImageRouter Log] Provider "${provider.name}" reported as unavailable. Skipping.`);
+          const message = `${provider.name}: not configured or unavailable`;
+          failureMessages.push(message);
+          console.warn(`[ImageRouter Log] ${message}. Skipping.`);
           continue;
         }
 
@@ -119,17 +132,21 @@ export class ImageRouter {
           };
         }
       } catch (err: any) {
-        console.warn(`[ImageRouter Internal Log] Provider "${provider.name}" failed:`, err?.message || err);
-        lastError = err;
-        // Continue to fallback providers so the user request succeeds with authentic AI imagery
+        const rawMessage = String(err?.message || err || "Unknown provider error");
+        const safeMessage = rawMessage.replace(/hf_[a-zA-Z0-9_-]+/g, "[REDACTED_TOKEN]").slice(0, 260);
+        console.warn(`[ImageRouter Internal Log] Provider "${provider.name}" failed:`, safeMessage);
+        failureMessages.push(`${provider.name}: ${safeMessage}`);
+        lastError = err instanceof Error ? err : new Error(safeMessage);
+        // Continue to fallback providers so generation can succeed with another configured provider.
       }
     }
 
     // If all providers failed or were unavailable
     console.error("[ImageRouter Error] All registered providers failed or were unavailable.");
-    if (lastError) {
-      throw lastError;
+    if (failureMessages.length > 0) {
+      throw new Error(`All image providers failed. ${failureMessages.join(" | ").slice(0, 1200)}`);
     }
+    if (lastError) throw lastError;
     throw new Error("Image generation is currently unavailable. Please try again later.");
   }
 
@@ -150,7 +167,13 @@ export class ImageRouter {
       }
     };
 
-    const editProviders = this.providers.filter((p) => typeof p.editImage === "function");
+    let editProviders = this.providers.filter((p) => typeof p.editImage === "function");
+    if (params.providerId) {
+      const requestedProvider = editProviders.find((p) => p.id === params.providerId);
+      if (requestedProvider) {
+        editProviders = [requestedProvider, ...editProviders.filter((p) => p.id !== params.providerId)];
+      }
+    }
 
     if (editProviders.length === 0) {
       console.error("[ImageRouter Error] No editing-capable providers registered.");
@@ -160,6 +183,7 @@ export class ImageRouter {
     notifyStatus("Generating image...");
 
     let attemptCount = 0;
+    let lastError: Error | null = null;
 
     for (const provider of editProviders) {
       attemptCount++;
@@ -190,11 +214,13 @@ export class ImageRouter {
         }
       } catch (err: any) {
         console.warn(`[ImageRouter Internal Log] Edit Provider "${provider.name}" failed:`, err?.message || err);
+        lastError = err instanceof Error ? err : new Error(String(err));
       }
     }
 
     console.error("[ImageRouter Error] All editing providers failed.");
-    throw new Error("Image generation is currently unavailable. Please try again later.");
+    if (lastError) throw lastError;
+    throw new Error("No configured provider could edit this image. Check the Gemini image API settings and try again.");
   }
 }
 
@@ -207,8 +233,8 @@ export class ImageRouter {
  */
 export class GoogleImagenProvider implements ImageProvider {
   public id = "google-imagen-v3";
-  public name = "Google Imagen 3 Studio";
-  public priority = 2;
+  public name = "Google Imagen 3 Studio (legacy)";
+  public priority = 99;
 
   constructor(private getGenAI: () => GoogleGenAI | null) {}
 
@@ -267,8 +293,8 @@ export class GoogleImagenProvider implements ImageProvider {
  */
 export class GoogleGeminiFlashProvider implements ImageProvider {
   public id = "google-gemini-flash";
-  public name = "Gemini Flash Neural Engine";
-  public priority = 3;
+  public name = "Gemini Image Generation";
+  public priority = 2;
 
   constructor(private getGenAI: () => GoogleGenAI | null) {}
 
@@ -284,13 +310,16 @@ export class GoogleGeminiFlashProvider implements ImageProvider {
       ? `${params.prompt}, ${params.style} style`
       : params.prompt;
 
-    const modelsToTry = ["gemini-3.1-flash-image", "gemini-3.1-flash-lite-image", "gemini-2.5-flash"];
+    const modelsToTry = ["gemini-nano-banana-2.1", "gemini-3.1-flash-image", "gemini-3.1-flash-lite-image"];
 
     for (const modelName of modelsToTry) {
       try {
         const response = await ai.models.generateContent({
           model: modelName,
           contents: `Generate a high quality image matching this description: ${finalPrompt}`,
+          config: {
+            responseModalities: ["IMAGE"],
+          },
         });
 
         if (response.candidates?.[0]?.content?.parts) {
@@ -308,7 +337,8 @@ export class GoogleGeminiFlashProvider implements ImageProvider {
       }
     }
 
-    throw new Error("Gemini Flash models failed to produce an image.");
+    throw new Error("Gemini image models failed to produce an image. Check the Gemini API key, model access, and image-generation quota.");
+
   }
 
   public async editImage(params: EditImageParams): Promise<{ imageUrl: string; modelUsed: string }> {
@@ -326,7 +356,7 @@ export class GoogleGeminiFlashProvider implements ImageProvider {
       }
     }
 
-    const editModelsToTry = ["gemini-3.1-flash-image", "gemini-3.1-flash-lite-image", "gemini-2.5-flash"];
+    const editModelsToTry = ["gemini-nano-banana-2.1", "gemini-3.1-flash-image", "gemini-3.1-flash-lite-image"];
 
     for (const modelName of editModelsToTry) {
       try {
@@ -336,6 +366,9 @@ export class GoogleGeminiFlashProvider implements ImageProvider {
             { text: `Edit this image according to these instructions: ${params.prompt}. Maintain high visual quality.` },
             { inlineData: { mimeType, data: base64Data } },
           ],
+          config: {
+            responseModalities: ["IMAGE"],
+          },
         });
 
         if (response.candidates?.[0]?.content?.parts) {
@@ -353,7 +386,8 @@ export class GoogleGeminiFlashProvider implements ImageProvider {
       }
     }
 
-    throw new Error("Gemini Flash models failed to edit image.");
+    throw new Error("Gemini image models failed to edit the image. Check the Gemini API key, model access, and image-generation quota.");
+
   }
 }
 
@@ -363,7 +397,7 @@ export class GoogleGeminiFlashProvider implements ImageProvider {
 export class PollinationsAIProvider implements ImageProvider {
   public id = "pollinations-ai";
   public name = "Pollinations Open Studio";
-  public priority = 2;
+  public priority = 3;
 
   public async isAvailable(): Promise<boolean> {
     return true; // Public endpoint requiring no keys
@@ -409,7 +443,11 @@ export class PollinationsAIProvider implements ImageProvider {
       const arrayBuffer = await response.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
       const base64 = buffer.toString("base64");
-      const contentType = response.headers.get("content-type") || "image/jpeg";
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.toLowerCase().startsWith("image/")) {
+        const responseText = buffer.toString("utf8").slice(0, 160);
+        throw new Error(`Pollinations returned a non-image response (${contentType || "unknown content type"}): ${responseText}`);
+      }
 
       return {
         imageUrl: `data:${contentType};base64,${base64}`,
@@ -417,14 +455,12 @@ export class PollinationsAIProvider implements ImageProvider {
       };
     } catch (err: any) {
       clearTimeout(timeoutId);
-      console.warn("[PollinationsAIProvider] Fetch failed:", err?.message || err);
-      throw new Error("Pollinations fallback failed.");
+      const message = String(err?.message || "Pollinations fallback failed.");
+      console.warn("[PollinationsAIProvider] Fetch failed:", message);
+      throw new Error(message);
     }
   }
 
-  public async editImage(params: EditImageParams): Promise<{ imageUrl: string; modelUsed: string }> {
-    return this.generateImage({ prompt: params.prompt });
-  }
 }
 
 /**
@@ -433,11 +469,11 @@ export class PollinationsAIProvider implements ImageProvider {
 export function createDefaultImageRouter(getGenAI: () => GoogleGenAI | null): ImageRouter {
   const router = new ImageRouter();
 
-  // Register providers in priority order
+  // Prefer Hugging Face first, then current Gemini image models when a Gemini key is configured.
+  // Imagen's Gemini API models were shut down in August 2026; do not route live traffic to them.
   router.registerProvider(new HuggingFaceImageProvider());
-  router.registerProvider(new PollinationsAIProvider());
-  router.registerProvider(new GoogleImagenProvider(getGenAI));
   router.registerProvider(new GoogleGeminiFlashProvider(getGenAI));
+  router.registerProvider(new PollinationsAIProvider());
 
   return router;
 }

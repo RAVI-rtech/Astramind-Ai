@@ -121,10 +121,6 @@ export default function AIImageGenerator({
 
   const handleGenerate = async () => {
     if (!prompt.trim() || isGenerating) return;
-    if (isModelUnavailable) {
-      setErrorMsg(unavailableMessage || "Image generation is currently unavailable with your API configuration. No supported image models were found.");
-      return;
-    }
     setErrorMsg(null);
     setIsGenerating(true);
     setProgressPercent(15);
@@ -382,9 +378,9 @@ export default function AIImageGenerator({
             <div className="p-4 rounded-2xl bg-amber-950/40 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-3 shadow-lg">
               <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
               <div>
-                <p className="font-semibold text-amber-100">Image Generation Unavailable</p>
+                <p className="font-semibold text-amber-100">Provider Status Not Confirmed</p>
                 <p className="mt-0.5 text-amber-300/80 leading-relaxed">
-                  {unavailableMessage || "Image generation is currently unavailable with your API configuration. No supported image generation models were found for this API key."}
+                  {unavailableMessage || "The status check could not confirm provider availability. You can still try generation; AstraMind will attempt available providers and fall back automatically."}
                 </p>
               </div>
             </div>
@@ -436,9 +432,9 @@ export default function AIImageGenerator({
             <button
               id="generate-image-btn"
               onClick={handleGenerate}
-              disabled={!prompt.trim() || isGenerating || isModelUnavailable}
+              disabled={!prompt.trim() || isGenerating}
               className={`w-full py-4 rounded-2xl font-bold text-sm tracking-wide transition-all shadow-xl flex items-center justify-center gap-2.5 cursor-pointer ${
-                !prompt.trim() || isGenerating || isModelUnavailable
+                !prompt.trim() || isGenerating
                   ? "bg-slate-800 text-slate-500 border border-white/5 cursor-not-allowed opacity-60"
                   : `bg-gradient-to-r ${accentColorClass} text-white hover:brightness-110 shadow-blue-500/20 active:scale-[0.99]`
               }`}
@@ -451,7 +447,7 @@ export default function AIImageGenerator({
               ) : isModelUnavailable ? (
                 <>
                   <AlertTriangle className="w-4 h-4 text-amber-400" />
-                  <span>Image Generation Unavailable</span>
+                  <span>Try Image Generation</span>
                 </>
               ) : (
                 <>
