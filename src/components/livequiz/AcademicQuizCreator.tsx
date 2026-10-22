@@ -239,8 +239,15 @@ export default function AcademicQuizCreator({
     }
   };
 
-  // Available subjects for chosen Branch, Year, Semester
-  const availableSubjects = getVitsSubjects(branch, year, semester);
+  // Local VITS curriculum data provides optional suggestions; other schools and programs use custom subjects.
+  const isVitsBTech = college.trim().toLowerCase() === VITS_COLLEGE_NAME.toLowerCase() &&
+    programType === "B.Tech" &&
+    VITS_BRANCHES.includes(branch as VitsBranch) &&
+    VITS_YEARS.includes(year as AcademicYear) &&
+    VITS_SEMESTERS.includes(semester as AcademicSemester);
+  const availableSubjects = isVitsBTech
+    ? getVitsSubjects(branch as VitsBranch, year as AcademicYear, semester as AcademicSemester)
+    : [];
 
   // Initialize subject when branch/year/sem change
   useEffect(() => {
