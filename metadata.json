@@ -1,6 +1,6 @@
 {
   "name": "AstraMind AI",
-  "description": "AstraMind Study Workspace: A premium AI study workspace for B.Tech students with intelligent materials analysis, guided lessons, quizzes, flashcards, mock exams, and real-time live quizzes.",
+  "description": "AstraMind AI: A personalized learning workspace for students across schools, colleges, universities, programs, and disciplines, with source-grounded study tools, quizzes, flashcards, notes, and live assessments.",
   "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
