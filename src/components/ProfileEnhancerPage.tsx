@@ -313,7 +313,7 @@ export default function ProfileEnhancerPage({
               Profile Enhancer
             </h1>
             <p className="mt-1 text-sm text-white/50 max-w-2xl font-normal leading-relaxed">
-              Build an authoritative technical presence with AI. Tailored for B.Tech students, internship seekers, and freshers to highlight genuine technical depth.
+              Build a credible professional presence with AI. Tailored for students, graduates, internship seekers, career switchers, and professionals to highlight genuine skills, projects, and experience.
             </p>
           </div>
 
