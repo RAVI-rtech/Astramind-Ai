@@ -855,9 +855,11 @@ export default function StudyWorkspaceView({
     }
   };
 
-  const handleSendTutorMessage = async (queryText?: string) => {
+  const handleSendTutorMessage = async (queryText?: string, sourceOverride?: string) => {
     const textToSend = queryText || tutorInput.trim();
-    if (!textToSend || isTutorThinking || !requireWorkspaceSource("AI Tutor")) return;
+    if (!textToSend || isTutorThinking) return;
+    const sourceToUse = sourceOverride?.trim() || getExtractedSourceContent();
+    if (sourceToUse.trim().length < 30 && !requireWorkspaceSource("AI Tutor")) return;
 
     setTutorMessages((prev) => [...prev, { sender: "user", text: textToSend }]);
     if (!queryText) setTutorInput("");
@@ -876,7 +878,7 @@ export default function StudyWorkspaceView({
             { sender: "user", text: textToSend },
           ],
           subject: workspace.subject,
-          extractedContent: getExtractedSourceContent().slice(0, 16000),
+          extractedContent: sourceToUse.slice(0, 16000),
           college: workspace.college,
           branch: workspace.branch,
           learningGoal: workspace.learningGoal,
@@ -1719,96 +1721,7 @@ export default function StudyWorkspaceView({
 
               {/* Master Documents List */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                {(kbDocuments.length > 0 ? kbDocuments : [
-                  {
-                    id: "doc-bee-1",
-                    documentName: "BEE COMPLETE NOTES.pdf",
-                    subject: "Basic Electrical Engineering",
-                    subjectCode: "BEE",
-                    unit: "Units 1 - 5",
-                    pageCount: 184,
-                    chunkCount: 12,
-                    driveFileId: "1iLlJGX5MeoMMdJQ-QLRetx50q-JdnfpV",
-                    status: "indexed"
-                  },
-                  {
-                    id: "doc-pps-u1",
-                    documentName: "c-unit-1.pdf",
-                    subject: "Programming for Problem Solving",
-                    subjectCode: "PPS",
-                    unit: "Unit 1",
-                    pageCount: 48,
-                    chunkCount: 8,
-                    driveFileId: "1Xv4UX2abZuQbLff7ANsXrbJkdNBM6Rvf",
-                    status: "indexed"
-                  },
-                  {
-                    id: "doc-pps-u4",
-                    documentName: "c-unit-4.pdf",
-                    subject: "Programming for Problem Solving",
-                    subjectCode: "PPS",
-                    unit: "Unit 4",
-                    pageCount: 52,
-                    chunkCount: 8,
-                    driveFileId: "1AqQh1W6PqzeXXFAqueq62V4QJQLV5pr2",
-                    status: "indexed"
-                  },
-                  {
-                    id: "doc-pps-u6",
-                    documentName: "c-unit-6.pdf",
-                    subject: "Programming for Problem Solving",
-                    subjectCode: "PPS",
-                    unit: "Unit 6",
-                    pageCount: 36,
-                    chunkCount: 6,
-                    driveFileId: "1yJN1MgsbT8n3tgzPVP6TVVknok5XXFeM",
-                    status: "indexed"
-                  },
-                  {
-                    id: "doc-m1-u1",
-                    documentName: "Unit -1.pdf",
-                    subject: "Mathematics-I",
-                    subjectCode: "M1",
-                    unit: "Unit 1",
-                    pageCount: 37,
-                    chunkCount: 6,
-                    driveFileId: "1qMsI3LbejBYqcaj6x6KpsCl-zvjmb7YQ",
-                    status: "indexed"
-                  },
-                  {
-                    id: "doc-m1-u2",
-                    documentName: "Unit 2.pdf",
-                    subject: "Mathematics-I",
-                    subjectCode: "M1",
-                    unit: "Unit 2",
-                    pageCount: 42,
-                    chunkCount: 6,
-                    driveFileId: "1TXWobOvJ9xYS5almj7fL5AQ_F9UVU6Gd",
-                    status: "indexed"
-                  },
-                  {
-                    id: "doc-ed-u3",
-                    documentName: "textbook-of-engineering-drawing_compressed-3.pdf",
-                    subject: "Engineering Drawing",
-                    subjectCode: "CAEG",
-                    unit: "Unit 3",
-                    pageCount: 54,
-                    chunkCount: 6,
-                    driveFileId: "1D7FjS3mnbsiLNeOwNphLVE8tBjQkXg-l",
-                    status: "indexed"
-                  },
-                  {
-                    id: "doc-eng-1",
-                    documentName: "eng-i-text-main-points.pdf",
-                    subject: "Communicative English",
-                    subjectCode: "ENG",
-                    unit: "Unit 1",
-                    pageCount: 11,
-                    chunkCount: 4,
-                    driveFileId: "1yigbh5xVXGEB8M5WPpOfHOGOWGoBdsQd",
-                    status: "indexed"
-                  }
-                ])
+                {kbDocuments
                   .filter((d: any) =>
                     selectedKbSubject === "All" ||
                     d.subject.toLowerCase().includes(selectedKbSubject.toLowerCase())
