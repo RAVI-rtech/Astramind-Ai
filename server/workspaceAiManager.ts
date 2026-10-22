@@ -399,12 +399,13 @@ export async function generateMCQQuiz(params: {
 
   const systemInstruction = `You are an expert university examiner.
 CRITICAL MANDATE:
-Create high-quality exam questions STRICTLY DERIVED from the uploaded study material.
-- If the material is about Operating Systems: questions must be about OS concepts (processes, threads, scheduling, deadlocks, memory, I/O).
-- If the material is about DBMS: questions must be about databases (SQL, relational algebra, normal forms, transactions).
-- If the material is about Programming / Python: questions must be about code, algorithms, data structures, and syntax.
-- If the material contains formulas or numericals: include calculation/numerical questions.
-- If the material does NOT contain Mathematics, DO NOT GENERATE MATHEMATICS QUESTIONS!
+Create high-quality exam questions strictly from the uploaded source excerpt.
+- Infer the subject domain from the supplied text itself; do not import concepts from other domains.
+- If the text contains formulas or numerical procedures, include relevant calculation questions.
+- If mathematics is not present in the source, do not invent mathematical questions.
+- Do not invent page numbers, syllabus coverage, past-exam frequency, or facts absent from the source.
+- Every MCQ answer key must point to the option that is actually correct according to the source.
+- Vary correct option positions naturally; never default all answer keys to the same index.
 ${typeConstraint}`;
 
   const prompt = `Generate ${count} interactive quiz questions for:
@@ -416,18 +417,17 @@ Question Format Style: "${questionType || "Mixed (MCQs, True/False, Concepts, Ap
 AUTHORITATIVE SOURCE MATERIAL:
 ${extractedContent.slice(0, 16000)}
 
-RETURN STRICT JSON ARRAY ONLY:
-[
-  {
-    "id": "q1",
-    "question": "Question text...",
-    "options": ["Option A", "Option B", "Option C", "Option D"],
-    "correctIndex": 0,
-    "explanation": "Clear, educational explanation of the correct answer referencing the source material.",
-    "topic": "${topic}",
-    "questionType": "mcq" | "true_false" | "concept" | "definition" | "application" | "code" | "numerical"
-  }
-]
+RETURN STRICT JSON ARRAY ONLY.
+Each item must be an object with the following fields:
+- id: unique string identifier
+- question: question derived from the source excerpt
+- options: array of four distinct, non-empty option strings
+- correctIndex: zero-based integer index pointing to the correct option
+- explanation: explanation supported by the source excerpt
+- topic: topic explicitly discussed in the source excerpt
+- questionType: one of "mcq", "true_false", "concept", "definition", "application", "code", or "numerical"
+
+Do not copy these field descriptions as answers. Do not invent content if the uploaded material does not support the question. The correctIndex must match the correct option.
 Do not wrap in markdown. Output valid JSON array only.`;
 
   try {
@@ -561,11 +561,12 @@ RETURN STRICT JSON ARRAY ONLY:
     "topic": "Specific Topic",
     "question": "Full exam question text...",
     "difficulty": "Medium",
-    "frequency": "Repeated",
+    "frequency": "Not stated in source",
     "answerSummary": "Structured 3-4 sentence key answer outline detailing essential points required to score full marks."
   }
 ]
 Valid difficulty values: "Low", "Medium", "High".
+Use "Not stated in source" for frequency unless the supplied source explicitly includes past-question statistics; do not label questions repeated/high probability based on a syllabus alone.
 For frequency, use "Not stated in source" unless the text explicitly contains historical repetition evidence. Never infer frequency from a syllabus alone.
 Do not wrap in markdown. Output valid JSON only.`;
 
@@ -638,9 +639,9 @@ RETURN STRICT JSON ONLY:
     }
   ],
   "examTakeaways": [
-    "High-probability exam tip 1",
-    "Crucial distinction or pitfall to avoid in the exam",
-    "Key theorem or algorithm frequently asked"
+    "A revision takeaway supported by the document",
+    "A key distinction explicitly present in the source",
+    "A theorem, formula, or method that the source emphasizes"
   ]
 }
 Do not wrap in markdown. Output valid JSON only.`;
