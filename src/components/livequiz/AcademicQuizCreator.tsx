@@ -409,6 +409,9 @@ export default function AcademicQuizCreator({
     if (d.college) setCollege(d.college);
     if (d.regulation !== undefined) setRegulation(d.regulation);
     if (d.programType) setProgramType(d.programType);
+    if (d.officialWebsiteUrl !== undefined) setOfficialWebsiteUrl(d.officialWebsiteUrl);
+    if (d.syllabusSourceUrl) setSyllabusSourceUrl(d.syllabusSourceUrl);
+    if (d.sourceMaterialText) setSourceMaterialText(d.sourceMaterialText.slice(0, 30000));
     if (d.branch) setBranch(d.branch);
     if (d.year) setYear(d.year);
     if (d.semester) setSemester(d.semester);
@@ -443,6 +446,9 @@ export default function AcademicQuizCreator({
     college,
     regulation,
     programType,
+    officialWebsiteUrl,
+    syllabusSourceUrl,
+    sourceMaterialText,
     branch,
     year,
     semester,
@@ -471,6 +477,9 @@ export default function AcademicQuizCreator({
       college: college.trim() || VITS_COLLEGE_NAME,
       regulation: regulation.trim(),
       programType,
+      officialWebsiteUrl: officialWebsiteUrl.trim() || undefined,
+      syllabusSourceUrl: syllabusSourceUrl || undefined,
+      sourceMaterialText: sourceMaterialText.trim().slice(0, 30000) || undefined,
       branch: branch.trim() || "Not specified",
       year: year.trim() || "Not specified",
       semester: semester.trim() || "Not specified",
