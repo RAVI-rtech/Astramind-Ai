@@ -643,18 +643,18 @@ export default function AcademicQuizCreator({
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                 <Shield className="w-3.5 h-3.5" />
-                VITS {regulation} Academic Regulation
+                {college || "Academic Assessment"}{regulation ? ` · ${regulation}` : ""}
               </span>
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">
                 <GraduationCap className="w-3.5 h-3.5" />
-                B.Tech Assessment Portal
+                {programType || "Academic"} Assessment Portal
               </span>
             </div>
             <h1 className="text-2xl font-bold text-slate-100 tracking-tight">
               Create College-Wide Academic Live Assessment
             </h1>
             <p className="text-sm text-slate-400">
-              {college} • Standardized syllabus mapping with real-time multi-student evaluation
+              {college} • Real-time multi-student assessment for your selected course and academic context
             </p>
           </div>
 
