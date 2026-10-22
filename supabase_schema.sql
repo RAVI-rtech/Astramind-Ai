@@ -113,7 +113,8 @@ CREATE TABLE IF NOT EXISTS live_quizzes (
   host_user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   description TEXT DEFAULT '',
-  college TEXT NOT NULL DEFAULT 'Vignan Institute of Science and Technology',
+  college TEXT NOT NULL DEFAULT 'Vignan Institute of Technology and Science',
+  program_type TEXT NOT NULL DEFAULT 'B.Tech',
   regulation VARCHAR(20) NOT NULL DEFAULT 'VR25',
   branch TEXT NOT NULL,
   year TEXT NOT NULL,
@@ -142,6 +143,10 @@ CREATE TABLE IF NOT EXISTS live_quizzes (
 CREATE INDEX IF NOT EXISTS live_quizzes_host_idx ON live_quizzes (host_user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS live_quizzes_academic_idx ON live_quizzes (regulation, branch, year, semester, subject);
 
+-- Ensure older installations gain the general program field without replacing existing records.
+ALTER TABLE live_quizzes ADD COLUMN IF NOT EXISTS program_type TEXT NOT NULL DEFAULT 'B.Tech';
+ALTER TABLE live_quizzes ALTER COLUMN college SET DEFAULT 'Vignan Institute of Technology and Science';
+
 -- B. Live Quiz Questions (Normalized question records)
 CREATE TABLE IF NOT EXISTS live_quiz_questions (
   id TEXT PRIMARY KEY DEFAULT ('lqq_' || gen_random_uuid()::text),
@@ -168,8 +173,9 @@ CREATE TABLE IF NOT EXISTS live_quiz_rooms (
   quiz_id TEXT REFERENCES live_quizzes(id) ON DELETE SET NULL,
   title TEXT NOT NULL,
   subject TEXT NOT NULL,
-  college TEXT NOT NULL DEFAULT 'Vignan Institute of Science and Technology',
-  regulation VARCHAR(20) NOT NULL DEFAULT 'VR25',
+  college TEXT NOT NULL DEFAULT 'Vignan Institute of Technology and Science',
+  program_type TEXT NOT NULL DEFAULT 'B.Tech',
+  regulation VARCHAR(20) NOT NULL DEFAULT '',
   branch TEXT,
   year TEXT,
   semester TEXT,
@@ -199,6 +205,11 @@ CREATE TABLE IF NOT EXISTS live_quiz_rooms (
 CREATE INDEX IF NOT EXISTS live_quiz_rooms_code_idx ON live_quiz_rooms (room_code);
 CREATE INDEX IF NOT EXISTS live_quiz_rooms_host_idx ON live_quiz_rooms (host_user_id);
 CREATE INDEX IF NOT EXISTS live_quiz_rooms_status_idx ON live_quiz_rooms (status);
+
+-- Keep active rooms compatible with non-VITS programs on existing deployments.
+ALTER TABLE live_quiz_rooms ADD COLUMN IF NOT EXISTS program_type TEXT NOT NULL DEFAULT 'B.Tech';
+ALTER TABLE live_quiz_rooms ALTER COLUMN college SET DEFAULT 'Vignan Institute of Technology and Science';
+ALTER TABLE live_quiz_rooms ALTER COLUMN regulation SET DEFAULT '';
 
 -- D. Live Quiz Participants Table
 CREATE TABLE IF NOT EXISTS live_quiz_participants (
