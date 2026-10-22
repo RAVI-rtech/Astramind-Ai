@@ -895,6 +895,7 @@ app.post("/api/edit-image", async (req, res) => {
       const result = await imageRouter.editImage({
         prompt: prompt.trim(),
         image,
+        providerId,
       });
 
       return res.json({
