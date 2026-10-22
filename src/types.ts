@@ -277,8 +277,8 @@ export interface StudyWorkspace {
   /** Official syllabus URL selected or imported for this workspace. */
   syllabusSourceUrl?: string;
   branch: string;
-  year: BTechYear;
-  semester: BTechSemester;
+  year: string;
+  semester: string;
   subject: string;
   learningGoal: LearningGoal;
   materials: StudyMaterial[];
