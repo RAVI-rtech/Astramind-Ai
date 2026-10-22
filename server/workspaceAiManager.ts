@@ -140,7 +140,7 @@ export async function analyzeUploadedDocument(params: {
 }): Promise<{ profile: DocumentProfile; extractedText: string }> {
   const { fileName, fileType, base64, content } = params;
   let extractedText = content || "";
-  let pageCount = 1;
+  let pageCount = 0;
 
   // Handle PDF text extraction via PDFParse if base64 is present
   if (base64 && (fileType === "pdf" || fileName.toLowerCase().endsWith(".pdf"))) {
@@ -155,7 +155,7 @@ export async function analyzeUploadedDocument(params: {
       if (text && text.trim()) {
         extractedText = text.trim();
       }
-      pageCount = parser.doc?.numPages || res?.total || res?.numpages || 1;
+      pageCount = parser.doc?.numPages || res?.total || res?.numpages || 0;
     } catch (err) {
       console.warn("PDFParse extraction had error, will use multimodal Gemini:", err);
     }
