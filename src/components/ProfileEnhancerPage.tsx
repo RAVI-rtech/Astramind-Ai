@@ -368,7 +368,7 @@ export default function ProfileEnhancerPage({
                     type="text"
                     value={profile.fullName}
                     onChange={(e) => setProfile({ ...profile, fullName: e.target.value })}
-                    placeholder="e.g. Aarav Sharma"
+                    placeholder="Enter your full name"
                     className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/80 focus:ring-1 focus:ring-blue-500/40 transition-all"
                   />
                 </div>
@@ -772,16 +772,8 @@ export default function ProfileEnhancerPage({
               </div>
               <h3 className="text-base font-semibold text-white mb-2">Ready to Enhance Your Profile</h3>
               <p className="text-xs text-slate-400 max-w-md leading-relaxed mb-6">
-                Fill in your details or click <span className="text-blue-300 font-medium">"Load Sample B.Tech Profile"</span> above, then click <span className="text-blue-300 font-medium">"Analyze Profile"</span> to view your personalized score, headline options, project rewrites, skills taxonomy, and actionable improvement plan.
+                Enter your own information, projects, skills, and experience, then choose <span className="text-blue-300 font-medium">"Analyze Profile"</span> to receive a personalized review. Blank fields are left blank; AstraMind does not insert a fictional profile.
               </p>
-              <button
-                type="button"
-                onClick={handleLoadSample}
-                className="px-4 py-2 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-300 text-xs font-medium flex items-center gap-2 cursor-pointer transition-all"
-              >
-                <Zap className="w-3.5 h-3.5 text-amber-400" />
-                <span>Try with Sample Profile</span>
-              </button>
             </div>
           )}
 
