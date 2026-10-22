@@ -117,20 +117,22 @@ export default function AttendancePage({
     if (raw.includes("EEE")) return "EEE";
     if (raw.includes("MECH")) return "ME";
     if (raw.includes("CIVIL")) return "CE";
-    return "CSE";
+    if (raw.includes("CSE")) return "CSE";
+    return "";
   });
 
-  const [year, setYear] = useState<string>("1");
+  const [year, setYear] = useState<string>(() => {
+    const value = String((userProfile as any)?.year || "").trim();
+    const match = value.match(/\b([1-4])\b/);
+    return match ? match[1] : "";
+  });
   const [section, setSection] = useState<string>(() => {
-    const s = (userProfile?.section || "A").trim().toUpperCase();
-    if (s === "B") return "B";
-    if (s === "C") return "C";
-    if (s === "D") return "D";
-    return "A";
+    const value = (userProfile?.section || "").trim().toUpperCase();
+    return SECTION_OPTIONS.some((option) => option.value === value) ? value : "";
   });
 
-  // Default dates: From start of current semester (Aug 1) to today
-  const [fromDate, setFromDate] = useState<string>("2026-08-01");
+  // Require an explicit range or a named preset; no assumed semester start date.
+  const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>(() => {
     const now = new Date();
     return now.toISOString().split("T")[0];
@@ -157,11 +159,17 @@ export default function AttendancePage({
       else if (raw.includes("EEE")) setBranch("EEE");
       else if (raw.includes("MECH")) setBranch("ME");
       else if (raw.includes("CIVIL")) setBranch("CE");
-      else setBranch("CSE");
+      else if (raw.includes("CSE")) setBranch("CSE");
+      else setBranch("");
     }
     if (userProfile?.section) {
-      const s = userProfile.section.trim().toUpperCase();
-      if (["A", "B", "C", "D"].includes(s)) setSection(s);
+      const value = userProfile.section.trim().toUpperCase();
+      setSection(SECTION_OPTIONS.some((option) => option.value === value) ? value : "");
+    }
+    if ((userProfile as any)?.year) {
+      const value = String((userProfile as any).year).trim();
+      const match = value.match(/\b([1-4])\b/);
+      setYear(match ? match[1] : "");
     }
   }, [userProfile]);
 
@@ -195,6 +203,11 @@ export default function AttendancePage({
       return;
     }
 
+    if (!branch || !year || !section) {
+      setErrorMessage("Please select your actual branch, academic year, and section before fetching attendance.");
+      return;
+    }
+
     if (fromDate > toDate) {
       setErrorMessage("From Date cannot be later than To Date.");
       return;
@@ -210,7 +223,7 @@ export default function AttendancePage({
         },
         body: JSON.stringify({
           rollNumber: trimmedRoll,
-          studentName: userProfile?.name || "Student",
+          studentName: userProfile?.name || "",
           branch,
           year,
           section,
@@ -245,7 +258,9 @@ export default function AttendancePage({
     setToDate(now.toISOString().split("T")[0]);
 
     if (preset === "semester") {
-      setFromDate("2026-08-01");
+      let semesterStart = new Date(now.getFullYear(), 7, 1);
+      if (semesterStart > now) semesterStart = new Date(now.getFullYear() - 1, 7, 1);
+      setFromDate(semesterStart.toISOString().split("T")[0]);
     } else if (preset === "month") {
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       setFromDate(startOfMonth.toISOString().split("T")[0]);
@@ -383,6 +398,7 @@ export default function AttendancePage({
                     onChange={(e) => setBranch(e.target.value)}
                     className="w-full h-11 pl-10 pr-4 bg-[#101012] border border-white/[0.08] rounded-2xl text-xs sm:text-sm text-white focus:outline-none focus:border-[#a78bfa] transition-all cursor-pointer"
                   >
+                    <option value="">Select your branch</option>
                     {BRANCH_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value} className="bg-[#101012] text-white">
                         {opt.label}
@@ -405,6 +421,7 @@ export default function AttendancePage({
                     onChange={(e) => setYear(e.target.value)}
                     className="w-full h-11 pl-10 pr-4 bg-[#101012] border border-white/[0.08] rounded-2xl text-xs sm:text-sm text-white focus:outline-none focus:border-[#a78bfa] transition-all cursor-pointer"
                   >
+                    <option value="">Select your year</option>
                     {YEAR_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value} className="bg-[#101012] text-white">
                         {opt.label}
@@ -427,6 +444,7 @@ export default function AttendancePage({
                     onChange={(e) => setSection(e.target.value)}
                     className="w-full h-11 pl-10 pr-4 bg-[#101012] border border-white/[0.08] rounded-2xl text-xs sm:text-sm text-white focus:outline-none focus:border-[#a78bfa] transition-all cursor-pointer"
                   >
+                    <option value="">Select your section</option>
                     {SECTION_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value} className="bg-[#101012] text-white">
                         {opt.label}
