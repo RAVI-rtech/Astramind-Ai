@@ -274,7 +274,7 @@ export default function AcademicQuizCreator({
     }
 
     try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_DRAFT_KEY);
+      const saved = localStorage.getItem(LOCAL_STORAGE_DRAFT_KEY) || localStorage.getItem(LEGACY_VITS_DRAFT_KEY);
       if (saved) {
         const parsed: AcademicQuizDraft = JSON.parse(saved);
         if (parsed && (parsed.subject || parsed.questions?.length > 0)) {
