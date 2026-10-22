@@ -33,12 +33,8 @@ export default function LearningStreakWidget({
       if (onStreakChange) onStreakChange(updatedStreak);
     });
 
-    // Auto-record initial visit once on mount
-    const updated = recordLearningActivity("dashboard_visit");
-    setStreak(updated);
-    setDays(getRecentDaysStatus(7));
-    if (onStreakChange) onStreakChange(updated);
-
+    // A page visit alone is not proof of study activity. Streaks update only when a
+    // real study action or explicit check-in calls recordLearningActivity.
     return () => unsubscribe();
   }, [onStreakChange]);
 
