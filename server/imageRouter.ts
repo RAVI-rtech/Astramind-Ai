@@ -55,6 +55,16 @@ export class ImageRouter {
     return this.providers.map((p) => ({ id: p.id, name: p.name, priority: p.priority }));
   }
 
+  /** Report configured provider availability without attempting an image request. */
+  public async getProviderStatuses(): Promise<{ id: string; name: string; priority: number; available: boolean }[]> {
+    return Promise.all(this.providers.map(async (provider) => ({
+      id: provider.id,
+      name: provider.name,
+      priority: provider.priority,
+      available: await provider.isAvailable().catch(() => false),
+    })));
+  }
+
   /**
    * Main image generation method with automatic failover across multiple providers.
    */
@@ -150,7 +160,13 @@ export class ImageRouter {
       }
     };
 
-    const editProviders = this.providers.filter((p) => typeof p.editImage === "function");
+    let editProviders = this.providers.filter((p) => typeof p.editImage === "function");
+    if (params.providerId) {
+      const requestedProvider = editProviders.find((p) => p.id === params.providerId);
+      if (requestedProvider) {
+        editProviders = [requestedProvider, ...editProviders.filter((p) => p.id !== params.providerId)];
+      }
+    }
 
     if (editProviders.length === 0) {
       console.error("[ImageRouter Error] No editing-capable providers registered.");
@@ -160,6 +176,7 @@ export class ImageRouter {
     notifyStatus("Generating image...");
 
     let attemptCount = 0;
+    let lastError: Error | null = null;
 
     for (const provider of editProviders) {
       attemptCount++;
@@ -190,11 +207,13 @@ export class ImageRouter {
         }
       } catch (err: any) {
         console.warn(`[ImageRouter Internal Log] Edit Provider "${provider.name}" failed:`, err?.message || err);
+        lastError = err instanceof Error ? err : new Error(String(err));
       }
     }
 
     console.error("[ImageRouter Error] All editing providers failed.");
-    throw new Error("Image generation is currently unavailable. Please try again later.");
+    if (lastError) throw lastError;
+    throw new Error("No configured provider could edit this image. Check the Gemini image API settings and try again.");
   }
 }
 
@@ -409,7 +428,11 @@ export class PollinationsAIProvider implements ImageProvider {
       const arrayBuffer = await response.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
       const base64 = buffer.toString("base64");
-      const contentType = response.headers.get("content-type") || "image/jpeg";
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.toLowerCase().startsWith("image/")) {
+        const responseText = buffer.toString("utf8").slice(0, 160);
+        throw new Error(`Pollinations returned a non-image response (${contentType || "unknown content type"}): ${responseText}`);
+      }
 
       return {
         imageUrl: `data:${contentType};base64,${base64}`,
@@ -422,9 +445,6 @@ export class PollinationsAIProvider implements ImageProvider {
     }
   }
 
-  public async editImage(params: EditImageParams): Promise<{ imageUrl: string; modelUsed: string }> {
-    return this.generateImage({ prompt: params.prompt });
-  }
 }
 
 /**
