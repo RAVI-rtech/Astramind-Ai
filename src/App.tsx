@@ -120,7 +120,7 @@ export default function App() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState("Optimizing Response...");
+  const [statusMessage, setStatusMessage] = useState("Generating fast response...");
   const abortControllerRef = React.useRef<AbortController | null>(null);
 
   // UI States
@@ -1161,7 +1161,7 @@ export default function App() {
     saveSessionsToStorage(currentSessions);
 
     setIsLoading(true);
-    setStatusMessage("Optimizing Response...");
+    setStatusMessage("Generating fast response...");
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
@@ -1335,7 +1335,7 @@ export default function App() {
               if (parsed.providerSwitch || parsed.statusMessage) {
                 setStatusMessage("Switching Intelligence...");
                 setTimeout(() => {
-                  setStatusMessage("Optimizing Response...");
+                  setStatusMessage("Generating fast response...");
                 }, 800);
               } else if (parsed.groundingChunks) {
                 lastGroundingChunks = parsed.groundingChunks;

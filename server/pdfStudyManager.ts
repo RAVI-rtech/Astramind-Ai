@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import OpenAI from "openai";
 import { 
   PDFStudySummary, 
@@ -53,16 +53,23 @@ async function callGeminiOrFallback(
       },
     });
 
-    // Primary Gemini models - fast failover if one model experiences 503 spike
-    const geminiModels = ["gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-flash-latest"];
+    // Primary Gemini models - fast failover with low/minimal thinking
+    const geminiModels = ["gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-2.5-flash"];
     for (const model of geminiModels) {
       try {
+        const thinkingConfig = model.includes("3.1-flash-lite")
+          ? { thinkingLevel: ThinkingLevel.MINIMAL }
+          : model.includes("3.8-flash")
+            ? { thinkingLevel: ThinkingLevel.LOW }
+            : { thinkingBudget: 0 };
+
         const response = await ai.models.generateContent({
           model,
           contents: userPrompt,
           config: {
             systemInstruction,
             temperature,
+            thinkingConfig,
             responseMimeType: isJson ? "application/json" : undefined,
           },
         });

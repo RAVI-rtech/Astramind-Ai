@@ -218,7 +218,7 @@ async function runTests() {
     router.registerProvider(mockBackup);
 
     // Call using alias 'astramind-vector-studio'
-    const providers = router.getAllProviders();
+    const providers = router.getProviders();
     assert(
       providers.some((p) => p.id === "pollinations-ai"),
       "Router registered pollinations-ai for vector studio alias"

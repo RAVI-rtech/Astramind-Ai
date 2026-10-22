@@ -1,6 +1,6 @@
 import { Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import OpenAI from "openai";
 import { AcademicQuizDraft, AcademicQuestionDraft, AssessmentType, TimerType, ExplanationPolicy } from "../src/types/academicLiveQuiz";
 
@@ -2185,13 +2185,26 @@ No markdown codeblocks. Output raw JSON only.`;
   const errors: string[] = [];
   const geminiKey = process.env.GEMINI_API_KEY;
   if (geminiKey) {
-    const geminiModels = ["gemini-2.5-flash", "gemini-3.1-flash-lite", "gemini-3.8-flash"];
-    const ai = new GoogleGenAI({ apiKey: geminiKey });
+    const geminiModels = ["gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-2.5-flash"];
+    const ai = new GoogleGenAI({
+      apiKey: geminiKey,
+      httpOptions: {
+        headers: { "User-Agent": "aistudio-build" },
+      },
+    });
     for (const model of geminiModels) {
       try {
+        const thinkingConfig = model.includes("3.1-flash-lite")
+          ? { thinkingLevel: ThinkingLevel.MINIMAL }
+          : model.includes("3.8-flash")
+            ? { thinkingLevel: ThinkingLevel.LOW }
+            : { thinkingBudget: 0 };
         const resp = await ai.models.generateContent({
           model,
           contents: [{ role: "user", parts: [{ text: prompt }] }],
+          config: {
+            thinkingConfig,
+          },
         });
         const rawText = resp.text?.trim() || "";
         const parsed = extractJSON(rawText);

@@ -164,9 +164,11 @@ export default function ChatWindow({
         const isLastMessage = index === messages.length - 1;
         const currentFeedback = feedbackState[msg.id];
 
-        // Do not render empty assistant card before response text or media begins streaming
+        // Only hide assistant bubble if empty and NOT actively streaming
         if (!isUser && !msg.text && !msg.generatedImage && !msg.generatedVideo && !msg.attachment) {
-          return null;
+          if (!msg.isStreaming) {
+            return null;
+          }
         }
 
         return (
@@ -274,6 +276,19 @@ export default function ChatWindow({
                       const thinkingContent = thinkMatch ? thinkMatch[1].trim() : null;
                       const cleanText = thinkMatch ? msg.text.replace(/<think>[\s\S]*?<\/think>/i, '').trim() : msg.text;
 
+                      if (msg.isStreaming && !cleanText && !thinkingContent) {
+                        return (
+                          <div className="flex items-center gap-2.5 py-1 text-slate-300">
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
+                              <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse delay-75" />
+                              <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse delay-150" />
+                            </div>
+                            <span className="text-xs font-mono text-slate-300">AstraMind is thinking...</span>
+                          </div>
+                        );
+                      }
+
                       return (
                         <>
                           {thinkingContent && <ThinkingAccordion content={thinkingContent} />}
@@ -300,6 +315,7 @@ export default function ChatWindow({
                           >
                             {cleanText}
                           </ReactMarkdown>
+                          {msg.isStreaming && <span className="inline-block w-1.5 h-3.5 ml-1 bg-blue-400 animate-pulse align-middle" />}
                         </>
                       );
                     })()}

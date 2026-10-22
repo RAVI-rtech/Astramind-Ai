@@ -7,7 +7,7 @@ import https from "https";
 import dotenv from "dotenv";
 import { createDefaultImageRouter } from "./server/imageRouter";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI, LiveServerMessage, Modality, GenerateVideosOperation } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel, LiveServerMessage, Modality, GenerateVideosOperation } from "@google/genai";
 import { WebSocketServer } from "ws";
 import { Server } from "http";
 import { createClient } from "@supabase/supabase-js";
@@ -90,6 +90,18 @@ function getGoogleGenAI(): GoogleGenAI | null {
     });
   }
   return aiInstance;
+}
+
+// Speed optimization: Configure minimal/low thinking on Gemini 3.x/2.5 models to cut time-to-first-token drastically
+function getFastGeminiThinkingConfig(modelName: string): any {
+  if (modelName.includes("3.1-flash-lite")) {
+    return { thinkingLevel: ThinkingLevel.MINIMAL };
+  } else if (modelName.includes("3.8-flash") || modelName.includes("3-flash") || modelName.includes("3.6-flash")) {
+    return { thinkingLevel: ThinkingLevel.LOW };
+  } else if (modelName.includes("2.5") || modelName.includes("flash-latest")) {
+    return { thinkingBudget: 0 };
+  }
+  return { thinkingLevel: ThinkingLevel.LOW };
 }
 
 interface NvidiaKeyEntry {
@@ -274,10 +286,11 @@ app.get("/api/status", (req, res) => {
 
 // 2. API: Stream Chat Completion with Resilient Multi-Provider Failover
 app.post("/api/chat/stream", async (req, res) => {
-  // Set headers for SSE streaming
+  // Set headers for SSE streaming with anti-buffering for immediate time-to-first-token
   res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
   res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
   res.flushHeaders();
 
   const { messages, systemInstruction, useMapsGrounding, mode, simulateFailure } = req.body || {};
@@ -335,6 +348,7 @@ app.post("/api/chat/stream", async (req, res) => {
       if (providerTriedCount > 0 && !providerSucceeded) {
         // Emit "Switching Intelligence..." event for frontend
         res.write(`data: ${JSON.stringify({ providerSwitch: true, statusMessage: "Switching Intelligence..." })}\n\n`);
+        if (typeof (res as any).flush === "function") (res as any).flush();
       }
       providerTriedCount++;
 
@@ -345,7 +359,7 @@ app.post("/api/chat/stream", async (req, res) => {
         continue;
       }
 
-      // Priority: Gemini API
+      // Priority: Gemini API (Ultra-low latency models first with minimal/low thinking)
       if (provider === "gemini") {
         const ai = getGoogleGenAI();
         if (!ai) {
@@ -354,24 +368,27 @@ app.post("/api/chat/stream", async (req, res) => {
         }
 
         let geminiSuccess = false;
+        // gemini-3.1-flash-lite is the fastest model for streaming chat
         const geminiModelsToTry = [
-          "gemini-flash-latest",
           "gemini-3.1-flash-lite",
           "gemini-3.8-flash",
           "gemini-2.5-flash",
+          "gemini-flash-latest",
         ];
 
         let lastGeminiErr = "";
 
         for (const modelName of geminiModelsToTry) {
           try {
-            console.log(`[Multi-Provider] Attempting Gemini Stream (${modelName})...`);
+            console.log(`[Multi-Provider] Attempting Gemini Fast Stream (${modelName})...`);
+            const fastThinking = getFastGeminiThinkingConfig(modelName);
             const responseStream = await ai.models.generateContentStream({
               model: modelName,
               contents: geminiContents,
               config: {
                 systemInstruction: systemInstruction || "You are AstraMind AI...",
                 temperature: 0.7,
+                thinkingConfig: fastThinking,
                 ...(useMapsGrounding ? { tools: [{ googleMaps: {} }] } : {}),
               },
             });
@@ -380,9 +397,11 @@ app.post("/api/chat/stream", async (req, res) => {
             for await (const chunk of responseStream) {
               if (chunk.text) {
                 res.write(`data: ${JSON.stringify({ text: chunk.text })}\n\n`);
+                if (typeof (res as any).flush === "function") (res as any).flush();
               }
               if (chunk.candidates?.[0]?.groundingMetadata?.groundingChunks && !groundingChunksSent) {
                 res.write(`data: ${JSON.stringify({ groundingChunks: chunk.candidates[0].groundingMetadata.groundingChunks })}\n\n`);
+                if (typeof (res as any).flush === "function") (res as any).flush();
                 groundingChunksSent = true;
               }
             }
@@ -419,6 +438,8 @@ app.post("/api/chat/stream", async (req, res) => {
         }
 
         let nvidiaFulfilled = false;
+        const hasMedia = messages.some((m: any) => m.attachment?.base64 && m.attachment?.type?.startsWith("image/"));
+        const preferredNvidiaModel = hasMedia ? "meta/llama-3.2-11b-vision-instruct" : "meta/llama-3.1-8b-instruct";
 
         for (let i = 0; i < nvidiaKeys.length; i++) {
           const { name: keyName, key } = nvidiaKeys[i];
@@ -435,16 +456,17 @@ app.post("/api/chat/stream", async (req, res) => {
             if (i + 1 < nvidiaKeys.length) {
               console.log(`[Multi-Provider] Failing over from ${keyName} to ${nvidiaKeys[i + 1].name}...`);
               res.write(`data: ${JSON.stringify({ providerSwitch: true, statusMessage: `Failing over to ${nvidiaKeys[i + 1].name}...` })}\n\n`);
+              if (typeof (res as any).flush === "function") (res as any).flush();
             }
             continue;
           }
 
           const nvidia = getNvidiaClientForKey(key);
-          console.log(`[Multi-Provider] Attempting NVIDIA Stream with ${keyName} (model: meta/llama-3.2-11b-vision-instruct)...`);
+          console.log(`[Multi-Provider] Attempting NVIDIA Stream with ${keyName} (model: ${preferredNvidiaModel})...`);
 
           try {
             const stream = await nvidia.chat.completions.create({
-              model: "meta/llama-3.2-11b-vision-instruct",
+              model: preferredNvidiaModel,
               messages: openAiMessages,
               stream: true,
               temperature: 0.7,
@@ -456,6 +478,7 @@ app.post("/api/chat/stream", async (req, res) => {
               if (text) {
                 streamedAny = true;
                 res.write(`data: ${JSON.stringify({ text })}\n\n`);
+                if (typeof (res as any).flush === "function") (res as any).flush();
               }
             }
 
@@ -476,10 +499,10 @@ app.post("/api/chat/stream", async (req, res) => {
               details: `${status ? `HTTP ${status}: ` : ""}${nvMsg.slice(0, 120)}`,
             });
 
-            // If there's another NVIDIA key available, inform client & failover
             if (i + 1 < nvidiaKeys.length) {
               console.log(`[Multi-Provider] Failing over from ${keyName} to ${nvidiaKeys[i + 1].name}...`);
               res.write(`data: ${JSON.stringify({ providerSwitch: true, statusMessage: `Failing over to ${nvidiaKeys[i + 1].name}...` })}\n\n`);
+              if (typeof (res as any).flush === "function") (res as any).flush();
             }
           }
         }
@@ -565,10 +588,10 @@ app.post("/api/chat", async (req, res) => {
         }
 
         const geminiModelsToTry = [
-          "gemini-flash-latest",
           "gemini-3.1-flash-lite",
           "gemini-3.8-flash",
           "gemini-2.5-flash",
+          "gemini-flash-latest",
         ];
 
         let lastGeminiErr = "";
@@ -576,12 +599,14 @@ app.post("/api/chat", async (req, res) => {
 
         for (const modelName of geminiModelsToTry) {
           try {
+            const fastThinking = getFastGeminiThinkingConfig(modelName);
             const response = await ai.models.generateContent({
               model: modelName,
               contents: geminiContents,
               config: {
                 systemInstruction: systemInstruction || "You are AstraMind AI...",
                 temperature: 0.7,
+                thinkingConfig: fastThinking,
                 ...(useMapsGrounding ? { tools: [{ googleMaps: {} }] } : {}),
               },
             });
@@ -615,6 +640,8 @@ app.post("/api/chat", async (req, res) => {
         }
 
         let nvidiaFulfilled = false;
+        const hasMedia = messages.some((m: any) => m.attachment?.base64 && m.attachment?.type?.startsWith("image/"));
+        const preferredNvidiaModel = hasMedia ? "meta/llama-3.2-11b-vision-instruct" : "meta/llama-3.1-8b-instruct";
 
         for (let i = 0; i < nvidiaKeys.length; i++) {
           const { name: keyName, key } = nvidiaKeys[i];
@@ -638,7 +665,7 @@ app.post("/api/chat", async (req, res) => {
 
           try {
             const response = await nvidia.chat.completions.create({
-              model: "meta/llama-3.2-11b-vision-instruct",
+              model: preferredNvidiaModel,
               messages: openAiMessages,
               temperature: 0.7,
             });
@@ -1035,11 +1062,12 @@ app.post("/api/ai/enhance-resume", async (req, res) => {
     if (ai) {
       try {
         const response = await ai.models.generateContent({
-          model: "gemini-3.6-flash",
+          model: "gemini-3.1-flash-lite",
           contents: userPrompt,
           config: {
             systemInstruction: systemPrompt,
             temperature: 0.4,
+            thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
           },
         });
         const output = response.text?.trim() || "";
@@ -1194,14 +1222,16 @@ Return ONLY valid JSON in this exact structure:
     const ai = getGoogleGenAI();
 
     if (ai) {
-      const resumeModels = ["gemini-3.6-flash", "gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-2.5-flash"];
+      const resumeModels = ["gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-2.5-flash", "gemini-flash-latest"];
       for (const rModel of resumeModels) {
         try {
+          const fastThinking = getFastGeminiThinkingConfig(rModel);
           const response = await ai.models.generateContent({
             model: rModel,
             contents: prompt,
             config: {
               responseMimeType: "application/json",
+              thinkingConfig: fastThinking,
             },
           });
           aiResponseText = response.text || "";
@@ -1301,7 +1331,7 @@ async function executeProfileEnhancerAI(systemPrompt: string, userPrompt: string
   // 1. Try Gemini primary chain
   const ai = getGoogleGenAI();
   if (ai) {
-    const geminiModels = ["gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-2.5-flash"];
+    const geminiModels = ["gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-2.5-flash", "gemini-flash-latest"];
     for (const model of geminiModels) {
       try {
         const response = await ai.models.generateContent({
@@ -1311,6 +1341,7 @@ async function executeProfileEnhancerAI(systemPrompt: string, userPrompt: string
             systemInstruction: systemPrompt,
             temperature: 0.3,
             responseMimeType: "application/json",
+            thinkingConfig: getFastGeminiThinkingConfig(model),
           },
         });
         if (response.text) return response.text;
@@ -1628,7 +1659,7 @@ async function executeAcademicQuizAI(systemPrompt: string, userPrompt: string, j
   // 1. Try Gemini primary chain
   const ai = getGoogleGenAI();
   if (ai) {
-    const geminiModels = ["gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-2.5-flash"];
+    const geminiModels = ["gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-2.5-flash", "gemini-flash-latest"];
     for (const model of geminiModels) {
       try {
         const response = await ai.models.generateContent({
@@ -1637,6 +1668,7 @@ async function executeAcademicQuizAI(systemPrompt: string, userPrompt: string, j
           config: {
             systemInstruction: systemPrompt,
             temperature: 0.3,
+            thinkingConfig: getFastGeminiThinkingConfig(model),
             ...(jsonMode ? { responseMimeType: "application/json" } : {}),
           },
         });
