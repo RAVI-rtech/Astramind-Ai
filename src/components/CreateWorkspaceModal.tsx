@@ -10,7 +10,7 @@ import {
   createWorkspace 
 } from "../lib/studyWorkspaceStorage";
 import { VITS_COLLEGE_NAME, VITS_SYLLABUS_URL } from "../data/vitsAcademics";
-import { BTechYear, BTechSemester, LearningGoal, StudyWorkspace, DocumentProfile } from "../types";
+import { LearningGoal, StudyWorkspace, DocumentProfile } from "../types";
 
 interface CreateWorkspaceModalProps {
   isOpen: boolean;
@@ -48,8 +48,8 @@ export default function CreateWorkspaceModal({
   const [programType, setProgramType] = useState("B.Tech");
   const [officialWebsiteUrl, setOfficialWebsiteUrl] = useState(VITS_SYLLABUS_URL);
   const [branch, setBranch] = useState<string>(getInitialBranch);
-  const [year, setYear] = useState<BTechYear>("2nd");
-  const [semester, setSemester] = useState<BTechSemester>("I");
+  const [year, setYear] = useState<string>("2nd");
+  const [semester, setSemester] = useState<string>("I");
   const [subject, setSubject] = useState(VITS_SUBJECTS["2nd"][0] || "Data Structures & Algorithms");
   const [learningGoal, setLearningGoal] = useState<LearningGoal>("Prepare for exam");
   const [syllabusLinks, setSyllabusLinks] = useState<Array<{
@@ -86,6 +86,10 @@ export default function CreateWorkspaceModal({
 
   const isVitsCollege = college.trim().toLowerCase() === VITS_COLLEGE_NAME.toLowerCase();
   const currentSubjectList = isVitsCollege && programType === "B.Tech" ? (VITS_SUBJECTS[year] || []) : [];
+  const yearLabel = /year/i.test(year) || year === "Not applicable" ? year : `${year} Year`;
+  const semesterLabel = ["Annual", "Not applicable"].includes(semester) || /(semester|term|trimester|quarter)/i.test(semester)
+    ? semester
+    : `Semester ${semester}`;
 
   const handleDiscoverSyllabus = async () => {
     if (!college.trim()) {
@@ -109,8 +113,8 @@ export default function CreateWorkspaceModal({
           officialWebsiteUrl: officialWebsiteUrl.trim(),
           programType,
           branch,
-          year: `${year} Year`,
-          semester: semester === "I" ? "Semester I" : "Semester II",
+          year: yearLabel,
+          semester: semesterLabel,
         }),
       });
       const data = await response.json();
@@ -143,8 +147,8 @@ export default function CreateWorkspaceModal({
           syllabusUrl: link.url,
           programType,
           branch,
-          year: `${year} Year`,
-          semester: semester === "I" ? "Semester I" : "Semester II",
+          year: yearLabel,
+          semester: semesterLabel,
         }),
       });
       const data = await response.json();
@@ -405,8 +409,13 @@ export default function CreateWorkspaceModal({
                   setSyllabusDiscoveryNote(null);
                   setSyllabusDiscoveryError(null);
                   setSyllabusSourceUrl("");
-                  if (nextCollege.trim().toLowerCase() === VITS_COLLEGE_NAME.toLowerCase()) setOfficialWebsiteUrl(VITS_SYLLABUS_URL);
-                  else if (nextCollege !== college) setOfficialWebsiteUrl("");
+                  if (nextCollege.trim().toLowerCase() === VITS_COLLEGE_NAME.toLowerCase()) {
+                    setOfficialWebsiteUrl(VITS_SYLLABUS_URL);
+                    setBranch(getInitialBranch());
+                  } else if (nextCollege !== college) {
+                    setOfficialWebsiteUrl("");
+                    setBranch("");
+                  }
                   setSubject("");
                 }}
                 placeholder="Enter your college or university"
@@ -514,51 +523,47 @@ export default function CreateWorkspaceModal({
             )}
           </div>
 
-          {/* Year & Semester */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Academic level — accommodates undergraduate, postgraduate, diploma, school and annual programs. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-neutral-300 mb-1.5">Year / Level</label>
-              <div className="grid grid-cols-4 gap-1.5">
-                {(["1st", "2nd", "3rd", "4th"] as BTechYear[]).map((yr) => (
-                  <button
-                    key={yr}
-                    type="button"
-                    onClick={() => {
-                      setYear(yr);
-                      if (isVitsCollege && programType === "B.Tech" && VITS_SUBJECTS[yr]?.[0]) {
-                        setSubject(VITS_SUBJECTS[yr][0]);
-                      }
-                    }}
-                    className={`py-2 text-xs font-medium rounded-lg border transition-all ${
-                      year === yr
-                        ? "bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20"
-                        : "bg-neutral-950/50 border-neutral-800 text-neutral-400 hover:text-white"
-                    }`}
-                  >
-                    {yr}
-                  </button>
+              <select
+                value={year}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setYear(value);
+                  if (isVitsCollege && programType === "B.Tech" && VITS_SUBJECTS[value]?.[0]) setSubject(VITS_SUBJECTS[value][0]);
+                }}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-950 border border-neutral-800 text-sm text-neutral-200 focus:outline-none focus:border-blue-500/60"
+              >
+                {["1st", "2nd", "3rd", "4th", "5th", "6th", "PG Year 1", "PG Year 2", "Final Year", "Not applicable"].map((value) => (
+                  <option key={value} value={value}>{value === "Not applicable" || value === "Final Year" || value.startsWith("PG ") ? value : `${value} Year`}</option>
                 ))}
-              </div>
+              </select>
             </div>
-
             <div>
               <label className="block text-xs font-medium text-neutral-300 mb-1.5">Term / Semester</label>
-              <div className="grid grid-cols-2 gap-1.5">
-                {(["I", "II"] as BTechSemester[]).map((sem) => (
-                  <button
-                    key={sem}
-                    type="button"
-                    onClick={() => setSemester(sem)}
-                    className={`py-2 text-xs font-medium rounded-lg border transition-all ${
-                      semester === sem
-                        ? "bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20"
-                        : "bg-neutral-950/50 border-neutral-800 text-neutral-400 hover:text-white"
-                    }`}
-                  >
-                    Sem {sem}
-                  </button>
-                ))}
-              </div>
+              <select
+                value={semester}
+                onChange={(e) => setSemester(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-950 border border-neutral-800 text-sm text-neutral-200 focus:outline-none focus:border-blue-500/60"
+              >
+                {[
+                  { value: "I", label: "Semester I" },
+                  { value: "II", label: "Semester II" },
+                  { value: "III", label: "Semester III" },
+                  { value: "IV", label: "Semester IV" },
+                  { value: "Term 1", label: "Term 1" },
+                  { value: "Term 2", label: "Term 2" },
+                  { value: "Term 3", label: "Term 3" },
+                  { value: "Term 4", label: "Term 4" },
+                  { value: "Trimester 1", label: "Trimester 1" },
+                  { value: "Trimester 2", label: "Trimester 2" },
+                  { value: "Trimester 3", label: "Trimester 3" },
+                  { value: "Annual", label: "Annual / Yearly" },
+                  { value: "Not applicable", label: "Not applicable" },
+                ].map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+              </select>
             </div>
           </div>
 
