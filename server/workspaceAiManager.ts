@@ -385,7 +385,10 @@ export async function generateMCQQuiz(params: {
   hasFormulas?: boolean;
 }): Promise<QuizQuestion[]> {
   const count = Math.min(25, Math.max(3, params.count || 5));
-  const { subject, topic, difficulty, questionType, extractedContent, materialsContext } = params;
+  const { subject, topic, difficulty, questionType, extractedContent } = params;
+  if (typeof extractedContent !== "string" || extractedContent.trim().length < 30) {
+    throw new Error("Upload a readable study document before generating quiz questions.");
+  }
 
   const typeConstraint = questionType && questionType !== "All Types"
     ? `- Focus specifically on question format: "${questionType}".`
@@ -670,6 +673,9 @@ export async function generatePracticeExercises(params: {
   extractedContent?: string;
 }): Promise<PracticeExercise[]> {
   const { subject, topic, difficulty = "Medium", extractedContent } = params;
+  if (typeof extractedContent !== "string" || extractedContent.trim().length < 30) {
+    throw new Error("Upload a readable study document before generating practice exercises.");
+  }
 
   const systemInstruction = `You are an engineering practical exam and lab coach.
 Generate interactive practice challenges based on the uploaded document.
@@ -776,21 +782,15 @@ export async function chatWithAITutor(params: {
     console.warn("Knowledge base retrieval failed during tutor chat:", err);
   }
 
-  const systemInstruction = `You are AstraMind AI Tutor, a master university tutor for a student studying "${subject}" (${branch || 'Engineering'}) at ${college || 'University'}.
-The student's learning goal is: "${learningGoal || 'Master the subject'}".
-
-AUTHORITATIVE SOURCE-GROUNDING MANDATE:
-1. You have direct access to authoritative study material from the student's VR25 curriculum and uploaded notes.
-2. Ground your explanations, formulas, definitions, and code primarily on the retrieved source material.
-3. Explicitly cite your sources when explaining concepts (e.g. "According to your ${citations[0]?.documentName || 'study notes'} (Page ${citations[0]?.pageNumber || '1'})...").
-4. If a concept is not mentioned in the source excerpts, provide a helpful pedagogical explanation while clearly stating: "Note: This extension is general engineering knowledge and goes beyond your current notes excerpt."
-5. Format your responses with clean Markdown, clear headings, bullet points, and code/math blocks.
-6. Never assume Mathematics unless the topic is genuinely Mathematics.`;
+  const systemInstruction = `You are AstraMind AI Tutor helping a student with the uploaded source material for "${subject}" (${branch || "branch not specified"}).
+Ground explanations and citations only in the source excerpts supplied in this request. Never invent document names, citations, page numbers, or unsupported quotations.
+If the source does not contain enough information, say so clearly. If adding general knowledge, label it explicitly as outside the uploaded source.
+Use concise Markdown, headings, bullets, and code/math blocks where helpful.`;
 
   const combinedReference = [
     retrievedChunksContext ? `VERIFIED VR25 STUDY MATERIAL (HIGH PRIORITY):\n${retrievedChunksContext}` : "",
     extractedContent ? `WORKSPACE UPLOADED NOTES:\n${extractedContent.slice(0, 10000)}` : "",
-  ].filter(Boolean).join("\n\n") || "General university curriculum";
+  ].filter(Boolean).join("\n\n");
 
   const conversationHistory = messages
     .map((m) => `${m.sender === "user" ? "Student" : "AstraMind Tutor"}: ${m.text}`)
