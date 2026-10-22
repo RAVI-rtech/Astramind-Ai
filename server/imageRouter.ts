@@ -310,6 +310,9 @@ export class GoogleGeminiFlashProvider implements ImageProvider {
         const response = await ai.models.generateContent({
           model: modelName,
           contents: `Generate a high quality image matching this description: ${finalPrompt}`,
+          config: {
+            responseModalities: ["IMAGE"],
+          },
         });
 
         if (response.candidates?.[0]?.content?.parts) {
@@ -327,7 +330,8 @@ export class GoogleGeminiFlashProvider implements ImageProvider {
       }
     }
 
-    throw new Error("Gemini Flash models failed to produce an image.");
+    throw new Error("Gemini image models failed to produce an image. Check the Gemini API key, model access, and image-generation quota.");
+
   }
 
   public async editImage(params: EditImageParams): Promise<{ imageUrl: string; modelUsed: string }> {
@@ -355,6 +359,9 @@ export class GoogleGeminiFlashProvider implements ImageProvider {
             { text: `Edit this image according to these instructions: ${params.prompt}. Maintain high visual quality.` },
             { inlineData: { mimeType, data: base64Data } },
           ],
+          config: {
+            responseModalities: ["IMAGE"],
+          },
         });
 
         if (response.candidates?.[0]?.content?.parts) {
@@ -372,7 +379,8 @@ export class GoogleGeminiFlashProvider implements ImageProvider {
       }
     }
 
-    throw new Error("Gemini Flash models failed to edit image.");
+    throw new Error("Gemini image models failed to edit the image. Check the Gemini API key, model access, and image-generation quota.");
+
   }
 }
 
