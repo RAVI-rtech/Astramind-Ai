@@ -172,25 +172,23 @@ export default function ResumeBuilder({
       title,
       lastUpdated: Date.now(),
       personalInfo: {
-        fullName: "Your Full Name",
-        jobTitle: "Software Engineer / Specialist",
-        email: "you@example.com",
-        phone: "+1 (555) 000-0000",
-        location: "City, State / Country",
-        linkedinUrl: "https://linkedin.com/in/yourprofile",
-        githubUrl: "https://github.com/yourusername",
-        portfolioUrl: "https://yourwebsite.com",
-        summary: "Passionate professional with expertise in technical strategy and project delivery.",
+        fullName: "",
+        jobTitle: "",
+        email: "",
+        phone: "",
+        location: "",
+        linkedinUrl: "",
+        githubUrl: "",
+        portfolioUrl: "",
+        summary: "",
       },
       education: [],
       experience: [],
       projects: [],
       certifications: [],
-      skills: [
-        { category: "Technical", skills: ["JavaScript", "TypeScript", "Problem Solving"] },
-      ],
+      skills: [],
       achievements: [],
-      languages: [{ id: `lang_${Date.now()}`, name: "English", proficiency: "Native" }],
+      languages: [],
     };
 
     setSavedResumes((prev) => [newResume, ...prev]);
@@ -1814,10 +1812,10 @@ export default function ResumeBuilder({
                     >
                       <div>
                         <h1 className="text-2xl font-black uppercase tracking-tight">
-                          {activeResume.personalInfo.fullName || "Your Full Name"}
+                          {activeResume.personalInfo.fullName}
                         </h1>
                         <p className="text-sm opacity-90 font-medium mt-0.5">
-                          {activeResume.personalInfo.jobTitle || "Professional Title"}
+                          {activeResume.personalInfo.jobTitle}
                         </p>
                       </div>
 
