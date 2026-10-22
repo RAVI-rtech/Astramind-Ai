@@ -1215,7 +1215,7 @@ export default function AcademicQuizCreator({
                 className="w-full text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               >
                 <option value="Easy">Easy (Recall & Fundamentals)</option>
-                <option value="Medium">Medium (Application & Standard VITS Mid-Exam)</option>
+                <option value="Medium">Medium (Application & standard course assessment)</option>
                 <option value="Hard">Hard (Analytical, Problem-Solving & GATE Level)</option>
                 <option value="Mixed">Mixed Difficulty</option>
               </select>
