@@ -10,14 +10,20 @@ interface PersonalizationWizardProps {
 
 export default function PersonalizationWizard({ onClose, onSaveProfile, initialProfile }: PersonalizationWizardProps) {
   const [skillLevel, setSkillLevel] = useState<SkillLevel>(initialProfile?.skillLevel || "Beginner");
-  const [collegeYear, setCollegeYear] = useState<string>(initialProfile?.collegeYear || "Sophomore (2nd Year)");
-  const [goals, setGoals] = useState<string>(initialProfile?.goals || "Build production full stack apps & master AI tools");
-  const [weeklyHours, setWeeklyHours] = useState<number>(initialProfile?.weeklyHours || 10);
-  const [targetJob, setTargetJob] = useState<string>(initialProfile?.targetJob || "AI / Full Stack Software Engineer");
+  const [collegeYear, setCollegeYear] = useState<string>(initialProfile?.collegeYear || "");
+  const [goals, setGoals] = useState<string>(initialProfile?.goals || "");
+  const [weeklyHours, setWeeklyHours] = useState<number>(initialProfile?.weeklyHours ?? 10);
+  const [targetJob, setTargetJob] = useState<string>(initialProfile?.targetJob || "");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   const handleGeneratePersonalizedRoadmap = async () => {
+    if (!goals.trim() || !targetJob.trim() || !collegeYear.trim()) {
+      setGenerationError("Enter your current student status, learning goal, and target role first.");
+      return;
+    }
     setIsGenerating(true);
+    setGenerationError(null);
     try {
       const promptText = `Generate a personalized structured learning roadmap for a student with the following profile:
 - Skill Level: ${skillLevel}
@@ -36,44 +42,48 @@ Return valid JSON with keys:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: [{ sender: "user", text: promptText }],
-          systemInstruction: "You are an executive tech career coach. Return ONLY valid JSON."
+          systemInstruction: "You are an executive tech career coach. Return ONLY valid JSON. Base the plan on the exact profile supplied, without inventing credentials, completed experience, or guarantees."
         })
       });
-
       const data = await res.json();
-      const cleanJson = data.text.replace(/```json/g, "").replace(/```/g, "").trim();
-      const parsedRoadmap = JSON.parse(cleanJson);
+      if (!res.ok || data.error) throw new Error(data.error || "Roadmap generation failed.");
+      if (typeof data.text !== "string" || !data.text.trim()) throw new Error("The AI service returned an empty roadmap.");
+
+      let cleanJson = data.text.trim();
+      const fence = String.fromCharCode(96).repeat(3);
+      if (cleanJson.startsWith(fence + "json")) cleanJson = cleanJson.slice((fence + "json").length);
+      else if (cleanJson.startsWith(fence)) cleanJson = cleanJson.slice(fence.length);
+      if (cleanJson.trimEnd().endsWith(fence)) cleanJson = cleanJson.trimEnd().slice(0, -fence.length);
+
+      const parsedRoadmap = JSON.parse(cleanJson.trim());
+      const usableWeeks = Array.isArray(parsedRoadmap.weeks)
+        ? parsedRoadmap.weeks.filter((week: any) =>
+            week &&
+            Number.isFinite(Number(week.week)) &&
+            typeof week.focus === "string" && week.focus.trim() &&
+            Array.isArray(week.tasks) &&
+            week.tasks.every((task: unknown) => typeof task === "string" && task.trim())
+          )
+        : [];
+      if (typeof parsedRoadmap.title !== "string" || !parsedRoadmap.title.trim() ||
+          typeof parsedRoadmap.summary !== "string" || !parsedRoadmap.summary.trim() ||
+          usableWeeks.length === 0) {
+        throw new Error("The AI service returned an incomplete roadmap.");
+      }
 
       const profile: PersonalProfile = {
         skillLevel,
         collegeYear,
-        goals,
+        goals: goals.trim(),
         weeklyHours,
-        targetJob,
-        generatedRoadmap: parsedRoadmap,
+        targetJob: targetJob.trim(),
+        generatedRoadmap: { ...parsedRoadmap, weeks: usableWeeks },
       };
-
       onSaveProfile(profile);
       onClose();
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to generate personalized roadmap", e);
-      const fallbackProfile: PersonalProfile = {
-        skillLevel,
-        collegeYear,
-        goals,
-        weeklyHours,
-        targetJob,
-        generatedRoadmap: {
-          title: `Personalized ${targetJob} Roadmap`,
-          summary: `Customized ${weeklyHours}hr/week plan targeting ${targetJob}.`,
-          weeks: [
-            { week: 1, focus: "Foundations & Syntax Mastery", tasks: ["Master core control flow & data structures", "Solve 5 practice challenges", "Build CLI tool"] },
-            { week: 2, focus: "Project Engineering & Frameworks", tasks: ["Build React/Express app", "Set up Git workflow", "Deploy live preview"] }
-          ]
-        }
-      };
-      onSaveProfile(fallbackProfile);
-      onClose();
+      setGenerationError(e?.message || "Roadmap generation failed. Please check the AI configuration and retry.");
     } finally {
       setIsGenerating(false);
     }
@@ -133,6 +143,7 @@ Return valid JSON with keys:
               onChange={(e) => setCollegeYear(e.target.value)}
               className="w-full bg-[#040612] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none focus:border-indigo-500"
             >
+              <option value="">Select your status</option>
               <option value="Freshman (1st Year)">Freshman (1st Year)</option>
               <option value="Sophomore (2nd Year)">Sophomore (2nd Year)</option>
               <option value="Junior (3rd Year)">Junior (3rd Year)</option>
@@ -189,7 +200,13 @@ Return valid JSON with keys:
           </div>
         </div>
 
-        <div className="p-4 border-t border-white/10 bg-[#080c1d] flex justify-end gap-3">
+        <div className="p-4 border-t border-white/10 bg-[#080c1d] space-y-3">
+          {generationError && (
+            <div role="alert" className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300">
+              {generationError}
+            </div>
+          )}
+          <div className="flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 rounded-xl bg-white/5 text-slate-400 text-xs font-bold cursor-pointer">
             Cancel
           </button>
@@ -201,6 +218,7 @@ Return valid JSON with keys:
             <Sparkles className="w-4 h-4" />
             <span>{isGenerating ? "Building AI Roadmap..." : "Generate Personalized Plan"}</span>
           </button>
+          </div>
         </div>
       </div>
     </div>
