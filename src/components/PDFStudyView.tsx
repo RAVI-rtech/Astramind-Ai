@@ -316,7 +316,7 @@ export default function PDFStudyView({
   const handlePageJump = (e: React.FormEvent) => {
     e.preventDefault();
     const p = parseInt(pageInputVal, 10);
-    const total = activeDoc?.pageCount || 100;
+    const total = activeDoc?.pageCount || 0;
     if (!isNaN(p) && p >= 1 && p <= total) {
       setCurrentPage(p);
     } else {
@@ -325,6 +325,14 @@ export default function PDFStudyView({
   };
 
   // In-Document Text Search
+  const requireReadablePdf = (): boolean => {
+    if (activeDoc?.sourceType === "uploaded" && typeof activeDoc.rawContent === "string" && activeDoc.rawContent.trim().length >= 30) return true;
+    showToast("Upload a readable PDF before using this study tool.");
+    setSelectTab("upload");
+    setIsSelectModalOpen(true);
+    return false;
+  };
+
   const handleDocSearch = (query: string) => {
     setViewerSearchQuery(query);
     if (!query.trim() || !activeDoc?.rawContent) {
@@ -366,7 +374,7 @@ export default function PDFStudyView({
   // 1. Send Chat
   const handleSendChat = async (userPrompt?: string) => {
     const textToSend = userPrompt || chatInput;
-    if (!textToSend.trim() || isChatThinking || !activeDoc) return;
+    if (!textToSend.trim() || isChatThinking || !requireReadablePdf() || !activeDoc) return;
 
     const userMsg: PDFChatMessage = {
       id: `msg_u_${Date.now()}`,
@@ -405,14 +413,7 @@ export default function PDFStudyView({
         sender: "ai",
         text: data.text,
         timestamp: Date.now(),
-        citations: data.citations || [
-          {
-            pageNumber: currentPage,
-            chapter: "Verified Study Section",
-            topic: activeDoc.subject || "Study Subject",
-            excerpt: `Cited from ${activeDoc.fileName}`,
-          },
-        ],
+        citations: Array.isArray(data.citations) ? data.citations : [],
       };
       setChatMessages((prev) => [...prev, aiMsg]);
     } catch (err: any) {
@@ -433,6 +434,7 @@ export default function PDFStudyView({
   // 2. Generate Summary
   const handleGenerateSummary = async () => {
     if (!activeDoc || isGeneratingSummary) return;
+    if (!requireReadablePdf()) return;
     setIsGeneratingSummary(true);
 
     try {
@@ -463,6 +465,7 @@ export default function PDFStudyView({
   // 3. Generate Notes
   const handleGenerateNotes = async () => {
     if (!activeDoc || isGeneratingNotes) return;
+    if (!requireReadablePdf()) return;
     setIsGeneratingNotes(true);
 
     try {
@@ -507,6 +510,7 @@ export default function PDFStudyView({
   // 4. Generate Flashcards
   const handleGenerateFlashcards = async () => {
     if (!activeDoc || isGeneratingFlashcards) return;
+    if (!requireReadablePdf()) return;
     setIsGeneratingFlashcards(true);
 
     try {
@@ -557,6 +561,7 @@ export default function PDFStudyView({
   // 5. Generate Questions
   const handleGenerateQuestions = async () => {
     if (!activeDoc || isGeneratingQuestions) return;
+    if (!requireReadablePdf()) return;
     setIsGeneratingQuestions(true);
 
     try {
@@ -602,7 +607,7 @@ export default function PDFStudyView({
   // 6. Explain Topic
   const handleExplainTopic = async (overrideTopic?: string) => {
     const topicToUse = overrideTopic || explainTopicInput;
-    if (!activeDoc || !topicToUse.trim() || isExplainingTopic) return;
+    if (!topicToUse.trim() || isExplainingTopic || !requireReadablePdf() || !activeDoc) return;
     setIsExplainingTopic(true);
 
     try {
@@ -631,6 +636,7 @@ export default function PDFStudyView({
   // 7. Find Important Topics
   const handleFindImportantTopics = async () => {
     if (!activeDoc || isFindingTopics) return;
+    if (!requireReadablePdf()) return;
     setIsFindingTopics(true);
 
     try {
@@ -722,7 +728,7 @@ export default function PDFStudyView({
     ? Math.round((activeDeck.knownCardIds.length / activeDeck.cards.length) * 100)
     : 0;
 
-  const totalPages = activeDoc?.pageCount || 100;
+  const totalPages = activeDoc?.pageCount || 0;
 
   // The native PDF preview is available for the current uploaded file. Persisted saved entries retain extracted text only.
   const inAppPdfStreamUrl = activeDoc?.previewUrl || null;
@@ -761,7 +767,7 @@ export default function PDFStudyView({
             </div>
             <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
               <strong className="text-slate-200 font-semibold truncate max-w-[200px] sm:max-w-md">
-                {activeDoc?.fileName || "Engineering Mathematics-I.pdf"}
+                {activeDoc?.fileName || "No PDF selected"}
               </strong>
               <span className="text-slate-500">•</span>
               <span className="text-slate-400 font-mono text-[11px]">{totalPages} Pages</span>
@@ -1064,11 +1070,13 @@ export default function PDFStudyView({
                 return (
                   <button
                     key={tab.id}
+                    disabled={!activeDoc || !activeDoc.rawContent?.trim()}
                     onClick={() => {
+                      if (!requireReadablePdf()) return;
                       setActiveAction(tab.id as PDFStudyAction);
                       setIsStudyToolsExpanded(true);
                     }}
-                    className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                    className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                       isSelected
                         ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
                         : "bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-700/60"
