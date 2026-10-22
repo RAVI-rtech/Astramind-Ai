@@ -583,6 +583,7 @@ export interface LiveQuizRoom {
   title: string;
   college?: string;
   regulation?: string;
+  programType?: string;
   subject: string;
   branch: string;
   year: string;
