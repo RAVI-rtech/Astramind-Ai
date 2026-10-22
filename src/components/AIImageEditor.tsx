@@ -144,10 +144,6 @@ export default function AIImageEditor({
   };
 
   const handleEditGenerate = async () => {
-    if (isModelUnavailable) {
-      setErrorMsg(unavailableMessage || "Image editing is currently unavailable with your API configuration. No supported image models were found.");
-      return;
-    }
     if (!sourceImage) {
       setErrorMsg("Please upload or select an image to edit.");
       return;
@@ -431,9 +427,9 @@ export default function AIImageEditor({
             <div className="p-4 rounded-2xl bg-amber-950/40 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-3 shadow-lg">
               <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
               <div>
-                <p className="font-semibold text-amber-100">Image Editing Unavailable</p>
+                <p className="font-semibold text-amber-100">Provider Status Not Confirmed</p>
                 <p className="mt-0.5 text-amber-300/80 leading-relaxed">
-                  {unavailableMessage || "Image editing is currently unavailable with your API configuration. No supported image models were found for this API key."}
+                  {unavailableMessage || "The status check could not confirm provider availability. You can still try editing; only providers that support real image editing will be used."}
                 </p>
               </div>
             </div>
@@ -455,9 +451,9 @@ export default function AIImageEditor({
             <button
               id="generate-edit-image-btn"
               onClick={handleEditGenerate}
-              disabled={!sourceImage || !editPrompt.trim() || isEditing || isModelUnavailable}
+              disabled={!sourceImage || !editPrompt.trim() || isEditing}
               className={`w-full py-4 rounded-2xl font-bold text-sm tracking-wide transition-all shadow-xl flex items-center justify-center gap-2.5 cursor-pointer ${
-                !sourceImage || !editPrompt.trim() || isEditing || isModelUnavailable
+                !sourceImage || !editPrompt.trim() || isEditing
                   ? "bg-slate-800 text-slate-500 border border-white/5 cursor-not-allowed opacity-60"
                   : `bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white hover:brightness-110 shadow-purple-500/20 active:scale-[0.99]`
               }`}
@@ -470,7 +466,7 @@ export default function AIImageEditor({
               ) : isModelUnavailable ? (
                 <>
                   <AlertTriangle className="w-4 h-4 text-amber-400" />
-                  <span>Image Editing Unavailable</span>
+                  <span>Try Image Editing</span>
                 </>
               ) : (
                 <>
