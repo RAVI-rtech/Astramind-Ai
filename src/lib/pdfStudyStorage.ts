@@ -76,11 +76,11 @@ export function getActivePDFDocument(): PDFStudyDocument | null {
     if (!raw) return null;
     const doc = JSON.parse(raw) as PDFStudyDocument;
     // Clear the hard-coded BEE demo document shipped in older builds.
-    if (!doc || doc.id === "doc_bee_drive" || doc.fileName === "BEE COMPLETE NOTES.pdf") {
+    if (!doc || doc.sourceType !== "uploaded" || doc.id === "doc_bee_drive" || doc.fileName === "BEE COMPLETE NOTES.pdf") {
       localStorage.removeItem(STORAGE_KEYS.ACTIVE_DOC);
       return null;
     }
-    if (!doc.rawContent || doc.rawContent.trim().length < 30) return null;
+    if (typeof doc.rawContent !== "string" || doc.rawContent.trim().length < 30) return null;
     return doc;
   } catch {
     return null;
