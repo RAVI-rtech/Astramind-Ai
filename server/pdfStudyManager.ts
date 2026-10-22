@@ -166,10 +166,11 @@ ${pdfContent.slice(0, 36000)}
 CONVERSATION:
 ${conversationHistory}
 
-Task: Respond to the student's latest message based on "${pdfTitle}". Provide page citations and step-by-step clarity.
+Task: Respond to the student's latest message based on the supplied text. Provide clear, step-by-step explanations when useful.
+The extracted text may not preserve PDF page boundaries. Do not invent page numbers, chapter names or section references. Return a citation only if its excerpt is an exact quote copied from the supplied document text. Omit pageNumber unless the supplied text explicitly marks the page.
 
-Also format the last line of your response as JSON citations:
-CITATIONS_JSON: [{"pageNumber": 12, "chapter": "Unit 2", "topic": "Concept", "excerpt": "brief text quote"}]`;
+If exact source excerpts are available, append:
+CITATIONS_JSON: [{"pageNumber": null, "chapter": null, "topic": "topic wording found in source text", "excerpt": "an exact short quote from the supplied text"}]`;
 
   try {
     const responseText = await callGeminiOrFallback(systemInstruction, prompt, 0.2, false);
@@ -188,8 +189,29 @@ CITATIONS_JSON: [{"pageNumber": 12, "chapter": "Unit 2", "topic": "Concept", "ex
       }
     }
 
-    // Citations are emitted only when the model provided verifiable source references.
-    if (!Array.isArray(citations)) citations = [];
+    // Keep only citations whose excerpts exactly occur in the uploaded text. Extracted text
+    // generally loses page boundaries, so do not trust a page number supplied by the model.
+    const sourceText = pdfContent.toLowerCase();
+    citations = Array.isArray(citations)
+      ? citations
+          .filter((citation) =>
+            citation &&
+            typeof citation.excerpt === "string" &&
+            citation.excerpt.trim().length >= 8 &&
+            sourceText.includes(citation.excerpt.trim().toLowerCase())
+          )
+          .map((citation) => ({
+            chapter: typeof citation.chapter === "string" && citation.chapter.trim() &&
+              sourceText.includes(citation.chapter.trim().toLowerCase())
+                ? citation.chapter.trim()
+                : undefined,
+            topic: typeof citation.topic === "string" && citation.topic.trim() &&
+              sourceText.includes(citation.topic.trim().toLowerCase())
+                ? citation.topic.trim()
+                : undefined,
+            excerpt: citation.excerpt.trim(),
+          }))
+      : [];
 
     return { text, citations };
   } catch (err: any) {
