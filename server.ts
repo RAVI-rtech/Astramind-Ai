@@ -61,6 +61,7 @@ import {
   findImportantPdfTopics
 } from "./server/pdfStudyManager";
 import { fetchCollegeAttendanceReport } from "./server/attendanceService";
+import { discoverCollegeSyllabus, downloadOfficialSyllabusPdf } from "./server/collegeSyllabusService";
 
 dotenv.config();
 
@@ -1880,6 +1881,78 @@ function hasReadableStudySource(value: unknown): value is string {
 }
 
 const MISSING_STUDY_SOURCE_MESSAGE = "Upload a readable PDF, TXT, or Markdown document first. AI study tools require extracted text from user-provided material.";
+
+// Public official-college syllabus discovery. The service blocks private hosts and cross-site redirects.
+app.post("/api/college-syllabus/discover", async (req, res) => {
+  try {
+    const { college, officialWebsiteUrl, programType, branch, year, semester } = req.body || {};
+    if (typeof college !== "string" || !college.trim()) {
+      res.status(400).json({ error: "Enter the college or institution name." });
+      return;
+    }
+    if (typeof officialWebsiteUrl !== "string" || !officialWebsiteUrl.trim()) {
+      res.status(400).json({ error: "Enter the official HTTPS college website or syllabus page." });
+      return;
+    }
+    const discovery = await discoverCollegeSyllabus({
+      college,
+      officialWebsiteUrl,
+      programType,
+      branch,
+      year,
+      semester,
+    });
+    res.json(discovery);
+  } catch (err: any) {
+    console.error("Official college syllabus discovery failed:", err);
+    res.status(400).json({ error: err?.message || "Could not inspect that official college website." });
+  }
+});
+
+app.post("/api/college-syllabus/import", async (req, res) => {
+  try {
+    const { college, officialWebsiteUrl, syllabusUrl, programType, branch, year, semester } = req.body || {};
+    if (typeof college !== "string" || !college.trim() ||
+        typeof officialWebsiteUrl !== "string" || !officialWebsiteUrl.trim() ||
+        typeof syllabusUrl !== "string" || !syllabusUrl.trim()) {
+      res.status(400).json({ error: "College name, official website, and a discovered syllabus PDF are required." });
+      return;
+    }
+
+    const downloaded = await downloadOfficialSyllabusPdf({
+      college,
+      officialWebsiteUrl,
+      syllabusUrl,
+      programType,
+      branch,
+      year,
+      semester,
+    });
+    const analyzed = await analyzeUploadedDocument({
+      fileName: downloaded.fileName,
+      fileType: "pdf",
+      base64: downloaded.buffer.toString("base64"),
+    });
+    if (!hasReadableStudySource(analyzed.extractedText)) {
+      res.status(422).json({
+        error: "The official PDF was downloaded, but readable text could not be extracted. Open the official source, download the PDF, and upload a text-readable copy. Scanned/image-only PDFs are not yet supported for syllabus import.",
+      });
+      return;
+    }
+    res.json({
+      success: true,
+      college,
+      officialWebsiteUrl,
+      syllabusUrl: downloaded.url,
+      fileName: downloaded.fileName,
+      extractedText: analyzed.extractedText,
+      profile: analyzed.profile,
+    });
+  } catch (err: any) {
+    console.error("Official college syllabus import failed:", err);
+    res.status(400).json({ error: err?.message || "Could not import the official syllabus PDF." });
+  }
+});
 
 app.post("/api/workspace/analyze-document", async (req, res) => {
   try {
