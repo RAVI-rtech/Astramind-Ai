@@ -357,8 +357,10 @@ export default function AcademicQuizCreator({
       }
       setSourceMaterialText(extractedText.slice(0, 30000));
       setSyllabusSourceUrl(result.syllabusUrl || link.url);
-      setSyllabusNote(`Imported ${result.fileName || link.title}. AI-drafted questions will be grounded in the extracted syllabus text.`);
-      setSubject(link.title.replace(/\.pdf$/i, "").replace(/[_-]+/g, " ").trim() || subject);
+      setSyllabusNote(`Imported ${result.fileName || link.title}. AI questions will use the extracted syllabus text. Confirm or enter your exact course/subject below.`);
+      if (!subject.trim()) {
+        setSubject(result.profile?.detectedDomain || link.title.replace(/\.pdf$/i, "").replace(/[_-]+/g, " ").trim());
+      }
       setUnit("All Units (Comprehensive)");
     } catch (error: any) {
       setSyllabusError(error?.message || "Could not import this syllabus PDF.");
