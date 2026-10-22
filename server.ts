@@ -3382,14 +3382,28 @@ app.post("/api/live-quiz/remove-student", async (req, res) => {
 
 app.post("/api/live-quiz/generate-questions", async (req, res) => {
   try {
-    const { subject, branch, count, difficulty, topic } = req.body || {};
+    const { college, regulation, programType, subject, branch, year, semester, count, difficulty, topic, unit } = req.body || {};
+    if (typeof subject !== "string" || subject.trim().length < 2) {
+      res.status(400).json({ error: "Enter a subject before generating quiz questions." });
+      return;
+    }
     const questions = await generateAIQuestions({
-      subject: subject || "Engineering Core",
-      branch: branch || "CSE",
+      college: typeof college === "string" ? college.trim() : undefined,
+      regulation: typeof regulation === "string" ? regulation.trim() : undefined,
+      programType: typeof programType === "string" ? programType.trim() : undefined,
+      subject: subject.trim(),
+      branch: typeof branch === "string" && branch.trim() ? branch.trim() : "Not specified",
+      year: typeof year === "string" ? year.trim() : undefined,
+      semester: typeof semester === "string" ? semester.trim() : undefined,
+      unit: typeof unit === "string" ? unit.trim() : undefined,
       count: Number(count) || 5,
       difficulty: difficulty || "Medium",
       topic,
     });
+    if (!Array.isArray(questions) || questions.length === 0) {
+      res.status(502).json({ error: "The AI service returned no valid quiz questions. Please retry." });
+      return;
+    }
     res.json({ questions });
   } catch (err: any) {
     res.status(500).json({ error: err?.message || "Failed to generate questions" });
