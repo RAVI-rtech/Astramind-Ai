@@ -1,16 +1,7 @@
 import React, { useState, useRef } from "react";
 import { 
-  X, 
-  Sparkles, 
-  FolderKanban, 
-  Upload, 
-  FileText, 
-  Layers, 
-  Check, 
-  BookOpen, 
-  GraduationCap,
-  Building,
-  Target
+  X, Sparkles, FolderKanban, Upload, FileText, Layers, Check, BookOpen,
+  GraduationCap, Building, Target, Search, ExternalLink, Loader2, Download, Globe
 } from "lucide-react";
 import { 
   VITS_BRANCHES, 
@@ -18,6 +9,7 @@ import {
   LEARNING_GOALS, 
   createWorkspace 
 } from "../lib/studyWorkspaceStorage";
+import { VITS_COLLEGE_NAME, VITS_SYLLABUS_URL } from "../data/vitsAcademics";
 import { BTechYear, BTechSemester, LearningGoal, StudyWorkspace, DocumentProfile } from "../types";
 
 interface CreateWorkspaceModalProps {
@@ -52,13 +44,22 @@ export default function CreateWorkspaceModal({
   };
 
   const [name, setName] = useState("");
-  const [college, setCollege] = useState("Vignan Institute of Technology and Science");
+  const [college, setCollege] = useState(VITS_COLLEGE_NAME);
+  const [programType, setProgramType] = useState("B.Tech");
+  const [officialWebsiteUrl, setOfficialWebsiteUrl] = useState(VITS_SYLLABUS_URL);
   const [branch, setBranch] = useState<string>(getInitialBranch);
   const [year, setYear] = useState<BTechYear>("2nd");
   const [semester, setSemester] = useState<BTechSemester>("I");
   const [subject, setSubject] = useState(VITS_SUBJECTS["2nd"][0] || "Data Structures & Algorithms");
-  const [customSubject, setCustomSubject] = useState("");
   const [learningGoal, setLearningGoal] = useState<LearningGoal>("Prepare for exam");
+  const [syllabusLinks, setSyllabusLinks] = useState<Array<{
+    title: string; url: string; sourcePageUrl: string; host: string; kind: "pdf" | "page";
+  }>>([]);
+  const [syllabusDiscoveryNote, setSyllabusDiscoveryNote] = useState<string | null>(null);
+  const [syllabusDiscoveryError, setSyllabusDiscoveryError] = useState<string | null>(null);
+  const [isDiscoveringSyllabus, setIsDiscoveringSyllabus] = useState(false);
+  const [isImportingSyllabusUrl, setIsImportingSyllabusUrl] = useState("");
+  const [syllabusSourceUrl, setSyllabusSourceUrl] = useState("");
   
   // File upload & document understanding state
   const [uploadedFile, setUploadedFile] = useState<{
@@ -67,6 +68,8 @@ export default function CreateWorkspaceModal({
     size: string;
     content?: string;
     base64?: string;
+    url?: string;
+    officialSourceUrl?: string;
     profile?: DocumentProfile;
   } | null>(null);
   const [isAnalyzingDoc, setIsAnalyzingDoc] = useState(false);
@@ -81,7 +84,97 @@ export default function CreateWorkspaceModal({
 
   if (!isOpen) return null;
 
-  const currentSubjectList = VITS_SUBJECTS[year] || [];
+  const isVitsCollege = college.trim().toLowerCase() === VITS_COLLEGE_NAME.toLowerCase();
+  const currentSubjectList = isVitsCollege && programType === "B.Tech" ? (VITS_SUBJECTS[year] || []) : [];
+
+  const handleDiscoverSyllabus = async () => {
+    if (!college.trim()) {
+      setSyllabusDiscoveryError("Enter your college or institution name first.");
+      return;
+    }
+    if (!officialWebsiteUrl.trim()) {
+      setSyllabusDiscoveryError("Enter the college's official HTTPS website or syllabus page.");
+      return;
+    }
+    setIsDiscoveringSyllabus(true);
+    setSyllabusDiscoveryError(null);
+    setSyllabusDiscoveryNote(null);
+    setSyllabusLinks([]);
+    try {
+      const response = await fetch("/api/college-syllabus/discover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          college: college.trim(),
+          officialWebsiteUrl: officialWebsiteUrl.trim(),
+          programType,
+          branch,
+          year: `${year} Year`,
+          semester: semester === "I" ? "Semester I" : "Semester II",
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) throw new Error(data.error || "Could not inspect the official website.");
+      const links = Array.isArray(data.links) ? data.links : [];
+      setSyllabusLinks(links);
+      setSyllabusDiscoveryNote(data.note || (links.length ? "Official syllabus links found." : "No syllabus links were found on that page."));
+      if (links.length === 0) setSyllabusDiscoveryError("No syllabus or curriculum links were found. Try the college's dedicated academics/syllabus page.");
+    } catch (error: any) {
+      setSyllabusDiscoveryError(error?.message || "Syllabus discovery failed.");
+    } finally {
+      setIsDiscoveringSyllabus(false);
+    }
+  };
+
+  const handleImportOfficialSyllabus = async (link: { title: string; url: string; kind: "pdf" | "page" }) => {
+    if (link.kind !== "pdf") {
+      setSyllabusDiscoveryError("This is an official academic page, not a direct PDF. Open the page and choose a syllabus PDF link there.");
+      return;
+    }
+    setIsImportingSyllabusUrl(link.url);
+    setSyllabusDiscoveryError(null);
+    try {
+      const response = await fetch("/api/college-syllabus/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          college: college.trim(),
+          officialWebsiteUrl: officialWebsiteUrl.trim(),
+          syllabusUrl: link.url,
+          programType,
+          branch,
+          year: `${year} Year`,
+          semester: semester === "I" ? "Semester I" : "Semester II",
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) throw new Error(data.error || "Could not import this official PDF.");
+      if (typeof data.extractedText !== "string" || data.extractedText.trim().length < 30) {
+        throw new Error("The PDF was downloaded, but readable text was not extracted. Upload a text-readable version instead.");
+      }
+      const profile = data.profile as DocumentProfile | undefined;
+      setUploadedFile({
+        name: data.fileName || link.title,
+        type: "pdf",
+        size: "Official syllabus · text extracted",
+        content: data.extractedText,
+        url: data.syllabusUrl || link.url,
+        officialSourceUrl: officialWebsiteUrl.trim(),
+        profile,
+      });
+      setDocProfile(profile || null);
+      setSyllabusSourceUrl(data.syllabusUrl || link.url);
+      setManualNotes("");
+      setShowManualNotes(false);
+      if (!subject.trim() && profile?.detectedDomain) setSubject(profile.detectedDomain);
+      if (!name.trim()) setName(`${college.trim()} — ${programType} Study Workspace`);
+      setSyllabusDiscoveryNote(`Imported ${data.fileName || link.title}. The extracted text is ready for study tools.`);
+    } catch (error: any) {
+      setSyllabusDiscoveryError(error?.message || "Could not import this syllabus PDF.");
+    } finally {
+      setIsImportingSyllabusUrl("");
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -90,14 +183,28 @@ export default function CreateWorkspaceModal({
   };
 
   const processSelectedFile = async (file: File) => {
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    const isText = file.type.startsWith("text/") || /\.(txt|md)$/i.test(file.name);
+    if (!isPdf && !isText) {
+      setAnalysisError("For accurate study, upload a text-readable PDF, TXT, Markdown, or paste notes. Other formats are not treated as extracted study material yet.");
+      return;
+    }
+    if (file.size > 30 * 1024 * 1024) {
+      setAnalysisError("This file is larger than 30 MB. Please upload a smaller document.");
+      return;
+    }
     setIsAnalyzingDoc(true);
     setAnalysisError(null);
-    const isText = file.type.startsWith("text/") || file.name.endsWith(".txt") || file.name.endsWith(".md");
     const reader = new FileReader();
 
     if (isText) {
       reader.onload = async (event) => {
-        const textContent = (event.target?.result as string) || "";
+        const textContent = ((event.target?.result as string) || "").trim();
+        if (textContent.length < 30) {
+          setIsAnalyzingDoc(false);
+          setAnalysisError("This file contains too little readable text to be used as a study source.");
+          return;
+        }
         const fileObj = {
           name: file.name,
           type: "text",
@@ -117,6 +224,10 @@ export default function CreateWorkspaceModal({
             }),
           });
           const data = await resp.json();
+          if (!resp.ok || data.error) throw new Error(data.error || "Document analysis failed.");
+          if (typeof data.extractedText !== "string" || data.extractedText.trim().length < 30) {
+            throw new Error("No readable text was extracted from this document.");
+          }
           if (data.profile) {
             setDocProfile(data.profile);
             setSubject(data.profile.detectedDomain);
@@ -129,7 +240,9 @@ export default function CreateWorkspaceModal({
           }
         } catch (err: any) {
           console.error("Document analysis error:", err);
-          setAnalysisError("Some parts of this document could not be confidently classified.");
+          setUploadedFile(null);
+          setDocProfile(null);
+          setAnalysisError(err?.message || "Document analysis failed. The file was not added as a usable study source.");
         } finally {
           setIsAnalyzingDoc(false);
         }
@@ -138,7 +251,7 @@ export default function CreateWorkspaceModal({
     } else {
       reader.onload = async (event) => {
         const base64Data = ((event.target?.result as string) || "").split(",")[1];
-        const fileType = file.name.endsWith(".pdf") ? "pdf" : file.name.endsWith(".ppt") || file.name.endsWith(".pptx") ? "ppt" : "notes";
+        const fileType = "pdf";
         const fileObj = {
           name: file.name,
           type: fileType,
@@ -191,11 +304,7 @@ export default function CreateWorkspaceModal({
     e.preventDefault();
     setIsSubmitting(true);
 
-    const finalSubject = docProfile?.detectedDomain && docProfile.detectedDomain !== "General Academic"
-      ? docProfile.detectedDomain
-      : subject === "Custom Subject" 
-      ? customSubject.trim() || "Engineering Core" 
-      : subject;
+    const finalSubject = subject.trim() || docProfile?.detectedDomain || "General Study";
     const finalName = name.trim() || `${finalSubject} Workspace`;
 
     const initialMaterial = uploadedFile
@@ -212,13 +321,20 @@ export default function CreateWorkspaceModal({
     const newWs = createWorkspace({
       name: finalName,
       college,
-      branch,
+      programType,
+      officialWebsiteUrl: officialWebsiteUrl.trim() || undefined,
+      syllabusSourceUrl: syllabusSourceUrl || uploadedFile?.url || undefined,
+      branch: branch.trim() || "Not specified",
       year,
       semester,
       subject: finalSubject,
       learningGoal,
       documentProfile: docProfile || undefined,
-      initialMaterial,
+      initialMaterial: initialMaterial ? {
+        ...initialMaterial,
+        url: "url" in initialMaterial ? initialMaterial.url : undefined,
+        officialSourceUrl: "officialSourceUrl" in initialMaterial ? initialMaterial.officialSourceUrl : undefined,
+      } : undefined,
     });
 
     setIsSubmitting(false);
