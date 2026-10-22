@@ -188,25 +188,53 @@ export default function AcademicQuizCreator({
 
   const handleImportSelectedQuestions = (selectedList: any[]) => {
     if (selectedList.length === 0) return;
-    const newDraftQuestions: AcademicQuestionDraft[] = selectedList.map((q, idx) => ({
-      id: `q_reused_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
-      questionNumber: questions.length + idx + 1,
-      questionType: q.questionType || (q.blanksExpected ? "fill_blank" : q.shortAnswerGrading ? "short_answer" : "single_mcq"),
-      questionText: q.questionText || q.question || "",
-      options: Array.isArray(q.options) && q.options.length > 0 ? [...q.options] : ["Option A", "Option B", "Option C", "Option D"],
-      correctAnswers: Array.isArray(q.correctAnswers) ? [...q.correctAnswers] : (q.correctIndex !== undefined ? [q.correctIndex] : [0]),
-      explanation: q.explanation || "",
-      marks: q.marks || marksPerCorrect,
-      negativeMarks: q.negativeMarks || negativeMarks,
-      isComplete: true,
-      blanksExpected: q.blanksExpected ? [...q.blanksExpected] : undefined,
-      acceptedAlternatives: q.acceptedAlternatives ? [...q.acceptedAlternatives] : undefined,
-      caseSensitive: q.caseSensitive,
-      trimWhitespace: q.trimWhitespace,
-      shortAnswerGrading: q.shortAnswerGrading,
-      keywords: q.keywords ? [...q.keywords] : undefined,
-      sampleAnswer: q.sampleAnswer,
-    }));
+    const newDraftQuestions: AcademicQuestionDraft[] = selectedList.map((q, idx) => {
+      const questionType: AcademicQuestionDraft["questionType"] =
+        q.questionType || (q.blanksExpected ? "fill_blank" : q.shortAnswerGrading ? "short_answer" : "single_mcq");
+      const options = Array.isArray(q.options) ? [...q.options] : [];
+      const correctAnswers = Array.isArray(q.correctAnswers)
+        ? [...q.correctAnswers]
+        : q.correctIndex !== undefined && q.correctIndex !== null
+        ? [q.correctIndex]
+        : [];
+      const questionText = typeof (q.questionText || q.question) === "string" ? String(q.questionText || q.question).trim() : "";
+      const blanksExpected = Array.isArray(q.blanksExpected) ? [...q.blanksExpected] : [];
+      const acceptedAlternatives = Array.isArray(q.acceptedAlternatives) ? [...q.acceptedAlternatives] : [];
+      const keywords = Array.isArray(q.keywords) ? [...q.keywords] : [];
+      const validCorrectAnswers = correctAnswers.filter((answer) =>
+        Number.isInteger(answer) && answer >= 0 && answer < options.length && Boolean(options[answer]?.trim())
+      );
+      const isComplete =
+        Boolean(questionText) &&
+        (questionType === "fill_blank"
+          ? blanksExpected.some((answer) => typeof answer === "string" && answer.trim())
+          : questionType === "short_answer"
+          ? q.shortAnswerGrading === "manual" || keywords.some((keyword) => typeof keyword === "string" && keyword.trim()) || Boolean(q.sampleAnswer?.trim())
+          : questionType === "true_false"
+          ? options.length === 2 && options.every((option) => typeof option === "string" && option.trim()) && validCorrectAnswers.length === 1
+          : options.length === 4 && options.every((option) => typeof option === "string" && option.trim()) &&
+            (questionType === "single_mcq" ? validCorrectAnswers.length === 1 : validCorrectAnswers.length > 0));
+
+      return {
+        id: `q_reused_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
+        questionNumber: questions.length + idx + 1,
+        questionType,
+        questionText,
+        options,
+        correctAnswers: validCorrectAnswers,
+        explanation: typeof q.explanation === "string" ? q.explanation : "",
+        marks: typeof q.marks === "number" && q.marks > 0 ? q.marks : marksPerCorrect,
+        negativeMarks: typeof q.negativeMarks === "number" && q.negativeMarks >= 0 ? q.negativeMarks : negativeMarks,
+        isComplete,
+        blanksExpected,
+        acceptedAlternatives,
+        caseSensitive: q.caseSensitive,
+        trimWhitespace: q.trimWhitespace,
+        shortAnswerGrading: q.shortAnswerGrading,
+        keywords,
+        sampleAnswer: q.sampleAnswer,
+      };
+    });
 
     setQuestions((prev) => {
       // If only one empty initial question exists, replace it
