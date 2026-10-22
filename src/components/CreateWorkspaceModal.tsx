@@ -86,8 +86,8 @@ export default function CreateWorkspaceModal({
 
   const isVitsCollege = college.trim().toLowerCase() === VITS_COLLEGE_NAME.toLowerCase();
   const currentSubjectList = isVitsCollege && programType === "B.Tech" ? (VITS_SUBJECTS[year] || []) : [];
-  const yearLabel = /year/i.test(year) || year === "Not applicable" ? year : `${year} Year`;
-  const semesterLabel = ["Annual", "Not applicable"].includes(semester) || /(semester|term|trimester|quarter)/i.test(semester)
+  const yearLabel = !year ? "" : /year/i.test(year) || year === "Not applicable" ? year : `${year} Year`;
+  const semesterLabel = !semester ? "" : ["Annual", "Not applicable"].includes(semester) || /(semester|term|trimester|quarter)/i.test(semester)
     ? semester
     : `Semester ${semester}`;
 
@@ -310,6 +310,14 @@ export default function CreateWorkspaceModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!college.trim() || !year.trim() || !semester.trim()) {
+      setSyllabusDiscoveryError("Please select a college, year/level, and term/semester. Choose Not applicable for programs that do not use one of these fields.");
+      return;
+    }
+    if (!branch.trim()) {
+      setSyllabusDiscoveryError("Please enter your branch, major, or department.");
+      return;
+    }
     setIsSubmitting(true);
 
     const finalSubject = subject.trim() || docProfile?.detectedDomain || "General Study";
@@ -416,9 +424,13 @@ export default function CreateWorkspaceModal({
                   if (nextCollege.trim().toLowerCase() === VITS_COLLEGE_NAME.toLowerCase()) {
                     setOfficialWebsiteUrl(VITS_SYLLABUS_URL);
                     setBranch(getInitialBranch());
+                    setYear("2nd");
+                    setSemester("I");
                   } else if (nextCollege !== college) {
                     setOfficialWebsiteUrl("");
                     setBranch("");
+                    setYear("");
+                    setSemester("");
                   }
                   setSubject("");
                 }}
@@ -435,7 +447,20 @@ export default function CreateWorkspaceModal({
               <select
                 id="workspace-program-select"
                 value={programType}
-                onChange={(e) => setProgramType(e.target.value)}
+                onChange={(e) => {
+                  const nextProgram = e.target.value;
+                  setProgramType(nextProgram);
+                  setSubject("");
+                  if (nextProgram === "B.Tech" && isVitsCollege) {
+                    setBranch(getInitialBranch());
+                    setYear("2nd");
+                    setSemester("I");
+                  } else if (nextProgram !== "B.Tech") {
+                    setBranch("");
+                    setYear("");
+                    setSemester("");
+                  }
+                }}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-950 border border-neutral-800 text-sm text-neutral-200 focus:outline-none focus:border-blue-500/60"
               >
                 {["B.Tech", "B.E.", "B.Sc.", "B.A.", "B.Com.", "BBA", "BCA", "M.Tech", "M.E.", "M.Sc.", "M.A.", "MBA", "MCA", "Diploma", "MBBS / Health Sciences", "Law", "School / High School", "Other / Self-directed"].map((program) => (
@@ -550,6 +575,7 @@ export default function CreateWorkspaceModal({
                 }}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-950 border border-neutral-800 text-sm text-neutral-200 focus:outline-none focus:border-blue-500/60"
               >
+                <option value="">Select year / level</option>
                 {["1st", "2nd", "3rd", "4th", "5th", "6th", "PG Year 1", "PG Year 2", "Final Year", "Not applicable"].map((value) => (
                   <option key={value} value={value}>{value === "Not applicable" || value === "Final Year" || value.startsWith("PG ") ? value : `${value} Year`}</option>
                 ))}
@@ -562,6 +588,7 @@ export default function CreateWorkspaceModal({
                 onChange={(e) => setSemester(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-950 border border-neutral-800 text-sm text-neutral-200 focus:outline-none focus:border-blue-500/60"
               >
+                <option value="">Select term / semester</option>
                 {[
                   { value: "I", label: "Semester I" },
                   { value: "II", label: "Semester II" },
