@@ -509,6 +509,8 @@ export default function AcademicQuizCreator({
     if (confirm("Are you sure you want to discard this draft and reset all fields?")) {
       localStorage.removeItem(LOCAL_STORAGE_DRAFT_KEY);
       setShowDraftRestored(false);
+      clearImportedSyllabus();
+      setOfficialWebsiteUrl(college.trim().toLowerCase() === VITS_COLLEGE_NAME.toLowerCase() ? VITS_SYLLABUS_URL : "");
       setQuestions([
         {
           id: "q_init_1",
@@ -730,6 +732,7 @@ export default function AcademicQuizCreator({
           branch: branch.trim() || "Not specified",
           year,
           semester,
+          sourceText: sourceMaterialText.slice(0, 28000),
           count: aiCount,
           difficulty,
           topic: unit ? `${unit}: ${topic}` : topic,
@@ -1180,7 +1183,7 @@ export default function AcademicQuizCreator({
                   {availableSubjects.map((item) => <option key={item} value={item} />)}
                 </datalist>
               )}
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">For accurate syllabus-based quizzes, use the same subject name as your selected curriculum or your uploaded notes.</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">Import the official syllabus above to ground AI questions in its text. Without an imported source, questions are general practice and are not verified against the official curriculum.</p>
             </div>
 
             {/* Unit / Syllabus Module */}
