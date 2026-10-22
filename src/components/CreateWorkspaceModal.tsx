@@ -170,7 +170,9 @@ export default function CreateWorkspaceModal({
       setSyllabusSourceUrl(data.syllabusUrl || link.url);
       setManualNotes("");
       setShowManualNotes(false);
-      if (!subject.trim() && profile?.detectedDomain) setSubject(profile.detectedDomain);
+      // The imported document's displayed course name comes from its actual official link, not the previous default subject.
+      setSubject(link.title.replace(/\.pdf$/i, "").replace(/[_-]+/g, " ").trim() || profile?.detectedDomain || "");
+      setCustomSubject("");
       if (!name.trim()) setName(`${college.trim()} — ${programType} Study Workspace`);
       setSyllabusDiscoveryNote(`Imported ${data.fileName || link.title}. The extracted text is ready for study tools.`);
     } catch (error: any) {
@@ -199,6 +201,8 @@ export default function CreateWorkspaceModal({
     }
     setIsAnalyzingDoc(true);
     setAnalysisError(null);
+    setSyllabusSourceUrl("");
+    setSyllabusDiscoveryNote(null);
     const reader = new FileReader();
 
     if (isText) {
@@ -477,6 +481,16 @@ export default function CreateWorkspaceModal({
                 className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-950/60 border border-neutral-800 text-sm text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-blue-500/60"
               />
               <p className="text-[10px] text-neutral-500 mt-1">Only the official website you enter and approved document links are searched.</p>
+              {college.trim() && (
+                <a
+                  href={`https://www.google.com/search?q=${encodeURIComponent(`${college.trim()} official website syllabus academics`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[10px] text-blue-300 hover:text-blue-200 underline underline-offset-2 mt-1"
+                >
+                  Find this college's official website <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
             </div>
           </div>
 
@@ -662,6 +676,7 @@ export default function CreateWorkspaceModal({
                         onClick={() => {
                           setUploadedFile(null);
                           setDocProfile(null);
+                          setSyllabusSourceUrl("");
                           setAnalysisError(null);
                         }}
                         className="p-1 rounded-lg text-neutral-400 hover:text-rose-400 shrink-0"
