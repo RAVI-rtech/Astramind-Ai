@@ -977,13 +977,13 @@ export default function LiveQuizPage({ userProfile, onBackToDashboard, onOpenAut
                   </span>
                 </div>
                 <p className="text-xs text-neutral-400 mt-2 leading-relaxed">
-                  Build custom assessments mapped to the VITS VR25 curriculum (All 4 Years & Branches). Create manual questions or draft comprehensive unit tests with persistent drafts.
+                  Build assessments for your selected college, program, branch, and subject. Create questions manually or use AI assistance, then host a synchronized live session.
                 </p>
 
                 <div className="mt-4 space-y-2 text-xs text-neutral-400">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>VR25 Syllabus mapping (Year, Sem, Subject, Unit)</span>
+                    <span>Academic context (Year, Term, Subject, Unit)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
