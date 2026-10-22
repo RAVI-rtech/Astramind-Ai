@@ -2084,6 +2084,11 @@ export function setupLiveQuizWebSocket(server: Server) {
 export async function generateAIQuestions(params: {
   subject: string;
   branch: string;
+  college?: string;
+  regulation?: string;
+  programType?: string;
+  year?: string;
+  semester?: string;
   topic?: string;
   unit?: string;
   count: number;
@@ -2091,24 +2096,31 @@ export async function generateAIQuestions(params: {
 }): Promise<AcademicQuestionDraft[]> {
   const count = Math.min(25, Math.max(1, params.count || 5));
 
-  const prompt = `You are an engineering professor at Vignan Institute of Science and Technology under the VR25 academic regulation.
-Generate ${count} university-level assessment multiple choice questions (MCQs) for B.Tech students.
+  const prompt = `You are an academic assessment author creating questions for the institution and program explicitly selected below.
+Create questions only for the stated subject and academic level. Do not claim alignment to a regulation or official syllabus unless actual source text was supplied; use the selected academic details only as context.
+Institution: ${params.college || "Not specified"}
+Regulation / curriculum: ${params.regulation || "Not specified"}
+Degree / program: ${params.programType || "Not specified"}
+Year / level: ${params.year || "Not specified"}
+Term / semester: ${params.semester || "Not specified"}
+Generate ${count} assessment multiple-choice questions.
 Subject: "${params.subject}"
-Branch: "${params.branch}"
-Unit / Topic: "${params.unit || params.topic || "Core Engineering Concepts"}"
-Difficulty level: ${params.difficulty}.
+Branch / major: "${params.branch}"
+Unit / topic: "${params.unit || params.topic || "Not specified"}"
+Difficulty: ${params.difficulty}.
 
-Output strictly valid JSON with this exact array structure:
+Return valid JSON only using this structure. Field descriptions are not to be copied as answer content:
 [
   {
-    "questionText": "Clear technical question...",
-    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "questionText": "A clear question answerable within the selected subject",
+    "options": ["Plausible answer one", "Plausible answer two", "Plausible answer three", "Plausible answer four"],
     "correctAnswers": [0],
-    "explanation": "Detailed technical explanation.",
+    "explanation": "Explain why the correct answer is right.",
     "marks": 1,
     "negativeMarks": 0
   }
 ]
+Each question must have exactly four non-empty options and a correctAnswers array containing valid zero-based option indexes. Do not invent a source citation, college-specific fact, or regulation-specific claim.
 No markdown codeblocks. Output raw JSON only.`;
 
   const errors: string[] = [];
@@ -2125,16 +2137,29 @@ No markdown codeblocks. Output raw JSON only.`;
         const rawText = resp.text?.trim() || "";
         const parsed = extractJSON(rawText);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((q, idx) => ({
+          const validQuestions = parsed.filter((question) =>
+            question &&
+            typeof (question.questionText || question.question) === "string" &&
+            String(question.questionText || question.question).trim().length > 0 &&
+            Array.isArray(question.options) &&
+            question.options.length === 4 &&
+            question.options.every((option) => typeof option === "string" && option.trim().length > 0) &&
+            Array.isArray(question.correctAnswers) &&
+            question.correctAnswers.length > 0 &&
+            question.correctAnswers.every((index) => Number.isInteger(index) && index >= 0 && index < question.options.length) &&
+            typeof question.explanation === "string" && question.explanation.trim().length > 0
+          );
+          if (validQuestions.length === 0) throw new Error("The AI returned no quiz questions with a valid answer key. Please retry.");
+          return validQuestions.map((question, idx) => ({
             id: `q_${idx + 1}_${Date.now().toString(36)}`,
             questionNumber: idx + 1,
             questionType: "single_mcq" as const,
-            questionText: q.questionText || q.question || `Question ${idx + 1}`,
-            options: Array.isArray(q.options) && q.options.length === 4 ? q.options : ["Option A", "Option B", "Option C", "Option D"],
-            correctAnswers: Array.isArray(q.correctAnswers) ? q.correctAnswers : [typeof q.correctIndex === "number" ? q.correctIndex : 0],
-            explanation: q.explanation || "Correct as per VR25 syllabus.",
-            marks: q.marks || 1,
-            negativeMarks: q.negativeMarks || 0,
+            questionText: String(question.questionText || question.question).trim(),
+            options: question.options.map((option) => option.trim()),
+            correctAnswers: question.correctAnswers,
+            explanation: question.explanation.trim(),
+            marks: typeof question.marks === "number" && question.marks > 0 ? question.marks : 1,
+            negativeMarks: typeof question.negativeMarks === "number" && question.negativeMarks >= 0 ? question.negativeMarks : 0,
             isComplete: true,
           }));
         }
