@@ -1751,6 +1751,56 @@ Difficulty: ${difficulty}`;
       throw new Error("Invalid question format received from AI.");
     }
 
+    const labels = ["A", "B", "C", "D"];
+    const validQuestions = parsed.questions.map((rawQuestion: any, index: number) => {
+      if (!rawQuestion || typeof rawQuestion.question !== "string" || !rawQuestion.question.trim()) return null;
+
+      // Accept both the documented A/B/C/D object and a four-item array, but never invent options.
+      const rawOptions = rawQuestion.options;
+      const options: Record<string, string> | null = Array.isArray(rawOptions)
+        ? rawOptions.length === 4 && rawOptions.every((option: unknown) => typeof option === "string" && option.trim())
+          ? { A: rawOptions[0].trim(), B: rawOptions[1].trim(), C: rawOptions[2].trim(), D: rawOptions[3].trim() }
+          : null
+        : rawOptions && typeof rawOptions === "object" &&
+          labels.every((label) => typeof rawOptions[label] === "string" && rawOptions[label].trim())
+          ? { A: rawOptions.A.trim(), B: rawOptions.B.trim(), C: rawOptions.C.trim(), D: rawOptions.D.trim() }
+          : null;
+
+      if (!options) return null;
+
+      const answerText = String(rawQuestion.correctAnswer ?? "").trim();
+      const answerMatch = answerText.match(/^(?:OPTION\s*)?([ABCD])(?:\b|[).:\s-])/i);
+      let correctAnswer: "A" | "B" | "C" | "D" | null = answerMatch
+        ? answerMatch[1].toUpperCase() as "A" | "B" | "C" | "D"
+        : null;
+      if (!correctAnswer) {
+        const normalized = (value: string) => value.replace(/^[ABCD][).:\s-]+/i, "").trim().toLowerCase();
+        correctAnswer = labels.find((label) =>
+          normalized(options[label]) === normalized(answerText) && answerText.length > 0
+        ) as "A" | "B" | "C" | "D" | undefined || null;
+      }
+
+      if (!correctAnswer ||
+          typeof rawQuestion.explanation !== "string" || rawQuestion.explanation.trim().length < 8) {
+        return null;
+      }
+
+      return {
+        id: Number.isFinite(Number(rawQuestion.id)) ? Number(rawQuestion.id) : index + 1,
+        question: rawQuestion.question.trim(),
+        options,
+        correctAnswer,
+        explanation: rawQuestion.explanation.trim(),
+        topic: typeof rawQuestion.topic === "string" && rawQuestion.topic.trim()
+          ? rawQuestion.topic.trim()
+          : subject,
+      };
+    }).filter(Boolean);
+
+    if (validQuestions.length === 0) {
+      throw new Error("The AI returned no valid questions with four options, a correct answer key, and an explanation. Please retry.");
+    }
+
     return res.json({
       success: true,
       college,
@@ -1758,7 +1808,7 @@ Difficulty: ${difficulty}`;
       year,
       semester,
       subject,
-      questions: parsed.questions,
+      questions: validQuestions,
     });
   } catch (error: any) {
     console.error("[Academic Quiz API] Generation error:", error);
