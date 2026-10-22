@@ -326,7 +326,7 @@ export default function PDFStudyView({
 
   // In-Document Text Search
   const requireReadablePdf = (): boolean => {
-    if (activeDoc?.sourceType === "uploaded" && typeof activeDoc.rawContent === "string" && activeDoc.rawContent.trim().length >= 30) return true;
+    if ((activeDoc?.sourceType === "uploaded" || activeDoc?.sourceType === "workspace") && typeof activeDoc.rawContent === "string" && activeDoc.rawContent.trim().length >= 30) return true;
     showToast("Upload a readable PDF before using this study tool.");
     setSelectTab("upload");
     setIsSelectModalOpen(true);
