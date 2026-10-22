@@ -1875,6 +1875,12 @@ app.post('/api/export-pdf', async (req, res) => {
 // WORKSPACE AI ENDPOINTS (FULLY SOURCE-DRIVEN)
 // ==========================================
 
+function hasReadableStudySource(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length >= 30;
+}
+
+const MISSING_STUDY_SOURCE_MESSAGE = "Upload a readable PDF, TXT, or Markdown document first. AI study tools require extracted text from user-provided material.";
+
 app.post("/api/workspace/analyze-document", async (req, res) => {
   try {
     const { fileName, fileType, base64, content } = req.body || {};
@@ -1902,6 +1908,10 @@ app.post("/api/workspace/generate-lesson", async (req, res) => {
       res.status(400).json({ error: "Subject is required" });
       return;
     }
+    if (!hasReadableStudySource(extractedContent)) {
+      res.status(400).json({ error: MISSING_STUDY_SOURCE_MESSAGE });
+      return;
+    }
     const lesson = await generateGuidedLesson({
       subject,
       topic: topic || "Core Principles",
@@ -1920,6 +1930,10 @@ app.post("/api/workspace/generate-mcq", async (req, res) => {
     const { subject, topic, count, difficulty, questionType, extractedContent, materialsContext, hasCode, hasFormulas } = req.body || {};
     if (!subject) {
       res.status(400).json({ error: "Subject is required" });
+      return;
+    }
+    if (!hasReadableStudySource(extractedContent)) {
+      res.status(400).json({ error: MISSING_STUDY_SOURCE_MESSAGE });
       return;
     }
     const questions = await generateMCQQuiz({
@@ -1947,6 +1961,10 @@ app.post("/api/workspace/generate-flashcards", async (req, res) => {
       res.status(400).json({ error: "Subject is required" });
       return;
     }
+    if (!hasReadableStudySource(extractedContent)) {
+      res.status(400).json({ error: MISSING_STUDY_SOURCE_MESSAGE });
+      return;
+    }
     const flashcards = await generateFlashcards({
       subject,
       topic,
@@ -1969,6 +1987,10 @@ app.post("/api/workspace/generate-important-questions", async (req, res) => {
       res.status(400).json({ error: "Subject is required" });
       return;
     }
+    if (!hasReadableStudySource(extractedContent)) {
+      res.status(400).json({ error: MISSING_STUDY_SOURCE_MESSAGE });
+      return;
+    }
     const questions = await generateImportantQuestions({
       subject,
       branch: branch || "Computer Science and Engineering (CSE)",
@@ -1989,6 +2011,10 @@ app.post("/api/workspace/generate-summary-notes", async (req, res) => {
       res.status(400).json({ error: "Subject is required" });
       return;
     }
+    if (!hasReadableStudySource(extractedContent)) {
+      res.status(400).json({ error: MISSING_STUDY_SOURCE_MESSAGE });
+      return;
+    }
     const notes = await generateSummaryNotes({
       subject,
       extractedContent,
@@ -2005,6 +2031,10 @@ app.post("/api/workspace/generate-practice", async (req, res) => {
     const { subject, topic, difficulty, extractedContent } = req.body || {};
     if (!subject) {
       res.status(400).json({ error: "Subject is required" });
+      return;
+    }
+    if (!hasReadableStudySource(extractedContent)) {
+      res.status(400).json({ error: MISSING_STUDY_SOURCE_MESSAGE });
       return;
     }
     const exercises = await generatePracticeExercises({
@@ -2025,6 +2055,10 @@ app.post("/api/workspace/ai-tutor-chat", async (req, res) => {
     const { messages, subject, extractedContent, college, branch, learningGoal, studyContext } = req.body || {};
     if (!subject) {
       res.status(400).json({ error: "Subject is required" });
+      return;
+    }
+    if (!hasReadableStudySource(extractedContent)) {
+      res.status(400).json({ error: MISSING_STUDY_SOURCE_MESSAGE });
       return;
     }
     const response = await chatWithAITutor({
