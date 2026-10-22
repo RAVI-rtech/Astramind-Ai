@@ -368,10 +368,10 @@ Do not invent a domain or URL. If you cannot confidently identify it, return {"o
   const uniqueEvidence = Array.from(new Set<string>(evidenceUrls)).slice(0, 10);
 
   let parsed: any = null;
-  const rawText = String(candidate?.content?.parts?.map((part: any) => part?.text || "").join("\\n") || response.text || "").trim();
+  const rawText = String(candidate?.content?.parts?.map((part: any) => part?.text || "").join("\n") || response.text || "").trim();
   const jsonCandidate = rawText.replace(/^\`\`\`(?:json)?\s*/i, "").replace(/\s*\`\`\`$/, "");
   try { parsed = JSON.parse(jsonCandidate); } catch {
-    const match = jsonCandidate.match(/\{[\\s\\S]*\}/);
+    const match = jsonCandidate.match(/\{[\s\S]*\}/);
     if (match) {
       try { parsed = JSON.parse(match[0]); } catch { parsed = null; }
     }
