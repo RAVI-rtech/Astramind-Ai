@@ -47,7 +47,7 @@ export default function StudyAssistantPanel({ onClose, onAddXp }: StudyAssistant
 
   // Revision Planner
   const [examSubject, setExamSubject] = useState("");
-  const [daysUntilExam, setDaysUntilExam] = useState("14");
+  const [daysUntilExam, setDaysUntilExam] = useState("");
   const [revisionPlan, setRevisionPlan] = useState<string | null>(null);
   const [revisionPlanError, setRevisionPlanError] = useState<string | null>(null);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
