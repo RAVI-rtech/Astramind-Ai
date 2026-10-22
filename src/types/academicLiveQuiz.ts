@@ -53,6 +53,12 @@ export interface AcademicQuizDraft {
   regulation: string;
   /** Program/degree selected by the host (e.g. B.Tech, B.Sc., MBA, school). */
   programType?: string;
+  /** Official college website used to locate a syllabus. */
+  officialWebsiteUrl?: string;
+  /** Direct official source link of the imported syllabus. */
+  syllabusSourceUrl?: string;
+  /** Extracted text from the selected official syllabus, used to ground AI questions. */
+  sourceMaterialText?: string;
   branch: VitsBranch | string;
   year: AcademicYear | string;
   semester: AcademicSemester | string;
