@@ -208,6 +208,11 @@ export default function AttendancePage({
       return;
     }
 
+    if (!fromDate || !toDate) {
+      setErrorMessage("Choose a date range or use one of the date-range presets before fetching attendance.");
+      return;
+    }
+
     if (fromDate > toDate) {
       setErrorMessage("From Date cannot be later than To Date.");
       return;
