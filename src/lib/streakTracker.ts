@@ -209,12 +209,12 @@ export function getLearningStreak(): LearningStreakData {
   } catch (err) {
     console.error("Error reading streak data:", err);
     return {
-      currentStreak: 1,
-      longestStreak: 1,
-      lastActiveDate: getLocalDateString(),
-      activityDates: [getLocalDateString()],
-      todayActive: true,
-      totalActiveDays: 1,
+      currentStreak: 0,
+      longestStreak: 0,
+      lastActiveDate: "",
+      activityDates: [],
+      todayActive: false,
+      totalActiveDays: 0,
     };
   }
 }
