@@ -38,13 +38,13 @@ export default function ModernExecutiveTemplate({ resume, accentHex }: TemplateP
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
             <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              {personalInfo.fullName || "Your Full Name"}
+              {personalInfo.fullName || ""}
             </h1>
             <p 
               className="text-base font-semibold mt-1 tracking-wide uppercase"
               style={{ color: accentHex }}
             >
-              {personalInfo.jobTitle || "Professional Title"}
+              {personalInfo.jobTitle || ""}
             </p>
           </div>
 
