@@ -387,7 +387,7 @@ export default function StudentManagementPage({
       `"${s.section}"`,
       `"${s.hall_ticket_number}"`,
       `"${s.status}"`,
-      `"${s.attendance_percentage}%"`,
+      `"${typeof s.attendance_percentage === "number" ? `${s.attendance_percentage}%` : ""}"`,
       `"${s.cgpa}"`,
       `"${s.year || ''}"`,
       `"${new Date(s.created_at).toLocaleDateString()}"`
@@ -733,18 +733,18 @@ export default function StudentManagementPage({
                           <div className="space-y-0.5">
                             <div className="flex items-center gap-1.5">
                               <span className={`font-semibold ${
-                                student.attendance_percentage >= 75 ? "text-emerald-400" : "text-rose-400"
+                                typeof student.attendance_percentage !== "number" ? "text-white/60" : student.attendance_percentage >= 75 ? "text-emerald-400" : "text-rose-400"
                               }`}>
-                                {student.attendance_percentage}%
+                                {typeof student.attendance_percentage === "number" ? `${student.attendance_percentage}%` : "—"}
                               </span>
-                              <span className="text-[10px] text-white/30">• CGPA {student.cgpa}</span>
+                              <span className="text-[10px] text-white/30">• CGPA {student.cgpa || "—"}</span>
                             </div>
                             <div className="w-20 h-1 bg-white/[0.06] rounded-full overflow-hidden">
                               <div
                                 className={`h-full rounded-full ${
-                                  student.attendance_percentage >= 75 ? "bg-emerald-400" : "bg-rose-400"
+                                  typeof student.attendance_percentage !== "number" ? "bg-transparent" : student.attendance_percentage >= 75 ? "bg-emerald-400" : "bg-rose-400"
                                 }`}
-                                style={{ width: `${Math.min(100, student.attendance_percentage)}%` }}
+                                style={{ width: `${typeof student.attendance_percentage === "number" ? Math.max(0, Math.min(100, student.attendance_percentage)) : 0}%` }}
                               />
                             </div>
                           </div>
