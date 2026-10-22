@@ -440,9 +440,10 @@ export default function AcademicQuizCreator({
     const errs: string[] = [];
     const effectiveSubject = subject === "OTHER" ? customSubject.trim() : subject.trim();
     if (!effectiveSubject) errs.push("Subject is required. Please select or enter a valid course subject.");
-    if (!branch) errs.push("Branch is required.");
-    if (!year) errs.push("Academic Year is required.");
-    if (!semester) errs.push("Semester is required.");
+    if (!college.trim()) errs.push("College / university is required.");
+    if (!branch.trim()) errs.push("Branch / major / department is required.");
+    if (!year.trim()) errs.push("Academic year / level is required. Choose Not applicable if your program does not use years.");
+    if (!semester.trim()) errs.push("Term / semester is required. Choose Not applicable if your program does not use terms.");
     if (!title.trim()) errs.push("Assessment Title is required.");
     setValidationErrors(errs);
     return errs.length === 0;
@@ -825,8 +826,8 @@ export default function AcademicQuizCreator({
                   } else if (next !== college) {
                     setRegulation("");
                     setBranch("");
-                    setYear("Not specified");
-                    setSemester("Not specified");
+                    setYear("");
+                    setSemester("");
                   }
                   setSubject("");
                   setCustomSubject("");
@@ -899,6 +900,7 @@ export default function AcademicQuizCreator({
                 onChange={(e) => setYear(e.target.value)}
                 className="w-full text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               >
+                <option value="">Select academic year / level</option>
                 {Array.from(new Set([...VITS_YEARS, "5th Year", "6th Year", "PG Year 1", "PG Year 2", "Final Year", "Not applicable"])).map((value) => (
                   <option key={value} value={value}>{value}</option>
                 ))}
@@ -913,6 +915,7 @@ export default function AcademicQuizCreator({
                 onChange={(e) => setSemester(e.target.value)}
                 className="w-full text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               >
+                <option value="">Select term / semester</option>
                 {Array.from(new Map([
                   ...VITS_SEMESTERS.map((value) => [value, value] as const),
                   ["Term 1", "Term 1"], ["Term 2", "Term 2"], ["Term 3", "Term 3"],
