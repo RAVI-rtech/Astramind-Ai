@@ -885,7 +885,8 @@ app.post("/api/edit-image", async (req, res) => {
         res.write(`data: ${JSON.stringify({ type: "result", imageUrl: result.imageUrl, provider: result.providerId, model: result.modelUsed })}\n\n`);
         return res.end();
       } catch (routerErr: any) {
-        res.write(`data: ${JSON.stringify({ type: "error", error: "Image generation is currently unavailable. Please try again later." })}\n\n`);
+        console.error("[AstraMind Image Edit] Streaming provider error:", routerErr?.message || routerErr);
+        res.write(`data: ${JSON.stringify({ type: "error", error: routerErr?.message || "Image editing is currently unavailable. Please try again later." })}\n\n`);
         return res.end();
       }
     }
