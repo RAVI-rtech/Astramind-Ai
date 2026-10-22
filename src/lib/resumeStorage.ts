@@ -70,7 +70,7 @@ export function duplicateResume(id: string): ResumeData {
   return newResume;
 }
 
-export function createNewResume(title?: string, templateId?: ResumeTemplateId): ResumeData {
+export function createNewResume(title?: string, templateId?: ResumeTemplateId, persist = true): ResumeData {
   const newResume: ResumeData = {
     id: "resume-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
     title: title || "New Professional Resume",
@@ -111,7 +111,7 @@ export function createNewResume(title?: string, templateId?: ResumeTemplateId): 
     achievements: [],
     languages: [],
   };
-  saveResume(newResume);
+  if (persist) saveResume(newResume);
   return newResume;
 }
 
