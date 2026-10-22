@@ -499,12 +499,17 @@ export default function AcademicQuizCreator({
           errs.push(`Question #${idx + 1}: Please select the correct answer.`);
         }
       } else {
-        const filledOptions = q.options.filter((o) => o.trim().length > 0);
-        if (filledOptions.length < 2) {
-          errs.push(`Question #${idx + 1}: At least 2 non-empty options are required.`);
+        const filledOptions = q.options.filter((option) => option.trim().length > 0);
+        if (q.options.length !== 4 || filledOptions.length !== 4) {
+          errs.push(`Question #${idx + 1}: MCQs must have all four non-empty options.`);
         }
-        if (!q.correctAnswers || q.correctAnswers.length === 0) {
-          errs.push(`Question #${idx + 1}: Please select at least one correct answer.`);
+        const validCorrectIndexes = (q.correctAnswers || []).filter((index) =>
+          Number.isInteger(index) && index >= 0 && index < q.options.length && Boolean(q.options[index]?.trim())
+        );
+        if (validCorrectIndexes.length === 0) {
+          errs.push(`Question #${idx + 1}: Please select a valid correct answer.`);
+        } else if (q.questionType === "single_mcq" && validCorrectIndexes.length !== 1) {
+          errs.push(`Question #${idx + 1}: A single-answer MCQ must have exactly one correct option.`);
         }
       }
     });
@@ -525,9 +530,14 @@ export default function AcademicQuizCreator({
       } else if (target.questionType === "short_answer") {
         hasValidAnswer = target.shortAnswerGrading === "manual" || (target.keywords && target.keywords.length > 0) || !!target.sampleAnswer?.trim();
       } else {
-        const hasOptions = target.options.filter((o) => o.trim().length > 0).length >= 2;
-        const hasCorrect = target.correctAnswers && target.correctAnswers.length > 0;
-        hasValidAnswer = hasOptions && !!hasCorrect;
+        const hasFourOptions = target.options.length === 4 && target.options.every((option) => option.trim().length > 0);
+        const validAnswers = (target.correctAnswers || []).filter((index) =>
+          Number.isInteger(index) && index >= 0 && index < target.options.length && Boolean(target.options[index]?.trim())
+        );
+        const validAnswerCount = target.questionType === "single_mcq"
+          ? validAnswers.length === 1
+          : validAnswers.length > 0;
+        hasValidAnswer = hasFourOptions && validAnswerCount;
       }
 
       target.isComplete = hasText && hasValidAnswer;
