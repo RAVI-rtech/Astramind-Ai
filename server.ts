@@ -3085,6 +3085,7 @@ app.post("/api/live-quiz/create", async (req, res) => {
       title,
       college,
       regulation,
+      programType,
       branch,
       year,
       semester,
@@ -3114,6 +3115,7 @@ app.post("/api/live-quiz/create", async (req, res) => {
       title: title || `${subject} Live Assessment`,
       college: college || "Vignan Institute of Technology and Science",
       regulation: regulation || "",
+      programType: programType || "",
       branch: branch || "Not specified",
       year: year || "Not specified",
       semester: semester || "Not specified",
@@ -3141,7 +3143,7 @@ app.post("/api/live-quiz/create", async (req, res) => {
     });
   } catch (err: any) {
     console.error("Create live quiz error:", err);
-    res.status(500).json({ success: false, error: "Unable to join this quiz right now. Please try again." });
+    res.status(400).json({ success: false, error: err?.message || "Could not create this live assessment. Check the questions and try again." });
   }
 });
 
