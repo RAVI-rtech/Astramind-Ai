@@ -1,8 +1,6 @@
 import fs from "fs";
 import path from "path";
-import https from "https";
 import { GoogleGenAI } from "@google/genai";
-import { PDFParse } from "pdf-parse";
 import { 
   KnowledgeDocument, 
   KnowledgeChunk, 
@@ -13,7 +11,6 @@ import {
 
 const DATA_DIR = path.resolve(process.cwd(), "data");
 const KB_FILE_PATH = path.join(DATA_DIR, "vr25_knowledge_base.json");
-const DRIVE_ROOT_FOLDER_ID = "1dwdJfBAsdyVnBcp8haPhTkl_2DMCPn-9";
 
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
@@ -410,24 +407,57 @@ export async function searchKnowledgeBase(
 // 4. KNOWLEDGE BASE INITIALIZATION & SEED CHUNKS
 // =========================================================================
 
-// No documents or chunks are bundled as sample data. This index is populated only by a real ingestion process.
-function generateAuthoritativeSeedKnowledge(): { documents: KnowledgeDocument[]; chunks: KnowledgeChunk[] } {
-  return { documents: [], chunks: [] };
-}
-
 export function initializeKnowledgeBase() {
   try {
     if (fs.existsSync(KB_FILE_PATH)) {
       const raw = fs.readFileSync(KB_FILE_PATH, "utf-8");
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.documents) && Array.isArray(parsed.chunks)) {
+        const bundledSampleIds = new Set([
+          "doc-bee-1", "doc-pps-u1", "doc-pps-u4", "doc-pps-u6",
+          "doc-m1-u1", "doc-m1-u2", "doc-ed-u3", "doc-eng-1",
+        ]);
+        const bundledDriveIds = new Set([
+          "1iLlJGX5MeoMMdJQ-QLRetx50q-JdnfpV",
+          "1Xv4UX2abZuQbLff7ANsXrbJkdNBM6Rvf",
+          "1AqQh1W6PqzeXXFAqueq62V4QJQLV5pr2",
+          "1yJN1MgsbT8n3tgzPVP6TVVknok5XXFeM",
+          "1qMsI3LbejBYqcaj6x6KpsCl-zvjmb7YQ",
+          "1TXWobOvJ9xYS5almj7fL5AQ_F9UVU6Gd",
+          "1D7FjS3mnbsiLNeOwNphLVE8tBjQkXg-l",
+          "1yigbh5xVXGEB8M5WPpOfHOGOWGoBdsQd",
+        ]);
+        const bundledSampleNames = new Set([
+          "BEE COMPLETE NOTES.pdf", "c-unit-1.pdf", "c-unit-4.pdf", "c-unit-6.pdf",
+          "Unit -1.pdf", "Unit 2.pdf", "textbook-of-engineering-drawing_compressed-3.pdf",
+          "eng-i-text-main-points.pdf",
+        ]);
+        const documents = parsed.documents.filter((doc: KnowledgeDocument) =>
+          doc &&
+          !bundledSampleIds.has(doc.id) &&
+          !bundledDriveIds.has(doc.driveFileId) &&
+          !bundledSampleNames.has(doc.documentName)
+        );
+        const validSourceIds = new Set<string>(documents.flatMap((doc: KnowledgeDocument) => [doc.id, doc.driveFileId]));
+        const chunks = parsed.chunks.filter((chunk: KnowledgeChunk) =>
+          chunk &&
+          validSourceIds.has(chunk.documentId) &&
+          !/^(chk-bee-|chk-pps-|chk-m1-|chk-ed-|chk-eng-)/.test(chunk.id)
+        );
+        const ingestionJobs = Array.isArray(parsed.ingestionJobs)
+          ? parsed.ingestionJobs.filter((job: any) => job && job.id !== "job-initial-seed")
+          : [];
         kbData = {
-          documents: parsed.documents,
-          chunks: parsed.chunks,
-          lastSync: Number(parsed.lastSync) || 0,
-          ingestionJobs: Array.isArray(parsed.ingestionJobs) ? parsed.ingestionJobs : [],
+          documents,
+          chunks,
+          lastSync: documents.length > 0 ? Number(parsed.lastSync) || 0 : 0,
+          ingestionJobs,
         };
-        console.log(`[KB] Loaded indexed documents: ${kbData.documents.length} docs, ${kbData.chunks.length} chunks.`);
+        // Persist removal of previously bundled sample documents from old deployments.
+        if (documents.length !== parsed.documents.length || chunks.length !== parsed.chunks.length || ingestionJobs.length !== (parsed.ingestionJobs || []).length) {
+          saveKnowledgeBaseToDisk();
+        }
+        console.log(`[KB] Loaded ${kbData.documents.length} actual documents and ${kbData.chunks.length} source chunks.`);
         return;
       }
     }
@@ -491,7 +521,7 @@ export function getKnowledgeChunks(subject?: string): KnowledgeChunk[] {
 }
 
 // Trigger Google Drive sync for VR25 repository
-export async function syncGoogleDriveRepository(folderId: string = DRIVE_ROOT_FOLDER_ID): Promise<KnowledgeBaseStatus> {
+export async function syncGoogleDriveRepository(): Promise<KnowledgeBaseStatus> {
   // This endpoint previously re-added a hard-coded demonstration corpus while reporting a successful sync.
   // Do not claim that Google Drive synced until a real Drive API ingestion is configured.
   const jobId = `job-sync-${Date.now()}`;
