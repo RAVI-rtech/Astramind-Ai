@@ -241,6 +241,9 @@ Return a JSON object:
   try {
     const rawJson = await callGeminiOrFallback(systemInstruction, prompt, 0.2, true);
     const data = extractJSON(rawJson);
+    if (typeof data.overviewText !== "string" || data.overviewText.trim().length < 20) {
+      throw new Error("The model returned an incomplete summary.");
+    }
 
     return {
       id: `sum_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -248,7 +251,7 @@ Return a JSON object:
       documentTitle: pdfTitle,
       summaryType,
       chapterOrScope,
-      overviewText: data.overviewText || "Comprehensive summary of the selected study document.",
+      overviewText: data.overviewText.trim(),
       keyConcepts: Array.isArray(data.keyConcepts) ? data.keyConcepts : [],
       importantDefinitions: Array.isArray(data.importantDefinitions) ? data.importantDefinitions : [],
       formulas: Array.isArray(data.formulas) ? data.formulas : [],
@@ -320,11 +323,14 @@ Return a JSON object:
   try {
     const rawJson = await callGeminiOrFallback(systemInstruction, prompt, 0.2, true);
     const data = extractJSON(rawJson);
+    if (typeof data.markdownContent !== "string" || data.markdownContent.trim().length < 30) {
+      throw new Error("The model returned incomplete notes.");
+    }
 
     return {
-      title: data.title || `${pdfTitle} - Revision Notes`,
-      topic: data.topic || topic || "General Concepts",
-      markdownContent: data.markdownContent || "## Core Notes\n\nNotes generated successfully from study material.",
+      title: typeof data.title === "string" && data.title.trim() ? data.title : `${pdfTitle} - Notes`,
+      topic: data.topic || topic || pdfTitle,
+      markdownContent: data.markdownContent.trim(),
       definitions: Array.isArray(data.definitions) ? data.definitions : [],
       formulas: Array.isArray(data.formulas) ? data.formulas : [],
       examples: Array.isArray(data.examples) ? data.examples : [],
@@ -382,17 +388,18 @@ Categories can be: "Definition", "Formula", "Law/Principle", "Comparison", "Core
   try {
     const rawJson = await callGeminiOrFallback(systemInstruction, prompt, 0.25, true);
     const cards = extractJSON(rawJson);
-
-    if (Array.isArray(cards) && cards.length > 0) {
-      return cards.map((c, idx) => ({
-        id: c.id || `card_${Date.now()}_${idx}`,
-        front: c.front || "Concept Question",
-        back: c.back || "Answer explanation from study material.",
-        topic: c.topic || "Core Material",
-        pageNumber: typeof c.pageNumber === "number" ? c.pageNumber : 1,
-        category: c.category || "Core Concept",
-      }));
-    }
+    const validCards = Array.isArray(cards)
+      ? cards.filter((card) => card && typeof card.front === "string" && card.front.trim() && typeof card.back === "string" && card.back.trim())
+      : [];
+    if (validCards.length === 0) throw new Error("The model returned no usable flashcards.");
+    return validCards.map((card, idx) => ({
+      id: typeof card.id === "string" && card.id.trim() ? card.id : `card_${Date.now()}_${idx}`,
+      front: card.front.trim(),
+      back: card.back.trim(),
+      topic: typeof card.topic === "string" && card.topic.trim() ? card.topic : pdfTitle,
+      pageNumber: typeof card.pageNumber === "number" && card.pageNumber > 0 ? card.pageNumber : undefined,
+      category: ["Definition", "Formula", "Law/Principle", "Comparison", "Core Concept", "Exam Concept"].includes(card.category) ? card.category : "Core Concept",
+    }));
   } catch (err) {
     throw new Error("Flashcard generation failed. No sample flashcards were created.");
   }
@@ -454,21 +461,22 @@ Return a JSON array of question objects:
   try {
     const rawJson = await callGeminiOrFallback(systemInstruction, prompt, 0.25, true);
     const questions = extractJSON(rawJson);
-
-    if (Array.isArray(questions) && questions.length > 0) {
-      return questions.map((q, idx) => ({
-        id: q.id || `q_${Date.now()}_${idx}`,
-        type: q.type || "short",
-        question: q.question || "Study Question",
-        options: Array.isArray(q.options) ? q.options : undefined,
-        correctAnswer: q.correctAnswer || "Answer derived from study material.",
-        explanation: q.explanation || "Detailed solution and concept breakdown.",
-        pageReference: typeof q.pageReference === "number" ? q.pageReference : 1,
-        marks: typeof q.marks === "number" ? q.marks : q.type === "long" ? 10 : q.type === "short" ? 5 : 2,
-        difficulty: q.difficulty || difficulty,
-        topic: q.topic || topic || "General Units",
-      }));
-    }
+    const validQuestions = Array.isArray(questions)
+      ? questions.filter((question) => question && typeof question.question === "string" && question.question.trim() && typeof question.correctAnswer === "string" && question.correctAnswer.trim())
+      : [];
+    if (validQuestions.length === 0) throw new Error("The model returned no usable questions.");
+    return validQuestions.map((question, idx) => ({
+      id: typeof question.id === "string" && question.id.trim() ? question.id : `q_${Date.now()}_${idx}`,
+      type: ["mcq", "short", "long", "fill-blanks", "true-false", "exam-style"].includes(question.type) ? question.type : "short",
+      question: question.question.trim(),
+      options: Array.isArray(question.options) ? question.options : undefined,
+      correctAnswer: question.correctAnswer.trim(),
+      explanation: typeof question.explanation === "string" ? question.explanation : "",
+      pageReference: typeof question.pageReference === "number" && question.pageReference > 0 ? question.pageReference : undefined,
+      marks: typeof question.marks === "number" && question.marks > 0 ? question.marks : undefined,
+      difficulty: ["Easy", "Medium", "Hard", "Exam Preparation"].includes(question.difficulty) ? question.difficulty : difficulty,
+      topic: typeof question.topic === "string" && question.topic.trim() ? question.topic : topic || pdfTitle,
+    }));
   } catch (err) {
     throw new Error("Question generation failed. No sample questions were created.");
   }
@@ -577,19 +585,20 @@ Return a JSON array of objects:
   try {
     const rawJson = await callGeminiOrFallback(systemInstruction, prompt, 0.2, true);
     const topics = extractJSON(rawJson);
-
-    if (Array.isArray(topics) && topics.length > 0) {
-      return topics.map((t, idx) => ({
-        rank: typeof t.rank === "number" ? t.rank : idx + 1,
-        topic: t.topic || `Important Concept ${idx + 1}`,
-        importance: t.importance || (idx < 3 ? "Critical" : idx < 7 ? "High" : "Medium"),
-        examFrequency: t.examFrequency || "High probability in semester examinations",
-        keyConcepts: Array.isArray(t.keyConcepts) ? t.keyConcepts : ["Core principles", "Numerical methods"],
-        expectedMarks: t.expectedMarks || "8-12 Marks",
-        pageReference: typeof t.pageReference === "number" ? t.pageReference : idx + 1,
-        whyImportant: t.whyImportant || "Key curriculum competency tested in end-semester exams.",
-      }));
-    }
+    const validTopics = Array.isArray(topics)
+      ? topics.filter((item) => item && typeof item.topic === "string" && item.topic.trim())
+      : [];
+    if (validTopics.length === 0) throw new Error("The model returned no usable topics.");
+    return validTopics.map((item, idx) => ({
+      rank: typeof item.rank === "number" && item.rank > 0 ? item.rank : idx + 1,
+      topic: item.topic.trim(),
+      importance: ["Critical", "High", "Medium"].includes(item.importance) ? item.importance : "Medium",
+      examFrequency: typeof item.examFrequency === "string" && item.examFrequency.trim() ? item.examFrequency : "Not stated in the uploaded document.",
+      keyConcepts: Array.isArray(item.keyConcepts) ? item.keyConcepts.filter((concept: unknown) => typeof concept === "string" && concept.trim()) : [],
+      expectedMarks: typeof item.expectedMarks === "string" && item.expectedMarks.trim() ? item.expectedMarks : undefined,
+      pageReference: typeof item.pageReference === "number" && item.pageReference > 0 ? item.pageReference : undefined,
+      whyImportant: typeof item.whyImportant === "string" && item.whyImportant.trim() ? item.whyImportant : "No explanation of importance was returned.",
+    }));
   } catch (err) {
     throw new Error("Important-topic analysis failed. No invented exam frequency or marks were returned.");
   }
