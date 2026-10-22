@@ -1676,6 +1676,8 @@ app.post("/api/academic-quiz/generate", async (req, res) => {
   try {
     const {
       college = "Vignan Institute of Technology and Science",
+      programType = "B.Tech",
+      regulation = "",
       branch = "Computer Science and Engineering (CSE)",
       year = "2nd Year",
       semester = "Semester II",
@@ -1691,25 +1693,27 @@ app.post("/api/academic-quiz/generate", async (req, res) => {
 
     const count = Math.min(Math.max(Number(numQuestions) || 10, 5), 20);
 
-    const systemPrompt = `You are a distinguished Senior Academic Professor and Examination Board Member at ${college} (VITS).
-Your role is to formulate high-standard, technically rigorous Multiple Choice Questions (MCQs) for B.Tech engineering assessments.
+    const systemPrompt = `You are an academic assessment author creating multiple-choice questions for the institution and program the user selected.
+Do not claim alignment with a college's official syllabus or a named regulation unless actual syllabus content is included in the request.
 
 ACADEMIC CONTEXT:
 - Institution: ${college}
-- Branch: ${branch}
+- Degree / Program: ${programType}
+- Regulation / Curriculum: ${regulation || "Not specified"}
+- Branch / Major: ${branch}
 - Academic Level: ${year}, ${semester}
 - Subject: ${subject}
 - Target Difficulty: ${difficulty}
 - Total Questions Required: ${count}
 
-PEDAGOGICAL & SYLLABUS ACCURACY RULES:
-1. Every question must be genuinely relevant to the undergraduate syllabus for "${subject}" at the ${year}, ${semester} level.
-2. DO NOT ask questions belonging to different subjects or branches.
-3. DO NOT ask advanced post-graduate or 4th-year topics for a 1st or 2nd-year foundational course.
-4. Each question must have 4 distinct options labeled "A", "B", "C", "D".
-5. Exactly ONE option must be undeniably correct.
-6. The "explanation" must clearly explain why the correct option is right and the underlying principle or calculation.
-7. Include a "topic" field for each question denoting the specific sub-topic (e.g. "Recursion", "Virtual Memory", "Deadlocks", "Eigenvalues", "K-Maps", etc.) so that student weak areas can be tracked adaptively.
+QUESTION QUALITY RULES:
+1. Keep questions relevant to the selected subject and academic level.
+2. Do not mix unrelated subjects or use topics that exceed the selected level without request.
+3. Use four distinct, non-empty answer options labeled "A", "B", "C", and "D".
+4. Exactly one option must be correct.
+5. Explain why the answer is correct with sound academic reasoning.
+6. Include a specific sub-topic so weak areas can be tracked.
+7. Never invent citations, college policies, syllabus claims, or exam-frequency statistics.
 
 OUTPUT FORMAT:
 Return strictly a valid JSON object matching this schema:
@@ -1733,9 +1737,11 @@ Return strictly a valid JSON object matching this schema:
 
     let userPrompt = `Generate exactly ${count} Multiple Choice Questions for:
 Institution: ${college}
-Branch: ${branch}
-Year: ${year}
-Semester: ${semester}
+Degree / Program: ${programType}
+Regulation / Curriculum: ${regulation || "Not specified"}
+Branch / Major: ${branch}
+Year / Level: ${year}
+Term / Semester: ${semester}
 Subject: ${subject}
 Difficulty: ${difficulty}`;
 
