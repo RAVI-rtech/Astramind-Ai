@@ -24,7 +24,12 @@ import {
   Bookmark,
   Copy,
   FolderPlus,
-  X
+  X,
+  Search,
+  ExternalLink,
+  Loader2,
+  Download,
+  Globe
 } from "lucide-react";
 import {
   AcademicQuizDraft,
@@ -38,6 +43,7 @@ import {
   VITS_BRANCHES,
   VITS_YEARS,
   VITS_SEMESTERS,
+  VITS_SYLLABUS_URL,
   getVitsSubjects
 } from "../../data/vitsAcademics";
 import { VitsBranch, AcademicYear, AcademicSemester } from "../../types/academicQuiz";
@@ -87,6 +93,16 @@ export default function AcademicQuizCreator({
   const [branch, setBranch] = useState<string>(VITS_BRANCHES[0]);
   const [year, setYear] = useState<string>(VITS_YEARS[1]);
   const [semester, setSemester] = useState<string>(VITS_SEMESTERS[0]);
+  const [officialWebsiteUrl, setOfficialWebsiteUrl] = useState<string>(VITS_SYLLABUS_URL);
+  const [syllabusSourceUrl, setSyllabusSourceUrl] = useState<string>("");
+  const [sourceMaterialText, setSourceMaterialText] = useState<string>("");
+  const [syllabusLinks, setSyllabusLinks] = useState<Array<{
+    title: string; url: string; sourcePageUrl: string; host: string; kind: "pdf" | "page";
+  }>>([]);
+  const [syllabusNote, setSyllabusNote] = useState<string | null>(null);
+  const [syllabusError, setSyllabusError] = useState<string | null>(null);
+  const [isDiscoveringSyllabus, setIsDiscoveringSyllabus] = useState(false);
+  const [isImportingSyllabusUrl, setIsImportingSyllabusUrl] = useState("");
   const [subject, setSubject] = useState<string>("");
   const [customSubject, setCustomSubject] = useState<string>("");
   const [unit, setUnit] = useState<string>("All Units (Comprehensive)");
