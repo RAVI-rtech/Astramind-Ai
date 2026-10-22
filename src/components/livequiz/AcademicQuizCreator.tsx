@@ -113,7 +113,7 @@ export default function AcademicQuizCreator({
       questionType: "single_mcq",
       questionText: "",
       options: ["", "", "", ""],
-      correctAnswers: [0],
+      correctAnswers: [],
       explanation: "",
       marks: 1,
       negativeMarks: 0,
@@ -389,7 +389,7 @@ export default function AcademicQuizCreator({
           questionType: "single_mcq",
           questionText: "",
           options: ["", "", "", ""],
-          correctAnswers: [0],
+          correctAnswers: [],
           explanation: "",
           marks: 1,
           negativeMarks: 0,
@@ -562,7 +562,7 @@ export default function AcademicQuizCreator({
       questionType: "single_mcq",
       questionText: "",
       options: ["", "", "", ""],
-      correctAnswers: [0],
+      correctAnswers: [],
       explanation: "",
       marks: marksPerCorrect,
       negativeMarks: negativeMarks,
@@ -1330,7 +1330,7 @@ export default function AcademicQuizCreator({
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                   <span className="text-xs font-bold text-amber-950 dark:text-amber-200">
-                    AI Question Assistant (VR25 Syllabus Grounded)
+                    AI Question Assistant
                   </span>
                 </div>
                 <button
@@ -1341,7 +1341,7 @@ export default function AcademicQuizCreator({
                 </button>
               </div>
               <p className="text-xs text-amber-800 dark:text-amber-300/80">
-                Drafts curriculum-aligned MCQs for <strong className="font-semibold">{subject === "OTHER" ? customSubject : subject}</strong> ({unit}).
+                Drafts questions for <strong className="font-semibold">{subject === "OTHER" ? customSubject : subject}</strong> ({unit}). For official syllabus alignment, import the college’s syllabus PDF below first.
                 New questions will be <em>appended</em> to your list; your existing manual questions will never be overwritten.
               </p>
 
@@ -1366,7 +1366,7 @@ export default function AcademicQuizCreator({
                   className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm disabled:opacity-50 transition-colors"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
-                  {isGeneratingAI ? "Drafting VR25 Questions..." : "Generate & Append Questions"}
+                  {isGeneratingAI ? "Drafting Questions..." : "Generate & Append Questions"}
                 </button>
               </div>
 
@@ -1443,13 +1443,13 @@ export default function AcademicQuizCreator({
                         handleUpdateQuestion(activeQuestionIndex, {
                           questionType: newType,
                           options: ["True", "False"],
-                          correctAnswers: [0],
+                          correctAnswers: [],
                         });
                       } else if (newType === "fill_blank") {
                         handleUpdateQuestion(activeQuestionIndex, {
                           questionType: newType,
                           options: [],
-                          correctAnswers: [0],
+                          correctAnswers: [],
                           blanksExpected: currentQ.blanksExpected?.length ? currentQ.blanksExpected : [""],
                           acceptedAlternatives: currentQ.acceptedAlternatives || [],
                           caseSensitive: currentQ.caseSensitive ?? false,
@@ -1459,7 +1459,7 @@ export default function AcademicQuizCreator({
                         handleUpdateQuestion(activeQuestionIndex, {
                           questionType: newType,
                           options: [],
-                          correctAnswers: [0],
+                          correctAnswers: [],
                           shortAnswerGrading: currentQ.shortAnswerGrading || "manual",
                           keywords: currentQ.keywords || [],
                           sampleAnswer: currentQ.sampleAnswer || "",
