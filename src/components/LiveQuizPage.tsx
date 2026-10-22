@@ -262,6 +262,9 @@ export default function LiveQuizPage({ userProfile, onBackToDashboard, onOpenAut
         },
         body: JSON.stringify({
           title: draft.title,
+          college: draft.college,
+          regulation: draft.regulation,
+          programType: draft.programType,
           subject: draft.subject,
           branch: draft.branch,
           year: draft.year,
@@ -763,13 +766,13 @@ export default function LiveQuizPage({ userProfile, onBackToDashboard, onOpenAut
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono-studio tracking-wider bg-[#a78bfa]/10 border border-[#a78bfa]/25 text-[#a78bfa] mb-2.5">
             <GraduationCap className="w-3.5 h-3.5" />
-            <span>VITS Real-Time Assessment • VR25</span>
+            <span>Live Academic Assessment</span>
           </div>
           <h1 className="font-serif-studio text-4xl sm:text-5xl font-medium text-white tracking-tight leading-tight">
             Live Assessment
           </h1>
           <p className="text-sm text-white/50 mt-1 font-normal tracking-wide">
-            Vignan Institute of Technology &amp; Science • Real-Time Synchronized Academic Assessments
+            Real-time synchronized assessments for schools, colleges, universities, and independent learners
           </p>
         </div>
 
