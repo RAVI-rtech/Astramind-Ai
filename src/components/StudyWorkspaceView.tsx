@@ -1300,13 +1300,13 @@ export default function StudyWorkspaceView({
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-semibold text-white">Workspace Study Materials</h3>
-                <p className="text-xs text-neutral-400">Upload and manage lecture notes, syllabus, PDFs, or PPT presentations</p>
+                <p className="text-xs text-neutral-400">Upload text-readable PDFs, TXT files, Markdown notes, or course materials you want AstraMind to analyze</p>
               </div>
               <div>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf,.ppt,.pptx,.txt,.md,.png,.jpg"
+                  accept=".pdf,.txt,.md"
                   onChange={handleUploadMaterial}
                   className="hidden"
                 />
@@ -1319,34 +1319,7 @@ export default function StudyWorkspaceView({
               </div>
             </div>
 
-            {/* Connected VR25 Master Drive Repository Banner */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-900/30 via-indigo-900/20 to-purple-900/30 border border-blue-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-blue-600/20 border border-blue-500/30 text-blue-400 shrink-0">
-                  <HardDrive className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-white uppercase tracking-wider">VR25 Google Drive Master Repository</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-medium">
-                      Connected & Indexed
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-neutral-300 mt-0.5">
-                    Authoritative syllabus notes (BEE, C Programming, M1, CAEG, English) are pre-indexed and ready for source-grounded answers.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={() => setActiveTab("knowledge-base")}
-                  className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium flex items-center gap-1.5 transition-colors shadow"
-                >
-                  <Database className="w-3.5 h-3.5" /> Browse Master Notes
-                </button>
-              </div>
-            </div>
-
+            {/* Documents are provided by the student or imported from a verified official syllabus source. */}
             {/* Materials List */}
             {workspace.materials.length === 0 ? (
               <div className="p-12 text-center border border-dashed border-neutral-800 rounded-2xl bg-neutral-900/20">
