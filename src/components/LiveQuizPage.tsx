@@ -1053,7 +1053,7 @@ export default function LiveQuizPage({ userProfile, onBackToDashboard, onOpenAut
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300">
-                  VR25 • {activeRoom.branch} ({activeRoom.year} Year)
+                  {activeRoom.college || "Academic Assessment"}{activeRoom.regulation ? ` · ${activeRoom.regulation}` : ""}
                 </span>
                 <span className="text-xs text-neutral-400">
                   {activeRoom.subject} {activeRoom.unit ? `• Unit ${activeRoom.unit}` : ""}
