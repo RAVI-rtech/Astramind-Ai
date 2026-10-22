@@ -1,7 +1,9 @@
 import { VitsBranch, AcademicYear, AcademicSemester } from "../types/academicQuiz";
 
 export const VITS_COLLEGE_NAME = "Vignan Institute of Technology and Science";
-export const VITS_SYLLABUS_URL = "https://vignanits.ac.in/academics/syllabus.php";
+// Verified official VITS syllabus page (the live site currently serves it from this subdomain).
+export const VITS_OFFICIAL_WEBSITE_URL = "https://vignanits.ac.in/";
+export const VITS_SYLLABUS_URL = "https://mail.vignanits.ac.in/academics/syllabus.php";
 
 export const VITS_BRANCHES: VitsBranch[] = [
   "Computer Science and Engineering (CSE)",
