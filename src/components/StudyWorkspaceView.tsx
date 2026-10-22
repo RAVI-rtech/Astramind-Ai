@@ -1429,7 +1429,7 @@ export default function StudyWorkspaceView({
                             id: material.id,
                             title: material.name.replace(/\.[^/.]+$/, ""),
                             fileName: material.name,
-                            pageCount: material.profile?.pages || 1,
+                            pageCount: Number(material.profile?.pages) || 0,
                             sourceType: "workspace",
                             uploadedAt: material.uploadedAt || Date.now(),
                             rawContent: material.content,
