@@ -360,7 +360,7 @@ export default function CreateWorkspaceModal({
             </div>
             <div>
               <h2 className="text-xl font-semibold text-white">Create Study Workspace</h2>
-              <p className="text-xs text-neutral-400">Set up your tailored B.Tech study companion with intelligent notes analysis</p>
+              <p className="text-xs text-neutral-400">Create a source-grounded study space for any college, degree, or subject.</p>
             </div>
           </div>
           <button
@@ -388,37 +388,130 @@ export default function CreateWorkspaceModal({
             />
           </div>
 
-          {/* College & Branch */}
+          {/* Institution and program — VITS is the default, but all fields are editable. */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-neutral-300 mb-1.5 flex items-center gap-1.5">
-                <Building className="w-3.5 h-3.5 text-neutral-400" /> College
+                <Building className="w-3.5 h-3.5 text-neutral-400" /> College / University
               </label>
               <input
+                id="workspace-college-input"
                 type="text"
                 value={college}
-                onChange={(e) => setCollege(e.target.value)}
+                onChange={(e) => {
+                  const nextCollege = e.target.value;
+                  setCollege(nextCollege);
+                  setSyllabusLinks([]);
+                  setSyllabusDiscoveryNote(null);
+                  setSyllabusDiscoveryError(null);
+                  setSyllabusSourceUrl("");
+                  if (nextCollege.trim().toLowerCase() === VITS_COLLEGE_NAME.toLowerCase()) setOfficialWebsiteUrl(VITS_SYLLABUS_URL);
+                  else if (nextCollege !== college) setOfficialWebsiteUrl("");
+                  setSubject("");
+                }}
+                placeholder="Enter your college or university"
                 className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-950/60 border border-neutral-800 text-sm text-neutral-200 focus:outline-none focus:border-blue-500/60"
+                required
               />
+              <p className="text-[10px] text-neutral-500 mt-1">Vignan Institute of Technology and Science is preselected.</p>
             </div>
-
             <div>
               <label className="block text-xs font-medium text-neutral-300 mb-1.5 flex items-center gap-1.5">
-                <GraduationCap className="w-3.5 h-3.5 text-neutral-400" /> Branch
+                <GraduationCap className="w-3.5 h-3.5 text-neutral-400" /> Degree / Program
               </label>
               <select
-                id="workspace-branch-select"
-                value={branch}
-                onChange={(e) => setBranch(e.target.value)}
+                id="workspace-program-select"
+                value={programType}
+                onChange={(e) => setProgramType(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-950 border border-neutral-800 text-sm text-neutral-200 focus:outline-none focus:border-blue-500/60"
               >
-                {VITS_BRANCHES.map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
+                {["B.Tech", "B.E.", "B.Sc.", "B.A.", "B.Com.", "BBA", "BCA", "M.Tech", "M.E.", "M.Sc.", "M.A.", "MBA", "MCA", "Diploma", "MBBS / Health Sciences", "Law", "School / High School", "Other / Self-directed"].map((program) => (
+                  <option key={program} value={program}>{program}</option>
                 ))}
               </select>
             </div>
+            <div>
+              <label className="block text-xs font-medium text-neutral-300 mb-1.5 flex items-center gap-1.5">
+                <BookOpen className="w-3.5 h-3.5 text-neutral-400" /> Branch / Major / Course
+              </label>
+              <input
+                id="workspace-branch-select"
+                type="text"
+                value={branch}
+                onChange={(e) => setBranch(e.target.value)}
+                list={isVitsCollege && programType === "B.Tech" ? "vits-branch-suggestions" : undefined}
+                placeholder="e.g. CSE, Physics, Commerce, Nursing"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-950/60 border border-neutral-800 text-sm text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-blue-500/60"
+              />
+              {isVitsCollege && programType === "B.Tech" && (
+                <datalist id="vits-branch-suggestions">
+                  {VITS_BRANCHES.map((item) => <option key={item} value={item} />)}
+                </datalist>
+              )}
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-neutral-300 mb-1.5 flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5 text-neutral-400" /> Official College Website / Syllabus Page
+              </label>
+              <input
+                id="official-college-website-input"
+                type="url"
+                value={officialWebsiteUrl}
+                onChange={(e) => {
+                  setOfficialWebsiteUrl(e.target.value);
+                  setSyllabusLinks([]);
+                  setSyllabusDiscoveryNote(null);
+                  setSyllabusDiscoveryError(null);
+                  setSyllabusSourceUrl("");
+                }}
+                placeholder="https://college.edu/academics/syllabus"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-950/60 border border-neutral-800 text-sm text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-blue-500/60"
+              />
+              <p className="text-[10px] text-neutral-500 mt-1">Only the official website you enter and approved document links are searched.</p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-blue-500/20 bg-blue-500/[0.04] p-4 sm:p-5 space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-300 border border-blue-500/20"><Search className="w-4 h-4" /></div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold text-white">Find the official syllabus</h3>
+                <p className="text-xs text-neutral-400 mt-1 leading-relaxed">AstraMind checks the academic page you provide and lists syllabus links it finds. If a directly downloadable PDF is available, import it into Materials. The app never assumes that a syllabus is correct based on a college name alone.</p>
+              </div>
+              <button type="button" onClick={handleDiscoverSyllabus} disabled={isDiscoveringSyllabus || !college.trim() || !officialWebsiteUrl.trim()} className="shrink-0 flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-2.5 text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+                {isDiscoveringSyllabus ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                {isDiscoveringSyllabus ? "Searching…" : "Find syllabus"}
+              </button>
+            </div>
+            {isVitsCollege && <a href={VITS_SYLLABUS_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[11px] text-blue-300 hover:text-blue-200 underline underline-offset-2">VITS official syllabus page <ExternalLink className="w-3 h-3" /></a>}
+            {syllabusDiscoveryNote && <div className="p-3 rounded-xl bg-neutral-950/70 border border-neutral-800 text-xs text-neutral-300" role="status">{syllabusDiscoveryNote}</div>}
+            {syllabusDiscoveryError && <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-200" role="alert">{syllabusDiscoveryError}</div>}
+            {syllabusSourceUrl && <div className="text-[11px] text-emerald-300 flex items-center gap-2"><Check className="w-3.5 h-3.5" /> Official syllabus source attached. <a href={syllabusSourceUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 inline-flex items-center gap-1">Open source <ExternalLink className="w-3 h-3" /></a></div>}
+            {syllabusLinks.length > 0 && (
+              <div className="space-y-2 pt-1">
+                <div className="text-[11px] uppercase tracking-wider font-semibold text-neutral-400">Discovered on the supplied official site · {syllabusLinks.length} links</div>
+                <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+                  {syllabusLinks.slice(0, 18).map((link) => (
+                    <div key={link.url} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-neutral-950/80 border border-neutral-800">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2"><span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${link.kind === "pdf" ? "border-rose-500/30 bg-rose-500/10 text-rose-300" : "border-blue-500/30 bg-blue-500/10 text-blue-300"}`}>{link.kind === "pdf" ? "PDF" : "PAGE"}</span><span className="text-xs font-medium text-white break-words">{link.title}</span></div>
+                        <div className="text-[10px] text-neutral-500 mt-1 break-all">{link.host}</div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <a href={link.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 hover:border-neutral-500 px-2.5 py-2 text-[11px] text-neutral-300"><ExternalLink className="w-3 h-3" /> Open</a>
+                        {link.kind === "pdf" && (
+                          <button type="button" onClick={() => handleImportOfficialSyllabus(link)} disabled={Boolean(isImportingSyllabusUrl)} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-2.5 py-2 text-[11px] font-semibold text-white disabled:opacity-50">
+                            {isImportingSyllabusUrl === link.url ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                            {isImportingSyllabusUrl === link.url ? "Importing…" : "Import PDF"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {syllabusLinks.length > 18 && <p className="text-[10px] text-neutral-500">Showing the top 18 matches. Refine the official page URL if you need a specific program or regulation.</p>}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Year & Semester */}
