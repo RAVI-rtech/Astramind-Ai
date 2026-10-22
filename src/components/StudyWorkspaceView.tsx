@@ -58,7 +58,8 @@ import {
   LearningActivityRecord,
   KnowledgeDocument,
   KnowledgeChunk,
-  KnowledgeQueryResult
+  KnowledgeQueryResult,
+  PDFStudyDocument
 } from "../types";
 import {
   updateWorkspace,
@@ -148,10 +149,11 @@ export default function StudyWorkspaceView({
     (initialTab as WorkspaceTab) || "overview";
 
   const [activeTab, setActiveTab] = useState<WorkspaceTab>(normalizedInitialTab);
+  const [initialPdfDocument, setInitialPdfDocument] = useState<PDFStudyDocument | null>(null);
   
   // Update activeTab if initialTab prop changes
   useEffect(() => {
-    const normalized: WorkspaceTab = 
+    const normalized: WorkspaceTab =
       initialTab === "learn" ? "lessons" :
       initialTab === "exam" ? "mock-exam" :
       initialTab === "important" ? "important-questions" :
@@ -159,6 +161,10 @@ export default function StudyWorkspaceView({
       (initialTab as WorkspaceTab) || "overview";
     setActiveTab(normalized);
   }, [initialTab]);
+
+  useEffect(() => {
+    if (activeTab !== "pdf-study") setInitialPdfDocument(null);
+  }, [activeTab]);
 
   // Sub-tab States
   // 1. Lessons
@@ -1425,17 +1431,24 @@ export default function StudyWorkspaceView({
                       </button>
                       <button
                         onClick={() => {
-                          setActivePDFDocument({
+                          const documentToStudy: PDFStudyDocument = {
                             id: material.id,
                             title: material.name.replace(/\.[^/.]+$/, ""),
                             fileName: material.name,
                             pageCount: Number(material.profile?.pages) || 0,
                             sourceType: "workspace",
                             uploadedAt: material.uploadedAt || Date.now(),
-                            rawContent: material.content,
+                            previewUrl: material.type === "pdf" && material.base64
+                              ? (material.base64.startsWith("data:")
+                                  ? material.base64
+                                  : `data:application/pdf;base64,${material.base64}`)
+                              : undefined,
+                            rawContent: material.content || "",
                             subject: workspace.subject,
                             topics: material.profile?.topics || workspace.detectedTopics,
-                          });
+                          };
+                          setInitialPdfDocument(documentToStudy);
+                          setActivePDFDocument(documentToStudy);
                           setActiveTab("pdf-study");
                         }}
                         className="px-2.5 py-1 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
@@ -1473,7 +1486,7 @@ export default function StudyWorkspaceView({
         {/* ========================================================= */}
         {activeTab === "pdf-study" && (
           <div className="h-[calc(100vh-140px)] -m-4 sm:-m-6 flex flex-col">
-            <PDFStudyView workspace={workspace} />
+            <PDFStudyView workspace={workspace} initialDocument={initialPdfDocument} />
           </div>
         )}
 
