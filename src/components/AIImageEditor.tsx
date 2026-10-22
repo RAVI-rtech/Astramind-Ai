@@ -80,6 +80,9 @@ export default function AIImageEditor({
       if (!status.available) {
         setIsModelUnavailable(true);
         setUnavailableMessage(status.message || "Image editing is unavailable with your current API configuration.");
+      } else {
+        setIsModelUnavailable(false);
+        setUnavailableMessage(null);
       }
     });
   }, []);

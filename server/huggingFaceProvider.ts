@@ -6,23 +6,40 @@ export class HuggingFaceImageProvider implements ImageProvider {
   public name = "Hugging Face Inference Studio";
   public priority = 1; // Primary provider
 
+  private creditExhausted: boolean = false;
+  private lastVerificationTime: number = 0;
+  private verificationCacheTtlMs: number = 5 * 60 * 1000; // 5 minutes cache
+  private lastCheckedToken: string | null = null;
+
   public getHfToken(): string | null {
-    const token =
+    const rawToken =
       process.env.HUGGINGFACE_API_KEY ||
       process.env.HF_TOKEN ||
       process.env.HUGGING_FACE_TOKEN ||
       process.env.HF_API_KEY;
 
-    if (
-      token &&
-      token.trim() &&
-      !token.startsWith("MY_") &&
-      !token.startsWith("YOUR_") &&
-      token.trim().length > 5
-    ) {
-      return token.trim();
+    if (!rawToken || typeof rawToken !== "string") {
+      return null;
     }
-    return null;
+
+    const token = rawToken.trim();
+
+    // Check for common placeholders
+    const lower = token.toLowerCase();
+    if (
+      lower.startsWith("my_") ||
+      lower.startsWith("your_") ||
+      lower === "placeholder" ||
+      lower === "undefined" ||
+      lower === "null" ||
+      lower === "none" ||
+      lower === "your_api_key" ||
+      token.length < 8
+    ) {
+      return null;
+    }
+
+    return token;
   }
 
   public getConfiguredModel(): string {
@@ -37,9 +54,77 @@ export class HuggingFaceImageProvider implements ImageProvider {
     return "black-forest-labs/FLUX.1-schnell";
   }
 
+  /**
+   * Verifies if the account has PRO membership or billing configured.
+   * Hugging Face requires pre-paid credits or PRO subscription for Serverless Inference Providers.
+   * Prevents false-healthy reporting when an API key exists but credits are exhausted.
+   */
+  public async checkAccountCreditStatus(token: string): Promise<boolean> {
+    const now = Date.now();
+    if (this.lastCheckedToken === token && now - this.lastVerificationTime < this.verificationCacheTtlMs) {
+      return !this.creditExhausted;
+    }
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+      const resp = await fetch("https://huggingface.co/api/whoami-v2", {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (!resp.ok) {
+        if (resp.status === 401 || resp.status === 403) {
+          this.creditExhausted = true;
+          this.lastVerificationTime = now;
+          this.lastCheckedToken = token;
+          return false;
+        }
+        return !this.creditExhausted;
+      }
+
+      const data = await resp.json().catch(() => ({}));
+      const hasPro = data?.isPro === true;
+      const hasCanPay = data?.canPay === true;
+      const hasBilling = !!data?.billing;
+
+      // Hugging Face requires PRO or active billing/canPay for serverless inference providers
+      if (!hasPro && !hasCanPay && !hasBilling) {
+        this.creditExhausted = true;
+      } else {
+        this.creditExhausted = false;
+      }
+
+      this.lastVerificationTime = now;
+      this.lastCheckedToken = token;
+      return !this.creditExhausted;
+    } catch {
+      // If verification network request times out, fallback to known status
+      return !this.creditExhausted;
+    }
+  }
+
   public async isAvailable(): Promise<boolean> {
     const token = this.getHfToken();
-    return !!token;
+    if (!token) {
+      return false;
+    }
+
+    if (this.creditExhausted && this.lastCheckedToken === token && Date.now() - this.lastVerificationTime < this.verificationCacheTtlMs) {
+      return false;
+    }
+
+    return await this.checkAccountCreditStatus(token);
+  }
+
+  /**
+   * Manually record that credits are exhausted (e.g. after a 402 during generation)
+   */
+  public markCreditExhausted(): void {
+    this.creditExhausted = true;
+    this.lastVerificationTime = Date.now();
   }
 
   /**
@@ -64,7 +149,9 @@ export class HuggingFaceImageProvider implements ImageProvider {
   public async generateImage(params: GenerateImageParams): Promise<{ imageUrl: string; modelUsed: string }> {
     const token = this.getHfToken();
     if (!token) {
-      throw new Error("Hugging Face API token is missing or not configured in environment secrets.");
+      throw new Error(
+        "Hugging Face API token is missing or contains a placeholder. Please configure HUGGINGFACE_API_KEY or HF_TOKEN in server environment variables."
+      );
     }
 
     const primaryModel = params.customModel || this.getConfiguredModel();
@@ -95,13 +182,22 @@ export class HuggingFaceImageProvider implements ImageProvider {
           },
         });
 
-        if (imageBlob && imageBlob.size > 0) {
-          const arrayBuffer = await imageBlob.arrayBuffer();
+        if (typeof imageBlob === "string") {
+          return {
+            imageUrl: imageBlob,
+            modelUsed: primaryModel,
+          };
+        }
+
+        if (imageBlob && typeof (imageBlob as any).arrayBuffer === "function") {
+          const blob = imageBlob as Blob;
+          const arrayBuffer = await blob.arrayBuffer();
           const buffer = Buffer.from(arrayBuffer);
           const base64 = buffer.toString("base64");
-          const mimeType = imageBlob.type || "image/png";
+          const mimeType = blob.type || "image/png";
 
-          console.log(`[HuggingFaceImageProvider] Successfully generated image (${imageBlob.size} bytes) with model "${primaryModel}"`);
+          console.log(`[HuggingFaceImageProvider] Successfully generated image (${blob.size} bytes) with model "${primaryModel}"`);
+          this.creditExhausted = false;
           return {
             imageUrl: `data:${mimeType};base64,${base64}`,
             modelUsed: primaryModel,
@@ -114,38 +210,69 @@ export class HuggingFaceImageProvider implements ImageProvider {
         const status = err?.httpResponse?.status || err?.response?.status || err?.statusCode || err?.status;
 
         // Clean any sensitive token strings from error message
-        const sanitizedErrMsg = rawErrMsg.replace(/hf_[a-zA-Z0-9_-]+/g, "[REDACTED_TOKEN]");
+        const sanitizedErrMsg = rawErrMsg
+          .replace(/hf_[a-zA-Z0-9_-]+/g, "[REDACTED_TOKEN]")
+          .replace(/Bearer\s+[^\s]+/gi, "Bearer [REDACTED]");
 
-        // Handle cold start / warming up (HTTP 503)
-        if (status === 503 || sanitizedErrMsg.toLowerCase().includes("loading") || sanitizedErrMsg.toLowerCase().includes("warming up")) {
+        // Handle cold start / warming up (HTTP 503) - TRANSIENT: Retry bounded
+        if (
+          status === 503 ||
+          sanitizedErrMsg.toLowerCase().includes("loading") ||
+          sanitizedErrMsg.toLowerCase().includes("warming up")
+        ) {
           retries++;
           if (retries <= maxRetries) {
-            console.log(`[HuggingFaceImageProvider] Model "${primaryModel}" is warming up (Attempt ${retries}/${maxRetries}). Waiting 5 seconds...`);
+            console.log(
+              `[HuggingFaceImageProvider] Model "${primaryModel}" is warming up (Attempt ${retries}/${maxRetries}). Waiting 5 seconds...`
+            );
             await new Promise((resolve) => setTimeout(resolve, 5000));
             continue;
           }
-          throw new Error(`Hugging Face model "${primaryModel}" is currently warming up/loading. Please retry in a few moments.`);
+          throw new Error(
+            `Hugging Face model "${primaryModel}" is currently warming up/loading. Please retry in a few moments.`
+          );
         }
 
-        // Handle credit exhaustion / billing requirement (HTTP 402)
-        if (status === 402 || sanitizedErrMsg.includes("no remaining credits") || sanitizedErrMsg.includes("pre-paid credits")) {
+        // Handle credit exhaustion / billing requirement (HTTP 402) - NON-TRANSIENT
+        if (
+          status === 402 ||
+          sanitizedErrMsg.includes("no remaining credits") ||
+          sanitizedErrMsg.includes("pre-paid credits") ||
+          sanitizedErrMsg.includes("insufficient credits") ||
+          sanitizedErrMsg.includes("payment required")
+        ) {
+          this.markCreditExhausted();
           throw new Error(
             `Hugging Face Inference Error: Insufficient credits. Your Hugging Face user account requires pre-paid credits or a PRO subscription to use Inference Providers for model "${primaryModel}".`
           );
         }
 
-        // Handle rate limiting (HTTP 429)
-        if (status === 429 || sanitizedErrMsg.includes("Rate limit")) {
-          throw new Error(`Hugging Face rate limit reached for model "${primaryModel}". Please wait a moment before trying again.`);
+        // Handle rate limiting (HTTP 429) - NON-TRANSIENT without backoff
+        if (status === 429 || sanitizedErrMsg.toLowerCase().includes("rate limit")) {
+          throw new Error(
+            `Hugging Face rate limit reached for model "${primaryModel}". Please wait a moment before trying again.`
+          );
         }
 
-        // Handle authentication errors (HTTP 401 / 403)
-        if (status === 401 || status === 403 || sanitizedErrMsg.toLowerCase().includes("invalid token") || sanitizedErrMsg.toLowerCase().includes("unauthorized")) {
+        // Handle authentication errors (HTTP 401 / 403) - NON-TRANSIENT
+        if (
+          status === 401 ||
+          status === 403 ||
+          sanitizedErrMsg.toLowerCase().includes("invalid token") ||
+          sanitizedErrMsg.toLowerCase().includes("unauthorized") ||
+          sanitizedErrMsg.toLowerCase().includes("forbidden")
+        ) {
           throw new Error("Hugging Face authentication error: The configured API token is invalid or unauthorized.");
         }
 
-        // Handle deprecated / unsupported provider models (HTTP 410 / 400)
-        if (status === 410 || sanitizedErrMsg.includes("deprecated and no longer supported") || sanitizedErrMsg.includes("No Inference Provider available")) {
+        // Handle deprecated / unsupported provider models (HTTP 410 / 404 / 400) - NON-TRANSIENT
+        if (
+          status === 410 ||
+          status === 404 ||
+          sanitizedErrMsg.includes("deprecated and no longer supported") ||
+          sanitizedErrMsg.includes("No Inference Provider available") ||
+          sanitizedErrMsg.includes("not supported by provider")
+        ) {
           throw new Error(
             `Hugging Face model "${primaryModel}" is no longer served by serverless inference. Recommended compatible models: "black-forest-labs/FLUX.1-schnell" or "black-forest-labs/FLUX.1-dev" via Hugging Face Inference Providers.`
           );

@@ -90,6 +90,9 @@ export default function AIImageGenerator({
       if (!status.available) {
         setIsModelUnavailable(true);
         setUnavailableMessage(status.message || "Image generation is unavailable with your current API configuration.");
+      } else {
+        setIsModelUnavailable(false);
+        setUnavailableMessage(null);
       }
     });
   }, []);
