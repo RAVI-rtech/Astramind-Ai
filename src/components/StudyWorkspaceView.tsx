@@ -921,7 +921,7 @@ export default function StudyWorkspaceView({
     { id: "overview", label: "Overview", icon: BookOpen },
     { id: "materials", label: "Materials", icon: FileText },
     { id: "pdf-study", label: "PDF Study", icon: FileText },
-    { id: "knowledge-base", label: "VR25 Knowledge Base", icon: HardDrive },
+    { id: "knowledge-base", label: "Knowledge Base", icon: HardDrive },
     { id: "ai-tutor", label: "AI Tutor", icon: GraduationCap },
     { id: "lessons", label: "Smart Lessons", icon: Layers },
     { id: "flashcards", label: "Flashcards", icon: RotateCw },
@@ -1687,11 +1687,8 @@ export default function StudyWorkspaceView({
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
                   {[
                     "All",
-                    "Basic Electrical Engineering",
-                    "Programming for Problem Solving",
-                    "Mathematics-I",
-                    "Engineering Drawing",
-                    "Communicative English",
+                    ...Array.from(new Set((kbStatus?.subjects || kbDocuments.map((doc: any) => doc.subject))
+                      .filter((subject): subject is string => typeof subject === "string" && subject.trim().length > 0))),
                   ].map((sub, sIdx) => (
                     <button
                       key={sIdx}
@@ -1725,8 +1722,14 @@ export default function StudyWorkspaceView({
                           <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/25">
                             {doc.subjectCode || doc.subject}
                           </span>
-                          <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" /> Indexed
+                          <span className={`text-[10px] font-medium flex items-center gap-1 ${
+                            doc.status === "indexed"
+                              ? "text-emerald-400"
+                              : doc.status === "pending"
+                              ? "text-amber-300"
+                              : "text-rose-300"
+                          }`}>
+                            {doc.status === "indexed" ? "Indexed" : doc.status === "pending" ? "Pending" : "Failed"}
                           </span>
                         </div>
                         <h5 className="text-xs font-bold text-white truncate">{doc.documentName}</h5>
@@ -1734,13 +1737,28 @@ export default function StudyWorkspaceView({
                       </div>
 
                       <div className="pt-2 border-t border-neutral-800/80 flex items-center justify-between text-xs text-neutral-400">
-                        <span>PDF • {doc.pageCount || 1} Pages</span>
+                        <span>{typeof doc.pageCount === "number" && doc.pageCount > 0 ? `PDF • ${doc.pageCount} Pages` : doc.mimeType || "Page count unavailable"}</span>
                         <div className="flex items-center gap-2">
                           
                         </div>
                       </div>
                     </div>
                   ))}
+                {kbDocuments.length === 0 && (
+                  <div className="col-span-full p-8 text-center border border-dashed border-neutral-700 rounded-2xl bg-neutral-950/30 space-y-3">
+                    <Database className="w-8 h-8 text-neutral-500 mx-auto" />
+                    <h5 className="text-sm font-semibold text-white">No indexed documents yet</h5>
+                    <p className="text-xs text-neutral-400 max-w-xl mx-auto">
+                      This deployment does not have live Google Drive ingestion configured. No sample PDFs or invented chunks are added. Upload your PDF or text notes in Materials to use the source-grounded study tools.
+                    </p>
+                    <button
+                      onClick={() => setActiveTab("materials")}
+                      className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold cursor-pointer"
+                    >
+                      Go to Materials
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
