@@ -248,8 +248,12 @@ export default function StudyWorkspaceView({
   const [sourceMode, setSourceMode] = useState<SourceMode>("uploaded_material");
   const [studyContext, setStudyContext] = useState<StudyContext>(() => ({
     regulation: "",
-    year: workspace.year ? `${workspace.year} Year` : "",
-    semester: workspace.semester || "",
+    year: workspace.year ? (/year/i.test(workspace.year) || workspace.year === "Not applicable" ? workspace.year : `${workspace.year} Year`) : "",
+    semester: workspace.semester
+      ? (/(semester|term|trimester|quarter)/i.test(workspace.semester) || ["Annual", "Not applicable"].includes(workspace.semester)
+        ? workspace.semester
+        : `Semester ${workspace.semester}`)
+      : "",
     branch: workspace.branch || "",
     subject: workspace.subject || "",
     unit: "",
@@ -882,10 +886,18 @@ export default function StudyWorkspaceView({
           learningGoal: workspace.learningGoal,
           studyContext: {
             ...studyContext,
+            regulation: workspace.studyContext?.regulation || "",
+            year: workspace.year ? (/year/i.test(workspace.year) || workspace.year === "Not applicable" ? workspace.year : `${workspace.year} Year`) : "",
+            semester: workspace.semester
+              ? (/(semester|term|trimester|quarter)/i.test(workspace.semester) || ["Annual", "Not applicable"].includes(workspace.semester)
+                ? workspace.semester
+                : `Semester ${workspace.semester}`)
+              : "",
             branch: workspace.branch || "",
             subject: workspace.subject || "",
+            unit: workspace.studyContext?.unit || "",
             sourceType: "uploaded_material",
-            sourceDocumentIds: workspace.materials.map((material) => material.id),
+            sourceDocumentIds: workspace.materials.filter((material) => typeof material.content === "string" && material.content.trim().length >= 30).map((material) => material.id),
           },
         }),
       });
@@ -921,7 +933,7 @@ export default function StudyWorkspaceView({
     { id: "overview", label: "Overview", icon: BookOpen },
     { id: "materials", label: "Materials", icon: FileText },
     { id: "pdf-study", label: "PDF Study", icon: FileText },
-    { id: "knowledge-base", label: "Knowledge Base", icon: HardDrive },
+    { id: "knowledge-base", label: "Source Library", icon: HardDrive },
     { id: "ai-tutor", label: "AI Tutor", icon: GraduationCap },
     { id: "lessons", label: "Smart Lessons", icon: Layers },
     { id: "flashcards", label: "Flashcards", icon: RotateCw },
@@ -948,12 +960,15 @@ export default function StudyWorkspaceView({
                 {workspace.subject}
               </span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-white/50 mt-0.5 font-mono-studio">
-              <span>{workspace.branch}</span>
-              <span>•</span>
-              <span>Year {workspace.year}, Sem {workspace.semester}</span>
-              <span className="hidden md:inline">•</span>
-              <span className="hidden md:inline text-white/40">{workspace.college}</span>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-white/50 mt-0.5 font-mono-studio">
+              {workspace.programType && <span>{workspace.programType}</span>}
+              {workspace.branch && <><span>•</span><span>{workspace.branch}</span></>}
+              {(workspace.year || workspace.semester) && <><span>•</span><span>{[
+                workspace.year ? (/year/i.test(workspace.year) || workspace.year === "Not applicable" ? workspace.year : `${workspace.year} Year`) : "",
+                workspace.semester ? (/(semester|term|trimester|quarter)/i.test(workspace.semester) || ["Annual", "Not applicable"].includes(workspace.semester) ? workspace.semester : `Semester ${workspace.semester}`) : "",
+              ].filter(Boolean).join(" · ")}</span></>}
+              {workspace.college && <><span className="hidden md:inline">•</span><span className="hidden md:inline text-white/40">{workspace.college}</span></>}
+              {workspace.syllabusSourceUrl && <a href={workspace.syllabusSourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-300 hover:text-blue-200 underline underline-offset-2"><ExternalLink className="w-3 h-3" /> Syllabus source</a>}
             </div>
           </div>
         </div>
@@ -1463,7 +1478,7 @@ export default function StudyWorkspaceView({
         )}
 
         {/* ========================================================= */}
-        {/* TAB 2.5: VR25 KNOWLEDGE BASE (GOOGLE DRIVE MASTER) */}
+        {/* SOURCE LIBRARY: documents genuinely indexed by this deployment */}
         {/* ========================================================= */}
         {activeTab === "knowledge-base" && (
           <div className="max-w-4xl mx-auto space-y-6">
@@ -1562,7 +1577,7 @@ export default function StudyWorkspaceView({
                   RAG Query Understanding & Retrieval Playground
                 </h4>
                 <p className="text-xs text-neutral-400 mt-0.5">
-                  Search documents explicitly synced to this knowledge base. For your personal study tools, upload material in the Materials tab.
+                  Search only text indexed from real source documents. To study your own syllabus, import it from Create Workspace or upload it in Materials.
                 </p>
               </div>
 
@@ -1699,7 +1714,7 @@ export default function StudyWorkspaceView({
                           : "bg-neutral-900 text-neutral-400 hover:text-white hover:bg-neutral-800"
                       }`}
                     >
-                      {sub === "All" ? "All Subjects" : sub.split(" ")[0]}
+                      {sub === "All" ? "All Subjects" : sub}
                     </button>
                   ))}
                 </div>
