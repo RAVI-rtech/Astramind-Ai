@@ -158,9 +158,4 @@ export class HuggingFaceImageProvider implements ImageProvider {
     throw new Error(`Failed to generate image with Hugging Face model "${primaryModel}".`);
   }
 
-  public async editImage(params: EditImageParams): Promise<{ imageUrl: string; modelUsed: string }> {
-    return this.generateImage({
-      prompt: params.prompt,
-    });
-  }
 }
