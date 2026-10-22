@@ -189,8 +189,8 @@ export function createWorkspace(data: {
   officialWebsiteUrl?: string;
   syllabusSourceUrl?: string;
   branch: string;
-  year: BTechYear;
-  semester: BTechSemester;
+  year: string;
+  semester: string;
   subject: string;
   learningGoal: LearningGoal;
   documentProfile?: DocumentProfile;
