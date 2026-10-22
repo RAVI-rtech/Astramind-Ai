@@ -61,7 +61,7 @@ import {
   findImportantPdfTopics
 } from "./server/pdfStudyManager";
 import { fetchCollegeAttendanceReport } from "./server/attendanceService";
-import { discoverCollegeSyllabus, downloadOfficialSyllabusPdf } from "./server/collegeSyllabusService";
+import { discoverCollegeSyllabus, downloadOfficialSyllabusPdf, findOfficialCollegeWebsite } from "./server/collegeSyllabusService";
 
 dotenv.config();
 
@@ -1948,6 +1948,22 @@ function hasReadableStudySource(value: unknown): value is string {
 }
 
 const MISSING_STUDY_SOURCE_MESSAGE = "Upload a readable PDF, TXT, or Markdown document first. AI study tools require extracted text from user-provided material.";
+
+// Find a likely official college homepage with live Google Search grounding, then verify it before crawling it.
+app.post("/api/college-syllabus/find-official-site", async (req, res) => {
+  try {
+    const { college } = req.body || {};
+    if (typeof college !== "string" || !college.trim()) {
+      res.status(400).json({ error: "Enter the college or institution name." });
+      return;
+    }
+    const result = await findOfficialCollegeWebsite(college);
+    res.json(result);
+  } catch (err: any) {
+    console.error("Official college website lookup failed:", err);
+    res.status(400).json({ error: err?.message || "Could not find a verified official college website." });
+  }
+});
 
 // Public official-college syllabus discovery. The service blocks private hosts and cross-site redirects.
 app.post("/api/college-syllabus/discover", async (req, res) => {
