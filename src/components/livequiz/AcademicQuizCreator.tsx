@@ -491,12 +491,15 @@ export default function AcademicQuizCreator({
           }
         }
       } else if (q.questionType === "true_false") {
-        const filledOptions = q.options.filter((o) => o.trim().length > 0);
-        if (filledOptions.length < 2) {
-          errs.push(`Question #${idx + 1}: True/False options must both be provided.`);
+        const filledOptions = q.options.filter((option) => option.trim().length > 0);
+        if (q.options.length !== 2 || filledOptions.length !== 2) {
+          errs.push(`Question #${idx + 1}: True/False questions must have exactly two non-empty options.`);
         }
-        if (!q.correctAnswers || q.correctAnswers.length === 0) {
-          errs.push(`Question #${idx + 1}: Please select the correct answer.`);
+        const validCorrectIndexes = (q.correctAnswers || []).filter((index) =>
+          Number.isInteger(index) && index >= 0 && index < q.options.length && Boolean(q.options[index]?.trim())
+        );
+        if (validCorrectIndexes.length !== 1) {
+          errs.push(`Question #${idx + 1}: Please select exactly one valid True/False answer.`);
         }
       } else {
         const filledOptions = q.options.filter((option) => option.trim().length > 0);
@@ -529,6 +532,12 @@ export default function AcademicQuizCreator({
         hasValidAnswer = (target.blanksExpected || []).some((b) => b.trim().length > 0);
       } else if (target.questionType === "short_answer") {
         hasValidAnswer = target.shortAnswerGrading === "manual" || (target.keywords && target.keywords.length > 0) || !!target.sampleAnswer?.trim();
+      } else if (target.questionType === "true_false") {
+        const hasTwoOptions = target.options.length === 2 && target.options.every((option) => option.trim().length > 0);
+        const validAnswers = (target.correctAnswers || []).filter((index) =>
+          Number.isInteger(index) && index >= 0 && index < target.options.length && Boolean(target.options[index]?.trim())
+        );
+        hasValidAnswer = hasTwoOptions && validAnswers.length === 1;
       } else {
         const hasFourOptions = target.options.length === 4 && target.options.every((option) => option.trim().length > 0);
         const validAnswers = (target.correctAnswers || []).filter((index) =>
