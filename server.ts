@@ -1830,8 +1830,12 @@ app.post("/api/academic-quiz/explain", async (req, res) => {
   try {
     const {
       college = "Vignan Institute of Technology and Science",
+      programType = "B.Tech",
+      regulation = "",
       branch = "Computer Science and Engineering (CSE)",
-      subject = "Engineering Subject",
+      year = "Not specified",
+      semester = "Not specified",
+      subject = "Academic Subject",
       question,
       options,
       correctAnswer,
@@ -1843,15 +1847,21 @@ app.post("/api/academic-quiz/explain", async (req, res) => {
       return res.status(400).json({ error: "Question and correct answer are required." });
     }
 
-    const systemPrompt = `You are an encouraging, expert Engineering Professor and Personal AI Tutor at ${college} (VITS).
-A B.Tech engineering student in ${branch} studying ${subject} is asking for guidance on an MCQ.
-Explain clearly, pedagogically, and concisely:
-1. Why Option ${correctAnswer} is the correct answer and the fundamental concept behind it.
-2. If the student selected Option ${studentAnswer || "another option"}, explain why that choice is incorrect or a common misconception.
-3. Provide a quick tip or mnemonic to remember this concept for VITS university exams.
-Keep the tone supportive, academic, and direct without robotic greetings.`;
+    const systemPrompt = `You are an encouraging academic tutor helping a student at ${college}.
+The student's program is ${programType}, branch/major is ${branch}, level is ${year}, ${semester}, and subject is ${subject}. Regulation/curriculum: ${regulation || "not specified"}.
+Explain clearly and concisely:
+1. Why option ${correctAnswer} is correct and the underlying concept.
+2. If the student selected ${studentAnswer || "another option"}, explain the misconception, if relevant.
+3. Offer a useful memory tip or next study step when appropriate.
+Do not invent a college-specific rule, syllabus citation, or exam trend. Keep a supportive, direct teaching tone.`;
 
-    const userPrompt = `Subject: ${subject}
+    const userPrompt = `Institution: ${college}
+Program: ${programType}
+Regulation: ${regulation || "Not specified"}
+Branch / Major: ${branch}
+Year / Level: ${year}
+Term / Semester: ${semester}
+Subject: ${subject}
 Question: ${question}
 Options:
 A) ${options?.A || ""}
